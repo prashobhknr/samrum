@@ -7,10 +7,11 @@
  * 4. Supports test run (100 doors) and full run (5000+)
  */
 
-const { Client } = require('pg');
-const fs = require('fs');
-const path = require('path');
-const { transformLegacyDoors } = require('./transform');
+import { Client } from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { transformLegacyDoors } from './transform.js';
 
 // Database connection
 const dbConfig = {
@@ -330,10 +331,13 @@ async function runMigration(csvPath, testMode = true) {
 }
 
 // CLI
-if (require.main === module) {
-  const csvPath = process.argv[2] || path.join(__dirname, '../database/scripts/sample_legacy_doors.csv');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const csvPath = process.argv[2] || path.join(__dirname, '../../database/scripts/sample_legacy_doors.csv');
   const testMode = !process.argv.includes('--full');
   runMigration(csvPath, testMode);
 }
 
-module.exports = { runMigration, validateMigration };
+export { runMigration, validateMigration };

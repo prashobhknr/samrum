@@ -9,9 +9,10 @@
  * - Validate transformed data
  */
 
-const fs = require('fs');
-const path = require('path');
-const { parse } = require('csv-parse/sync');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { parse } from 'csv-parse/sync';
 
 // OMS Attribute Mapping: legacy_field -> OMS attribute_id
 const ATTRIBUTE_MAPPING = {
@@ -239,26 +240,26 @@ function loadAndTransform(csvPath) {
   return results;
 }
 
-/**
- * Export for use in migration script
- */
-module.exports = {
+// CLI Usage
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const csvPath = process.argv[2] || path.join(__dirname, '../../database/scripts/sample_legacy_doors.csv');
+  const results = loadAndTransform(csvPath);
+
+  // Output JSON
+  const outputPath = path.join(__dirname, '../../database/scripts/transformed_data.json');
+  fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
+  console.log(`\n📝 Results saved to: ${outputPath}`);
+
+  process.exit(results.summary.failed > 0 ? 1 : 0);
+}
+
+export {
   transformLegacyDoors,
   transformDoor,
   ATTRIBUTE_MAPPING,
   OBJECT_TYPES,
   loadAndTransform
 };
-
-// CLI Usage
-if (require.main === module) {
-  const csvPath = process.argv[2] || path.join(__dirname, '../database/scripts/sample_legacy_doors.csv');
-  const results = loadAndTransform(csvPath);
-
-  // Output JSON
-  const outputPath = path.join(__dirname, '../database/scripts/transformed_data.json');
-  fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
-  console.log(`\n📝 Results saved to: ${outputPath}`);
-
-  process.exit(results.summary.failed > 0 ? 1 : 0);
-}
