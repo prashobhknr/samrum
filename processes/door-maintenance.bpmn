@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="door-maintenance-process"
+                   targetNamespace="http://doorman.local/door-maintenance">
+
+  <!-- Process Definition: Door Maintenance -->
+  <bpmn:process id="door-maintenance" name="Door Maintenance Process" isExecutable="true">
+    
+    <!-- START EVENT -->
+    <bpmn:startEvent id="start-event" name="Start Maintenance">
+      <bpmn:outgoing>flow-to-select</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- TASK 1: Select Door -->
+    <bpmn:userTask id="select-door-task"
+                   name="Select Door"
+                   camunda:formKey="embedded:app:forms/select-door-maintenance.html">
+      <bpmn:documentation>Select the door that needs maintenance</bpmn:documentation>
+      <bpmn:incoming>flow-to-select</bpmn:incoming>
+      <bpmn:outgoing>flow-to-inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 2: Inspect Door (Maintenance Task) -->
+    <bpmn:userTask id="inspect-door-task"
+                   name="Inspect Door"
+                   camunda:assignee="${maintenanceGroup}"
+                   camunda:formKey="embedded:app:forms/inspect-door-maintenance.html">
+      <bpmn:documentation>Maintenance technician inspects door condition and documents findings</bpmn:documentation>
+      <bpmn:incoming>flow-to-inspect</bpmn:incoming>
+      <bpmn:outgoing>flow-to-schedule</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 3: Schedule Maintenance (Maintenance Task) -->
+    <bpmn:userTask id="schedule-maintenance-task"
+                   name="Schedule Maintenance"
+                   camunda:assignee="${maintenanceGroup}"
+                   camunda:formKey="embedded:app:forms/schedule-maintenance.html">
+      <bpmn:documentation>Schedule next maintenance date and interval</bpmn:documentation>
+      <bpmn:incoming>flow-to-schedule</bpmn:incoming>
+      <bpmn:outgoing>flow-to-verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 4: Verify Maintenance (Supervisor Task) -->
+    <bpmn:userTask id="verify-maintenance-task"
+                   name="Verify Maintenance"
+                   camunda:assignee="${doorSupervisorGroup}"
+                   camunda:formKey="embedded:app:forms/verify-maintenance.html">
+      <bpmn:documentation>Supervisor verifies maintenance schedule and approves</bpmn:documentation>
+      <bpmn:incoming>flow-to-verify</bpmn:incoming>
+      <bpmn:outgoing>flow-to-end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- END EVENT -->
+    <bpmn:endEvent id="end-event" name="Maintenance Complete">
+      <bpmn:incoming>flow-to-end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow-to-select" sourceRef="start-event" targetRef="select-door-task" />
+    <bpmn:sequenceFlow id="flow-to-inspect" sourceRef="select-door-task" targetRef="inspect-door-task" />
+    <bpmn:sequenceFlow id="flow-to-schedule" sourceRef="inspect-door-task" targetRef="schedule-maintenance-task" />
+    <bpmn:sequenceFlow id="flow-to-verify" sourceRef="schedule-maintenance-task" targetRef="verify-maintenance-task" />
+    <bpmn:sequenceFlow id="flow-to-end" sourceRef="verify-maintenance-task" targetRef="end-event" />
+
+  </bpmn:process>
+
+  <!-- DIAGRAM INFORMATION -->
+  <bpmndi:BPMNDiagram id="door-maintenance-diagram" name="Door Maintenance Process Diagram">
+    <bpmndi:BPMNPlane id="plane" bpmnElement="door-maintenance">
+      
+      <bpmndi:BPMNShape id="start-event_di" bpmnElement="start-event">
+        <dc:Bounds x="50" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="select-door-task_di" bpmnElement="select-door-task">
+        <dc:Bounds x="150" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="inspect-door-task_di" bpmnElement="inspect-door-task">
+        <dc:Bounds x="320" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="schedule-maintenance-task_di" bpmnElement="schedule-maintenance-task">
+        <dc:Bounds x="490" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="verify-maintenance-task_di" bpmnElement="verify-maintenance-task">
+        <dc:Bounds x="660" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="end-event_di" bpmnElement="end-event">
+        <dc:Bounds x="830" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Flow Connectors -->
+      <bpmndi:BPMNEdge id="flow-to-select_di" bpmnElement="flow-to-select">
+        <di:waypoint x="86" y="118" />
+        <di:waypoint x="150" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-inspect_di" bpmnElement="flow-to-inspect">
+        <di:waypoint x="250" y="120" />
+        <di:waypoint x="320" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-schedule_di" bpmnElement="flow-to-schedule">
+        <di:waypoint x="420" y="120" />
+        <di:waypoint x="490" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-verify_di" bpmnElement="flow-to-verify">
+        <di:waypoint x="590" y="120" />
+        <di:waypoint x="660" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-end_di" bpmnElement="flow-to-end">
+        <di:waypoint x="760" y="120" />
+        <di:waypoint x="830" y="118" />
+      </bpmndi:BPMNEdge>
+      
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
