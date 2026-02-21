@@ -544,6 +544,131 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ─── Admin: Projects ───────────────────────────────────────────────────────
+    if (pathname === '/api/admin/projects') {
+      if (req.method === 'GET') {
+        const search = parsedUrl.query.search || '';
+        const query = search
+          ? `SELECT p.*, COUNT(pm.module_id) as module_count
+             FROM samrum_projects p
+             LEFT JOIN samrum_project_modules pm ON pm.project_id = p.id AND pm.is_enabled = true
+             WHERE p.name ILIKE $1 GROUP BY p.id ORDER BY p.name`
+          : `SELECT p.*, COUNT(pm.module_id) as module_count
+             FROM samrum_projects p
+             LEFT JOIN samrum_project_modules pm ON pm.project_id = p.id AND pm.is_enabled = true
+             GROUP BY p.id ORDER BY p.name`;
+        const r = await client.query(query, search ? [`%${search}%`] : []);
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, data: r.rows, total: r.rows.length }));
+      } else if (req.method === 'POST') {
+        const body = await readBody();
+        // Create project
+        const r = await client.query(
+          `INSERT INTO samrum_projects (name, database_name, description, created_by)
+           VALUES ($1, $2, $3, $4) RETURNING *`,
+          [body.name, body.database_name || null, body.description || null, body.created_by || 'admin']
+        );
+        const project = r.rows[0];
+        // Auto-assign all modules (Option A)
+        await client.query(
+          `INSERT INTO samrum_project_modules (project_id, module_id)
+           SELECT $1, id FROM samrum_modules ON CONFLICT DO NOTHING`,
+          [project.id]
+        );
+        const mc = await client.query(
+          'SELECT COUNT(*) FROM samrum_project_modules WHERE project_id=$1', [project.id]
+        );
+        res.writeHead(201);
+        res.end(JSON.stringify({ success: true, data: { ...project, module_count: parseInt(mc.rows[0].count) } }));
+      } else { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); }
+      return;
+    }
+
+    const projectMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)$/);
+    if (projectMatch) {
+      const id = parseInt(projectMatch[1]);
+      if (req.method === 'GET') {
+        const r = await client.query(
+          `SELECT p.*, COUNT(pm.module_id) as module_count
+           FROM samrum_projects p
+           LEFT JOIN samrum_project_modules pm ON pm.project_id = p.id AND pm.is_enabled = true
+           WHERE p.id = $1 GROUP BY p.id`, [id]
+        );
+        if (!r.rows[0]) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, data: r.rows[0] }));
+      } else if (req.method === 'PUT') {
+        const body = await readBody();
+        const r = await client.query(
+          `UPDATE samrum_projects SET name=$1, database_name=$2, description=$3, is_active=$4, updated_at=NOW()
+           WHERE id=$5 RETURNING *`,
+          [body.name, body.database_name || null, body.description || null, body.is_active !== false, id]
+        );
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, data: r.rows[0] }));
+      } else if (req.method === 'DELETE') {
+        await client.query('DELETE FROM samrum_projects WHERE id=$1', [id]);
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true }));
+      } else { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); }
+      return;
+    }
+
+    // ─── Project Modules (modules for a specific project) ─────────────────────
+    const projectModulesMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/modules$/);
+    if (projectModulesMatch) {
+      const projectId = parseInt(projectModulesMatch[1]);
+      if (req.method === 'GET') {
+        const r = await client.query(
+          `SELECT m.*, mf.name as folder_name, pm.is_enabled
+           FROM samrum_project_modules pm
+           JOIN samrum_modules m ON m.id = pm.module_id
+           LEFT JOIN samrum_module_folders mf ON mf.id = m.folder_id
+           WHERE pm.project_id = $1
+           ORDER BY mf.name NULLS LAST, m.name`, [projectId]
+        );
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, data: r.rows, total: r.rows.length }));
+      } else if (req.method === 'POST') {
+        // Toggle module: { module_id, is_enabled }
+        const body = await readBody();
+        const r = await client.query(
+          `INSERT INTO samrum_project_modules (project_id, module_id, is_enabled)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (project_id, module_id) DO UPDATE SET is_enabled=$3
+           RETURNING *`,
+          [projectId, body.module_id, body.is_enabled !== false]
+        );
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, data: r.rows[0] }));
+      } else { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); }
+      return;
+    }
+
+    // ─── Project Module Folders (tree for a specific project) ─────────────────
+    const projectFoldersMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/module-tree$/);
+    if (projectFoldersMatch) {
+      const projectId = parseInt(projectFoldersMatch[1]);
+      const r = await client.query(
+        `SELECT mf.*, COUNT(pm.module_id) as module_count
+         FROM samrum_module_folders mf
+         LEFT JOIN samrum_modules m ON m.folder_id = mf.id
+         LEFT JOIN samrum_project_modules pm ON pm.module_id = m.id
+           AND pm.project_id = $1 AND pm.is_enabled = true
+         GROUP BY mf.id ORDER BY mf.name`, [projectId]
+      );
+      const modules = await client.query(
+        `SELECT m.*, pm.is_enabled
+         FROM samrum_modules m
+         JOIN samrum_project_modules pm ON pm.module_id = m.id
+         WHERE pm.project_id = $1 AND pm.is_enabled = true
+         ORDER BY m.name`, [projectId]
+      );
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true, folders: r.rows, modules: modules.rows }));
+      return;
+    }
+
     // 404
     res.writeHead(404);
     res.end(JSON.stringify({

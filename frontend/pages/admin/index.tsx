@@ -8,6 +8,7 @@ interface Stats {
   modules: number;
   module_folders: number;
   classifications: number;
+  projects?: number;
 }
 
 interface StatCardProps {
@@ -48,25 +49,34 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetch('http://localhost:3000/api/stats')
       .then(r => r.json())
-      .then(d => {
-        // Map stats from the API
+      .then(async d => {
+        const s = d.stats ?? d;
+        // Also fetch project count
+        let projectCount = 0;
+        try {
+          const pRes = await fetch('http://localhost:3000/api/admin/projects').then(r => r.json());
+          projectCount = pRes.total ?? pRes.data?.length ?? 0;
+        } catch {}
         setStats({
-          object_types: d.samrum_object_types ?? d.object_types ?? 0,
-          relationships: d.samrum_relationships ?? d.relationships ?? 0,
-          modules: d.samrum_modules ?? d.modules ?? 0,
-          module_folders: d.samrum_module_folders ?? d.module_folders ?? 0,
-          classifications: d.samrum_classifications ?? d.classifications ?? 0,
+          object_types: s.samrum_object_types ?? s.object_types ?? 0,
+          relationships: s.samrum_relationships ?? s.relationships ?? 0,
+          modules: s.samrum_modules ?? s.modules ?? 0,
+          module_folders: s.samrum_module_folders ?? s.module_folders ?? 0,
+          classifications: s.samrum_classifications ?? s.classifications ?? 0,
+          projects: projectCount,
         });
       })
-      .catch(() => setStats({ object_types: 1400, relationships: 4259, modules: 271, module_folders: 9, classifications: 0 }))
+      .catch(() => setStats({ object_types: 1400, relationships: 4259, modules: 271, module_folders: 9, classifications: 0, projects: 21 }))
       .finally(() => setLoading(false));
   }, []);
 
   const navLinks = [
-    { href: '/admin/object-types', label: 'Objekttyper', desc: 'Hantera objekttypdefinitioner' },
-    { href: '/admin/modules', label: 'Moduler', desc: 'Projektmoduler och mappar' },
+    { href: '/select-project', label: 'Val av projekt', desc: 'Välj och öppna ett projekt', accent: true },
+    { href: '/admin/projects', label: 'Projektdatabaser (B010)', desc: 'Skapa och hantera projekt' },
+    { href: '/admin/object-types', label: 'Objekttyper (B012)', desc: 'Hantera objekttypdefinitioner' },
+    { href: '/admin/modules', label: 'Moduler (B011)', desc: 'Projektmoduler och mappar' },
     { href: '/admin/relationships', label: 'Relationer', desc: 'Objekttypsrelationer' },
-    { href: '/admin/classifications', label: 'Klassifikationer', desc: 'Klassifikationssystem' },
+    { href: '/admin/classifications', label: 'Klassifikationer (B013)', desc: 'Klassifikationssystem' },
     { href: '/admin/module-folders', label: 'Modulmappar', desc: 'Mappstruktur' },
   ];
 
@@ -121,24 +131,36 @@ export default function AdminDashboard() {
                   color="text-rose-600"
                   icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>}
                 />
+                <StatCard
+                  title="Projekt" value={stats.projects ?? 0}
+                  subtitle="Projektdatabaser" href="/admin/projects"
+                  color="text-indigo-600"
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>}
+                />
               </>
             ) : null}
           </div>
 
           {/* Quick Navigation */}
-          <div className="bg-white rounded-lg border border-samrum-border">
+          <div className="bg-white rounded-lg border border-samrum-border overflow-hidden">
             <div className="px-6 py-4 border-b border-samrum-border">
               <h2 className="text-sm font-semibold text-slate-700">Administrationssektioner</h2>
             </div>
             <div className="divide-y divide-slate-100">
               {navLinks.map(link => (
                 <Link key={link.href} href={link.href}>
-                  <div className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className={`flex items-center justify-between px-6 py-4 transition-colors cursor-pointer group
+                    ${'accent' in link && link.accent ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}`}>
                     <div>
-                      <p className="font-medium text-slate-900 group-hover:text-samrum-blue transition-colors">{link.label}</p>
+                      <p className={`font-medium transition-colors
+                        ${'accent' in link && link.accent ? 'text-amber-700 group-hover:text-amber-900' : 'text-slate-900 group-hover:text-samrum-blue'}`}>
+                        {link.label}
+                      </p>
                       <p className="text-sm text-slate-500">{link.desc}</p>
                     </div>
-                    <svg className="w-4 h-4 text-slate-400 group-hover:text-samrum-blue transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 transition-colors
+                      ${'accent' in link && link.accent ? 'text-amber-400 group-hover:text-amber-600' : 'text-slate-400 group-hover:text-samrum-blue'}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
                     </svg>
                   </div>

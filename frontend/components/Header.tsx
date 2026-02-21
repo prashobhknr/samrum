@@ -32,17 +32,20 @@ export default function Header({ title = 'SAMRUM', showLogout = true }: HeaderPr
       </div>
 
       <nav className="flex items-center gap-4">
+        <Link href="/select-project" className="text-samrum-accent hover:text-amber-300 text-sm font-medium transition-colors hidden md:block">
+          Val av projekt
+        </Link>
+        <Link href="/admin/projects" className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
+          Projekt
+        </Link>
         <Link href="/admin" className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
           Översikt
         </Link>
-        <Link href="/admin/object-types" className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
+        <Link href="/admin/object-types" className="text-slate-300 hover:text-white text-sm transition-colors hidden lg:block">
           Objekttyper
         </Link>
-        <Link href="/admin/modules" className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
+        <Link href="/admin/modules" className="text-slate-300 hover:text-white text-sm transition-colors hidden lg:block">
           Moduler
-        </Link>
-        <Link href="/admin/relationships" className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
-          Relationer
         </Link>
 
         {showLogout && (

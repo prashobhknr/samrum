@@ -19,21 +19,6 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin.js"
-    ],
-    "/admin/classifications": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/classifications.js"
-    ],
-    "/admin/module-folders": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/module-folders.js"
-    ],
     "/admin/modules": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -44,15 +29,20 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/admin/object-types.js"
     ],
-    "/admin/relationships": [
+    "/admin/projects": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/relationships.js"
+      "static/chunks/pages/admin/projects.js"
     ],
-    "/login": [
+    "/project/[id]": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/login.js"
+      "static/chunks/pages/project/[id].js"
+    ],
+    "/select-project": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/select-project.js"
     ]
   },
   "ampFirstPages": []

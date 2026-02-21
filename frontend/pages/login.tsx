@@ -16,7 +16,7 @@ export default function LoginPage() {
     // Simulate auth — any creds work for demo
     setTimeout(() => {
       setLoading(false);
-      router.push('/admin');
+      router.push('/select-project');
     }, 800);
   };
 
