@@ -58,6 +58,25 @@ export default function Layout({ children }: LayoutProps) {
                 >
                   Doors
                 </Link>
+                <div className="relative group">
+                  <button
+                    className={`font-medium transition ${
+                      router.pathname.startsWith('/admin')
+                        ? 'text-primary border-b-2 border-primary'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Admin ▾
+                  </button>
+                  <div className="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg">Dashboard</Link>
+                    <Link href="/admin/classifications" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Classifications</Link>
+                    <Link href="/admin/object-types" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Object Types</Link>
+                    <Link href="/admin/module-folders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Module Folders</Link>
+                    <Link href="/admin/modules" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Modules</Link>
+                    <Link href="/admin/relationships" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">Relationships</Link>
+                  </div>
+                </div>
               </nav>
             </div>
 

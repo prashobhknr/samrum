@@ -18,7 +18,7 @@ interface DynamicFormProps {
 }
 
 export default function DynamicForm({ schema, onSubmit, isSubmitting }: DynamicFormProps) {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm();
   const [submitError, setSubmitError] = useState('');
 
   const onSubmitForm = async (data: Record<string, any>) => {
@@ -120,7 +120,7 @@ function FormFieldRenderer({ field, register, errors }: FormFieldRendererProps) 
           disabled={!field.editable}
           {...register(field.attribute_name, {
             required: field.required ? `${field.attribute_name} is required` : false,
-            validate: (value) =>
+            validate: (value: string) =>
               !value || !isNaN(parseFloat(value)) || `${field.attribute_name} must be a number`,
           })}
           className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"

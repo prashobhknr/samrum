@@ -14,7 +14,7 @@ import Link from 'next/link';
 export default function DoorEditPage() {
   const router = useRouter();
   const { doorId } = router.query;
-  const { user, setIsLoading, setError, clearError } = useAppStore();
+  const { user, setIsLoading, setError } = useAppStore();
   const [door, setDoor] = useState<DoorInstance | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -33,9 +33,9 @@ export default function DoorEditPage() {
 
   async function loadDoorDetail() {
     setIsLoading(true);
-    clearError();
+    setError(null);
     try {
-      const data = await api.getDoor(doorId as string);
+      const data = await api.getDoor(Number(doorId));
       setDoor(data);
 
       // Initialize form data from attributes
@@ -54,10 +54,10 @@ export default function DoorEditPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSaving(true);
-    clearError();
+    setError(null);
 
     try {
-      await api.updateDoor(doorId as string, formData);
+      await api.updateDoor(Number(doorId), undefined, formData);
       setSaveSuccess(true);
       setTimeout(() => {
         router.push(`/doors/${doorId}`);
@@ -135,7 +135,7 @@ export default function DoorEditPage() {
                   // Render based on attribute type
                   if (attr.attribute_name === 'fire_class') {
                     return (
-                      <div key={attr.id}>
+                      <div key={attr.attribute_id}>
                         <label className="block text-sm font-medium text-gray-700 capitalize">
                           {attr.attribute_name.replace(/_/g, ' ')}
                         </label>
@@ -158,7 +158,7 @@ export default function DoorEditPage() {
 
                   if (attr.attribute_name === 'security_class') {
                     return (
-                      <div key={attr.id}>
+                      <div key={attr.attribute_id}>
                         <label className="block text-sm font-medium text-gray-700 capitalize">
                           {attr.attribute_name.replace(/_/g, ' ')}
                         </label>
@@ -180,7 +180,7 @@ export default function DoorEditPage() {
 
                   // Default: text input
                   return (
-                    <div key={attr.id}>
+                    <div key={attr.attribute_id}>
                       <label className="block text-sm font-medium text-gray-700 capitalize">
                         {attr.attribute_name.replace(/_/g, ' ')}
                       </label>

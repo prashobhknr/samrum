@@ -1,0 +1,12 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/admin": "pages/admin.js",
+  "/login": "pages/login.js",
+  "/admin/object-types": "pages/admin/object-types.js",
+  "/admin/modules": "pages/admin/modules.js",
+  "/admin/relationships": "pages/admin/relationships.js",
+  "/admin/classifications": "pages/admin/classifications.js",
+  "/admin/module-folders": "pages/admin/module-folders.js"
+}

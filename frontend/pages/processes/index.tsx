@@ -7,7 +7,7 @@ import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAppStore } from '@/lib/store';
-import { api } from '@/lib/api';
+
 import Layout from '@/components/Layout';
 import Link from 'next/link';
 
@@ -23,7 +23,7 @@ interface ProcessInstance {
 
 export default function ProcessesPage() {
   const router = useRouter();
-  const { user, setIsLoading, setError, clearError } = useAppStore();
+  const { user, setIsLoading, setError } = useAppStore();
   const [processes, setProcesses] = useState<ProcessInstance[]>([]);
   const [filteredProcesses, setFilteredProcesses] = useState<ProcessInstance[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -40,7 +40,7 @@ export default function ProcessesPage() {
 
   async function loadProcesses() {
     setIsLoading(true);
-    clearError();
+    setError(null);
     try {
       // In real implementation, would call Camunda API
       // For now, using mock data

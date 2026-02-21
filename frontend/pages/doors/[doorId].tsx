@@ -21,10 +21,10 @@ interface AuditEntry {
 export default function DoorDetailPage() {
   const router = useRouter();
   const { doorId } = router.query;
-  const { user, setIsLoading, setError, clearError } = useAppStore();
+  const { user, setIsLoading, setError } = useAppStore();
   const [door, setDoor] = useState<DoorInstance | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const [_isEditing, _setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -39,9 +39,9 @@ export default function DoorDetailPage() {
 
   async function loadDoorDetail() {
     setIsLoading(true);
-    clearError();
+    setError(null);
     try {
-      const data = await api.getDoor(doorId as string);
+      const data = await api.getDoor(Number(doorId));
       setDoor(data);
 
       // Load audit trail (simulated - in real system, would come from API)
@@ -102,7 +102,7 @@ export default function DoorDetailPage() {
         {/* Attributes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {door.attributes.map((attr) => (
-            <div key={attr.id} className="p-4 bg-white border border-gray-200 rounded-lg">
+            <div key={attr.attribute_id} className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-sm text-gray-500 uppercase font-semibold">{attr.attribute_name}</p>
               <p className="text-lg font-semibold text-gray-900 mt-2">
                 {typeof attr.value === 'object' ? JSON.stringify(attr.value) : String(attr.value)}
@@ -118,19 +118,19 @@ export default function DoorDetailPage() {
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-500 uppercase font-semibold">Locks</p>
               <p className="text-2xl font-bold text-primary mt-2">
-                {door.relationships?.locks?.length || 0}
+                {(door as any).relationships?.locks?.length || 0}
               </p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-500 uppercase font-semibold">Door Frame</p>
               <p className="text-sm text-gray-600 mt-2">
-                {door.relationships?.frame ? 'Assigned' : 'Not assigned'}
+                {(door as any).relationships?.frame ? 'Assigned' : 'Not assigned'}
               </p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-500 uppercase font-semibold">Automation</p>
               <p className="text-sm text-gray-600 mt-2">
-                {door.relationships?.automation ? 'Configured' : 'Not configured'}
+                {(door as any).relationships?.automation ? 'Configured' : 'Not configured'}
               </p>
             </div>
           </div>

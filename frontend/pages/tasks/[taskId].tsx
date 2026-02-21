@@ -78,7 +78,7 @@ export default function TaskPage() {
       }
 
       // Submit form
-      const result = await api.submitForm(
+      await api.submitForm(
         taskId,
         door.id,
         user?.groups[0] || 'locksmiths',

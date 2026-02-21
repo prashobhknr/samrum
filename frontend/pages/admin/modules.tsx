@@ -1,0 +1,258 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import SamrumLayout from '../../components/SamrumLayout';
+import TreeNav, { TreeNode } from '../../components/TreeNav';
+import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
+
+interface Module extends Record<string, unknown> {
+  id: number;
+  name: string;
+  description: string | null;
+  allow_incomplete_versions: boolean;
+  folder_id: number | null;
+  folder_name: string | null;
+}
+
+interface Folder extends Record<string, unknown> {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  description: string | null;
+}
+
+interface ModuleDetailProps {
+  item: Module | null;
+  onEdit: () => void;
+  onClose: () => void;
+}
+
+function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
+  if (!item) return (
+    <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+      <svg className="w-12 h-12 mb-3 text-slate-200" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+      </svg>
+      <p className="text-sm">Välj en modul för att se detaljer</p>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-4 py-3 border-b border-samrum-border bg-slate-50 flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-slate-500 truncate">
+            {item.folder_name ?? 'Rotnivå'} › Modul
+          </p>
+          <h3 className="font-semibold text-slate-900 text-sm truncate">{item.name}</h3>
+        </div>
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div className="flex gap-2 px-4 py-3 border-b border-samrum-border">
+        <button onClick={onEdit}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-samrum-blue text-white rounded hover:bg-samrum-blue-dark transition-colors">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          Ändra
+        </button>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 border border-red-200 transition-colors">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          Radera
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="divide-y divide-slate-100">
+          {[
+            { label: 'Modulnamn', value: item.name },
+            { label: 'Mapp', value: item.folder_name ?? '—' },
+            { label: 'Tillåt ofullständiga versioner', value: item.allow_incomplete_versions ? 'Ja' : 'Nej' },
+            { label: 'Beskrivning', value: item.description ?? '—' },
+          ].map(row => (
+            <div key={row.label} className="px-4 py-3">
+              <p className="text-xs text-slate-500 mb-0.5">{row.label}</p>
+              <p className="text-sm text-slate-900 font-medium break-words">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 py-3 border-t border-samrum-border bg-slate-50">
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+          item.allow_incomplete_versions
+            ? 'bg-amber-100 text-amber-700'
+            : 'bg-green-100 text-green-700'
+        }`}>
+          {item.allow_incomplete_versions ? 'Tillåter ofullständiga' : 'Kräver komplett data'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function buildTree(folders: Folder[], modules: Module[]): TreeNode[] {
+  const folderMap: Record<number, TreeNode> = {};
+  const roots: TreeNode[] = [];
+
+  // Create folder nodes
+  folders.forEach(f => {
+    folderMap[f.id] = {
+      id: `f_${f.id}`,
+      label: f.name,
+      type: 'folder',
+      children: [],
+      meta: f,
+    };
+  });
+
+  // Nest folders
+  folders.forEach(f => {
+    if (f.parent_id && folderMap[f.parent_id]) {
+      folderMap[f.parent_id].children!.push(folderMap[f.id]);
+    } else {
+      roots.push(folderMap[f.id]);
+    }
+  });
+
+  // Add modules to folders
+  modules.forEach(m => {
+    const node: TreeNode = {
+      id: m.id,
+      label: m.name,
+      type: 'file',
+      meta: m,
+    };
+    if (m.folder_id && folderMap[m.folder_id]) {
+      folderMap[m.folder_id].children!.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  return roots;
+}
+
+export default function ModulesPage() {
+  const [modules, setModules] = useState<Module[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Module | null>(null);
+  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
+  const [filteredModules, setFilteredModules] = useState<Module[]>([]);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch('http://localhost:3000/api/admin/modules').then(r => r.json()),
+      fetch('http://localhost:3000/api/admin/module-folders').then(r => r.json()),
+    ]).then(([mRes, fRes]) => {
+      const mods: Module[] = mRes.success ? mRes.data : [];
+      const folds: Folder[] = fRes.success ? fRes.data : [];
+      setModules(mods);
+      setFolders(folds);
+      setFilteredModules(mods);
+      setTreeNodes(buildTree(folds, mods));
+    }).catch(console.error)
+    .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleTreeSelect = (node: TreeNode) => {
+    if (node.meta && !String(node.id).startsWith('f_')) {
+      setSelected(node.meta as unknown as Module);
+      setFilteredModules([node.meta as unknown as Module]);
+    } else if (String(node.id).startsWith('f_')) {
+      // Filter modules by folder
+      const folderId = parseInt(String(node.id).replace('f_', ''));
+      setFilteredModules(modules.filter(m => m.folder_id === folderId));
+      setSelected(null);
+    }
+  };
+
+  const columns: Column<Module>[] = [
+    { key: 'id', header: 'ID', width: '60px', sortable: true },
+    { key: 'name', header: 'Modulnamn', sortable: true },
+    { key: 'folder_name', header: 'Mapp', sortable: true,
+      render: v => v ? String(v) : <span className="text-slate-400 italic text-xs">—</span> },
+    {
+      key: 'allow_incomplete_versions', header: 'Tillåt ofullständiga',
+      render: v => v
+        ? <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Ja</span>
+        : <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Nej</span>,
+    },
+    { key: 'description', header: 'Beskrivning',
+      render: v => v ? <span className="text-xs text-slate-600 line-clamp-1">{String(v)}</span>
+        : <span className="text-slate-400 italic text-xs">—</span> },
+  ];
+
+  const toolbar: ToolbarAction[] = [
+    {
+      label: 'Skapa ny', variant: 'primary',
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      onClick: () => alert('Skapa ny modul'),
+    },
+    {
+      label: 'Visa alla',
+      onClick: () => { setFilteredModules(modules); setSelected(null); },
+    },
+  ];
+
+  return (
+    <SamrumLayout
+      sidebar={
+        <TreeNav
+          nodes={treeNodes}
+          onSelect={handleTreeSelect}
+          defaultExpanded={false}
+        />
+      }
+      sidebarTitle="Modulhierarki"
+      rightPanel={
+        <ModuleDetail
+          item={selected}
+          onEdit={() => alert('Ändra modul')}
+          onClose={() => setSelected(null)}
+        />
+      }
+      rightPanelTitle="Moduldetaljer"
+    >
+      <div className="px-6 py-4 bg-white border-b border-samrum-border flex-shrink-0">
+        <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
+          <span>Admin</span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+          </svg>
+          <span className="font-medium text-slate-900">Moduler</span>
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">B011 – Administrera moduler</h1>
+        <p className="text-sm text-slate-500">{modules.length} moduler i {folders.length} mappar</p>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <DataGrid
+          columns={columns}
+          data={filteredModules}
+          loading={loading}
+          selectable
+          toolbarActions={toolbar}
+          onSearch={q => {
+            setFilteredModules(q
+              ? modules.filter(m => m.name.toLowerCase().includes(q.toLowerCase()))
+              : modules);
+          }}
+          searchPlaceholder="Sök modul..."
+          onRowClick={row => setSelected(row)}
+          totalCount={filteredModules.length}
+          emptyMessage="Inga moduler hittades"
+        />
+      </div>
+    </SamrumLayout>
+  );
+}
