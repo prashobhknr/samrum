@@ -56,3 +56,7 @@ docker-compose.override.yml
 *.bak
 frontend/.next/
 .pids/
+
+# Next.js build output (never commit this)
+frontend/.next/
+.pids/
