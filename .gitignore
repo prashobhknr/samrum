@@ -54,3 +54,5 @@ docker-compose.override.yml
 # Editor
 *~
 *.bak
+frontend/.next/
+.pids/
