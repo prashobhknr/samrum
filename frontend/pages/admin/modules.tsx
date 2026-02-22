@@ -10,6 +10,10 @@ interface Module extends Record<string, unknown> {
   allow_incomplete_versions: boolean;
   folder_id: number | null;
   folder_name: string | null;
+  created_at: string | null;
+  created_by: string | null;
+  changed_at: string | null;
+  changed_by: string | null;
 }
 
 interface Folder extends Record<string, unknown> {
@@ -23,6 +27,18 @@ interface ModuleDetailProps {
   item: Module | null;
   onEdit: () => void;
   onClose: () => void;
+}
+
+function formatDate(val: string | null | undefined): string {
+  if (!val) return '—';
+  try {
+    return new Date(val).toLocaleString('sv-SE', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return String(val);
+  }
 }
 
 function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
@@ -75,6 +91,10 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
             { label: 'Mapp', value: item.folder_name ?? '—' },
             { label: 'Tillåt ofullständiga versioner', value: item.allow_incomplete_versions ? 'Ja' : 'Nej' },
             { label: 'Beskrivning', value: item.description ?? '—' },
+            { label: 'Skapad datum', value: formatDate(item.created_at) },
+            { label: 'Skapad av', value: item.created_by ?? '—' },
+            { label: 'Ändrad datum', value: formatDate(item.changed_at) },
+            { label: 'Ändrad av', value: item.changed_by ?? '—' },
           ].map(row => (
             <div key={row.label} className="px-4 py-3">
               <p className="text-xs text-slate-500 mb-0.5">{row.label}</p>
@@ -101,7 +121,6 @@ function buildTree(folders: Folder[], modules: Module[]): TreeNode[] {
   const folderMap: Record<number, TreeNode> = {};
   const roots: TreeNode[] = [];
 
-  // Create folder nodes
   folders.forEach(f => {
     folderMap[f.id] = {
       id: `f_${f.id}`,
@@ -112,7 +131,6 @@ function buildTree(folders: Folder[], modules: Module[]): TreeNode[] {
     };
   });
 
-  // Nest folders
   folders.forEach(f => {
     if (f.parent_id && folderMap[f.parent_id]) {
       folderMap[f.parent_id].children!.push(folderMap[f.id]);
@@ -121,7 +139,6 @@ function buildTree(folders: Folder[], modules: Module[]): TreeNode[] {
     }
   });
 
-  // Add modules to folders
   modules.forEach(m => {
     const node: TreeNode = {
       id: m.id,
@@ -170,7 +187,6 @@ export default function ModulesPage() {
       setSelected(node.meta as unknown as Module);
       setFilteredModules([node.meta as unknown as Module]);
     } else if (String(node.id).startsWith('f_')) {
-      // Filter modules by folder
       const folderId = parseInt(String(node.id).replace('f_', ''));
       setFilteredModules(modules.filter(m => m.folder_id === folderId));
       setSelected(null);
@@ -178,25 +194,92 @@ export default function ModulesPage() {
   };
 
   const columns: Column<Module>[] = [
-    { key: 'id', header: 'ID', width: '60px', sortable: true },
-    { key: 'name', header: 'Modulnamn', sortable: true },
-    { key: 'folder_name', header: 'Mapp', sortable: true,
-      render: v => v ? String(v) : <span className="text-slate-400 italic text-xs">—</span> },
     {
-      key: 'allow_incomplete_versions', header: 'Tillåt ofullständiga',
+      key: 'id',
+      header: 'ID',
+      width: '60px',
+      sortable: true,
+      filterable: true,
+    },
+    {
+      key: 'name',
+      header: 'Modulnamn',
+      sortable: true,
+      filterable: true,
+    },
+    {
+      key: 'folder_name',
+      header: 'Mapp',
+      sortable: true,
+      filterable: true,
+      render: v => v
+        ? <span>{String(v)}</span>
+        : <span className="text-slate-400 italic text-xs">—</span>,
+    },
+    {
+      key: 'allow_incomplete_versions',
+      header: 'Tillåt ofullständiga',
+      sortable: true,
+      filterable: false, // boolean badge — filter via text won't work well
       render: v => v
         ? <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Ja</span>
         : <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Nej</span>,
     },
-    { key: 'description', header: 'Beskrivning',
-      render: v => v ? <span className="text-xs text-slate-600 line-clamp-1">{String(v)}</span>
-        : <span className="text-slate-400 italic text-xs">—</span> },
+    {
+      key: 'description',
+      header: 'Beskrivning',
+      sortable: false,
+      filterable: true,
+      defaultHidden: false,
+      render: v => v
+        ? <span className="text-xs text-slate-600 line-clamp-1">{String(v)}</span>
+        : <span className="text-slate-400 italic text-xs">—</span>,
+    },
+    {
+      key: 'created_at',
+      header: 'Skapad datum',
+      sortable: true,
+      filterable: true,
+      defaultHidden: true,
+      render: v => <span className="text-xs text-slate-500 whitespace-nowrap">{formatDate(v as string)}</span>,
+    },
+    {
+      key: 'created_by',
+      header: 'Skapad av',
+      sortable: true,
+      filterable: true,
+      defaultHidden: true,
+      render: v => v
+        ? <span className="text-xs text-slate-600">{String(v)}</span>
+        : <span className="text-slate-400 italic text-xs">—</span>,
+    },
+    {
+      key: 'changed_at',
+      header: 'Ändrad datum',
+      sortable: true,
+      filterable: true,
+      defaultHidden: true,
+      render: v => <span className="text-xs text-slate-500 whitespace-nowrap">{formatDate(v as string)}</span>,
+    },
+    {
+      key: 'changed_by',
+      header: 'Ändrad av',
+      sortable: true,
+      filterable: true,
+      defaultHidden: true,
+      render: v => v
+        ? <span className="text-xs text-slate-600">{String(v)}</span>
+        : <span className="text-slate-400 italic text-xs">—</span>,
+    },
   ];
 
   const toolbar: ToolbarAction[] = [
     {
-      label: 'Skapa ny', variant: 'primary',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      label: 'Skapa ny',
+      variant: 'primary',
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+      </svg>,
       onClick: () => alert('Skapa ny modul'),
     },
     {
@@ -241,10 +324,16 @@ export default function ModulesPage() {
           data={filteredModules}
           loading={loading}
           selectable
+          columnSelector
+          columnFilters
           toolbarActions={toolbar}
           onSearch={q => {
             setFilteredModules(q
-              ? modules.filter(m => m.name.toLowerCase().includes(q.toLowerCase()))
+              ? modules.filter(m =>
+                  m.name.toLowerCase().includes(q.toLowerCase()) ||
+                  (m.description ?? '').toLowerCase().includes(q.toLowerCase()) ||
+                  (m.folder_name ?? '').toLowerCase().includes(q.toLowerCase())
+                )
               : modules);
           }}
           searchPlaceholder="Sök modul..."
