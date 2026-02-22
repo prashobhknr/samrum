@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import SamrumLayout from '../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../components/TreeNav';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
@@ -157,6 +158,7 @@ function buildTree(folders: Folder[], modules: Module[]): TreeNode[] {
 }
 
 export default function ModulesPage() {
+  const router = useRouter();
   const [modules, setModules] = useState<Module[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,10 +185,11 @@ export default function ModulesPage() {
   useEffect(() => { load(); }, [load]);
 
   const handleTreeSelect = (node: TreeNode) => {
-    if (node.meta && !String(node.id).startsWith('f_')) {
-      setSelected(node.meta as unknown as Module);
-      setFilteredModules([node.meta as unknown as Module]);
-    } else if (String(node.id).startsWith('f_')) {
+    if (!String(node.id).startsWith('f_')) {
+      // Navigate to the module instance view
+      router.push(`/admin/modules/${node.id}`);
+    } else {
+      // Filter list to this folder
       const folderId = parseInt(String(node.id).replace('f_', ''));
       setFilteredModules(modules.filter(m => m.folder_id === folderId));
       setSelected(null);
@@ -337,7 +340,7 @@ export default function ModulesPage() {
               : modules);
           }}
           searchPlaceholder="Sök modul..."
-          onRowClick={row => setSelected(row)}
+          onRowClick={row => router.push(`/admin/modules/${row.id}`)}
           totalCount={filteredModules.length}
           emptyMessage="Inga moduler hittades"
         />

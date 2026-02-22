@@ -448,6 +448,88 @@ const server = http.createServer(async (req, res) => {
       } else { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); }
       return;
     }
+    // --- Module instances (dynamic column pivot) ---
+    const modInstMatch = pathname.match(/^\/api\/admin\/modules\/(\d+)\/instances$/);
+    if (modInstMatch && req.method === 'GET') {
+      const modId = modInstMatch[1];
+      // 1. Load module + its OMS object type
+      const modR = await client.query(
+        `SELECT m.*, f.name as folder_name, ot.id as oms_ot_id, ot.name as oms_ot_name
+         FROM samrum_modules m
+         LEFT JOIN samrum_module_folders f ON f.id = m.folder_id
+         LEFT JOIN object_types ot ON ot.id = m.oms_object_type_id
+         WHERE m.id = $1`, [modId]);
+      if (!modR.rows.length) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
+      const mod = modR.rows[0];
+
+      // 2. Load attribute definitions (columns)
+      const attrsR = await client.query(
+        `SELECT id, attribute_name, attribute_type, is_required, is_key, enum_values
+         FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [mod.oms_ot_id]);
+      const attrs = attrsR.rows;
+
+      // 3. Load all instances of this OMS object type
+      const instsR = await client.query(
+        `SELECT id, external_id, name, created_at, updated_at
+         FROM object_instances WHERE object_type_id = $1 ORDER BY external_id`, [mod.oms_ot_id]);
+      const instances = instsR.rows;
+
+      // 4. Load all attribute values for those instances
+      let attrValues = [];
+      if (instances.length > 0) {
+        const instIds = instances.map(i => i.id);
+        const avR = await client.query(
+          `SELECT object_instance_id, object_attribute_id, value
+           FROM attribute_values WHERE object_instance_id = ANY($1::int[])`, [instIds]);
+        attrValues = avR.rows;
+      }
+
+      // 5. Pivot: build a map instanceId → { attrId: value }
+      const pivot = {};
+      attrValues.forEach(av => {
+        if (!pivot[av.object_instance_id]) pivot[av.object_instance_id] = {};
+        pivot[av.object_instance_id][av.object_attribute_id] = av.value;
+      });
+
+      // 6. Build final rows
+      const rows = instances.map(inst => {
+        const row = {
+          _id: inst.id,
+          _external_id: inst.external_id,
+          _name: inst.name,
+          _created_at: inst.created_at,
+          _updated_at: inst.updated_at,
+        };
+        attrs.forEach(attr => {
+          row[attr.attribute_name] = pivot[inst.id]?.[attr.id] ?? null;
+        });
+        return row;
+      });
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        module: {
+          id: mod.id, name: mod.name, description: mod.description,
+          folder_name: mod.folder_name, allow_incomplete_versions: mod.allow_incomplete_versions,
+          created_at: mod.created_at, created_by: mod.created_by,
+          changed_at: mod.changed_at, changed_by: mod.changed_by,
+          oms_object_type: { id: mod.oms_ot_id, name: mod.oms_ot_name },
+        },
+        columns: attrs.map(a => ({
+          key: a.attribute_name,
+          label: a.attribute_name,
+          type: a.attribute_type,
+          is_required: a.is_required,
+          is_key: a.is_key,
+          enum_values: a.enum_values,
+        })),
+        data: rows,
+        total: rows.length,
+      }));
+      return;
+    }
+
     const modOtDelMatch = pathname.match(/^\/api\/admin\/modules\/(\d+)\/object-types\/(\d+)$/);
     if (modOtDelMatch && req.method === 'DELETE') {
       const [, modId, otId] = modOtDelMatch;
