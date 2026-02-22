@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="door-unlock-process"
+                   targetNamespace="http://doorman.local/door-unlock">
+
+  <!-- Process Definition: Door Unlock -->
+  <bpmn:process id="door-unlock" name="Door Unlock Process" isExecutable="true">
+    
+    <!-- START EVENT -->
+    <bpmn:startEvent id="start-event" name="Start Door Unlock">
+      <bpmn:outgoing>flow-to-select</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- TASK 1: Select Door (User Task - Any user) -->
+    <bpmn:userTask id="select-door-task"
+                   name="Select Door"
+                   camunda:formKey="embedded:app:forms/select-door.html">
+      <bpmn:documentation>Select the door to unlock from available options</bpmn:documentation>
+      <bpmn:incoming>flow-to-select</bpmn:incoming>
+      <bpmn:outgoing>flow-to-inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 2: Inspect Door (Locksmith Task) -->
+    <bpmn:userTask id="inspect-door-task"
+                   name="Inspect Door"
+                   camunda:assignee="${doorLocksmithGroup}"
+                   camunda:formKey="embedded:app:forms/inspect-door.html">
+      <bpmn:documentation>Locksmith inspects the door and lock mechanism</bpmn:documentation>
+      <bpmn:incoming>flow-to-inspect</bpmn:incoming>
+      <bpmn:outgoing>flow-to-perform</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 3: Perform Unlock (Locksmith Task) -->
+    <bpmn:userTask id="perform-unlock-task"
+                   name="Perform Unlock"
+                   camunda:assignee="${doorLocksmithGroup}"
+                   camunda:formKey="embedded:app:forms/perform-unlock.html">
+      <bpmn:documentation>Locksmith performs the unlock operation and updates status</bpmn:documentation>
+      <bpmn:incoming>flow-to-perform</bpmn:incoming>
+      <bpmn:outgoing>flow-to-verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TASK 4: Verify Status (Supervisor Task) -->
+    <bpmn:userTask id="verify-status-task"
+                   name="Verify Status"
+                   camunda:assignee="${doorSupervisorGroup}"
+                   camunda:formKey="embedded:app:forms/verify-status.html">
+      <bpmn:documentation>Supervisor verifies the unlock was successful</bpmn:documentation>
+      <bpmn:incoming>flow-to-verify</bpmn:incoming>
+      <bpmn:outgoing>flow-to-end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- END EVENT -->
+    <bpmn:endEvent id="end-event" name="Door Unlock Complete">
+      <bpmn:incoming>flow-to-end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow-to-select" sourceRef="start-event" targetRef="select-door-task" />
+    <bpmn:sequenceFlow id="flow-to-inspect" sourceRef="select-door-task" targetRef="inspect-door-task" />
+    <bpmn:sequenceFlow id="flow-to-perform" sourceRef="inspect-door-task" targetRef="perform-unlock-task" />
+    <bpmn:sequenceFlow id="flow-to-verify" sourceRef="perform-unlock-task" targetRef="verify-status-task" />
+    <bpmn:sequenceFlow id="flow-to-end" sourceRef="verify-status-task" targetRef="end-event" />
+
+  </bpmn:process>
+
+  <!-- DIAGRAM INFORMATION (optional, for visual rendering) -->
+  <bpmndi:BPMNDiagram id="door-unlock-diagram" name="Door Unlock Process Diagram">
+    <bpmndi:BPMNPlane id="plane" bpmnElement="door-unlock">
+      
+      <bpmndi:BPMNShape id="start-event_di" bpmnElement="start-event">
+        <dc:Bounds x="50" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="select-door-task_di" bpmnElement="select-door-task">
+        <dc:Bounds x="150" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="inspect-door-task_di" bpmnElement="inspect-door-task">
+        <dc:Bounds x="320" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="perform-unlock-task_di" bpmnElement="perform-unlock-task">
+        <dc:Bounds x="490" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="verify-status-task_di" bpmnElement="verify-status-task">
+        <dc:Bounds x="660" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="end-event_di" bpmnElement="end-event">
+        <dc:Bounds x="830" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Flow Connectors -->
+      <bpmndi:BPMNEdge id="flow-to-select_di" bpmnElement="flow-to-select">
+        <di:waypoint x="86" y="118" />
+        <di:waypoint x="150" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-inspect_di" bpmnElement="flow-to-inspect">
+        <di:waypoint x="250" y="120" />
+        <di:waypoint x="320" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-perform_di" bpmnElement="flow-to-perform">
+        <di:waypoint x="420" y="120" />
+        <di:waypoint x="490" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-verify_di" bpmnElement="flow-to-verify">
+        <di:waypoint x="590" y="120" />
+        <di:waypoint x="660" y="120" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="flow-to-end_di" bpmnElement="flow-to-end">
+        <di:waypoint x="760" y="120" />
+        <di:waypoint x="830" y="118" />
+      </bpmndi:BPMNEdge>
+      
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

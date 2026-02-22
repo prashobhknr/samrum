@@ -1,0 +1,7251 @@
+{
+  "successful": [
+    {
+      "object_type_id": 1,
+      "external_id": "D-001",
+      "name": "Main Entrance Lobby",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-001"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Main Entrance Lobby"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-X1"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "exterior_brick"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1200"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "true"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-01-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-01-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD200"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-001"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-001"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "75.5"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "2500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Main entry point"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-002",
+      "name": "Side Door Emergency",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-002"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Side Door Emergency"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E2"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "exterior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "true"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2019-06-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-12-05"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-06-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AX300"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-002"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-002"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "65"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1800"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Emergency exit"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-003",
+      "name": "Loading Dock Door",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-003"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Loading Dock Door"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI120"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M3"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "industrial_steel"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "2000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2500"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "4"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2018-03-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-09-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-03-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD400"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-003"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-001"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "120"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "3200"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Heavy use area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-004",
+      "name": "Office Suite Access",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-004"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Office Suite Access"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 3"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E3"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "3"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "800"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "glass_aluminium"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "aluminium_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-05-12"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-20"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-05-12"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MLD400"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-004"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-003"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "55"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1200"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Modern office"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-005",
+      "name": "Server Room Access",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-005"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Server Room Access"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "VERY_HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E4"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-02-01"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-02-01"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD800"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-005"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-001"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "85"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Secure access"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-006",
+      "name": "Stairwell Door 2-3",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-006"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Stairwell Door 2-3"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M4"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-11-05"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-10-30"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-11-05"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD250"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-006"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-004"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "70"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1400"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Between floors"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-007",
+      "name": "Conference Room A",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-007"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Conference Room A"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M5"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1200"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_veneered"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-08-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-12-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-08-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD100"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-007"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-005"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "60"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "800"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Meeting space"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-008",
+      "name": "Toilet Access Hallway",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-008"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Toilet Access Hallway"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M6"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-09-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-08-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-09-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD150"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-008"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-002"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "50"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "600"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "High traffic"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-009",
+      "name": "Roof Access Hatch",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-009"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Roof Access Hatch"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Roof"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI90"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E5"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "exterior_brick"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "4"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1500"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2000"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "4"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2019-12-01"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-12-01"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-009"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-006"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "100"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "2800"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Restricted access"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-010",
+      "name": "Basement Level B1",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-010"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Basement Level B1"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor -1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI120"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M7"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "-1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2017-07-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-06-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-07-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD350"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-010"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-002"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "78"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1600"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Utility area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-011",
+      "name": "Medical Cabinet Room",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-011"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Medical Cabinet Room"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E6"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "800"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-03-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-25"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-03-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD900"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-011"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-003"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "75"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "3500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Secure storage"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-012",
+      "name": "Warehouse Storage",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-012"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Warehouse Storage"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building D - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M8"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "industrial_steel"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDD"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2400"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "4"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2018-11-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-10-20"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-11-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD500"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-012"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-004-001"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "130"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Industrial use"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-013",
+      "name": "Executive Office",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-013"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Executive Office"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 4"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E7"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "4"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_veneered"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-02-05"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-02-05"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MLD600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-013"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-007"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "58"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Private office"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-014",
+      "name": "Break Room Access",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-014"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Break Room Access"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M9"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-05-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-11-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-05-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD200"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-014"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-004"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "52"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "650"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Common area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-015",
+      "name": "Pharmaceutical Storage",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-015"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Pharmaceutical Storage"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E8"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "800"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-01-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-31"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-01-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADX500"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-015"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-003"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "80"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4000"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Controlled environment"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-016",
+      "name": "Archive Room",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-016"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Archive Room"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI90"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M10"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2019-04-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-05-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-04-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD450"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-016"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-008"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "72"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1700"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Document storage"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-017",
+      "name": "IT Equipment Room",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-017"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "IT Equipment Room"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "VERY_HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E9"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-06-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-05"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-06-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADY600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-017"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-004"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "85"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4800"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "High security"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-018",
+      "name": "Presentation Room",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-018"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Presentation Room"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 3"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M11"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "3"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1300"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "glass_aluminium"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "aluminium_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-03-25"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-03-25"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MLD700"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-018"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-009"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "65"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Modern design"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-019",
+      "name": "Janitor Closet",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-019"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Janitor Closet"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M12"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "600"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2000"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "1"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-07-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-09-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-07-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD250"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-019"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-005"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "40"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "450"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Utility closet"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-020",
+      "name": "Electrical Panel Room",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-020"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Electrical Panel Room"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M13"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2019-08-05"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-07-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-08-05"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD550"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-020"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-010"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "75"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1900"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Critical infrastructure"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-021",
+      "name": "Learning Lab 1",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-021"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Learning Lab 1"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M14"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_veneered"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-09-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-09-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD300"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-021"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-006"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "55"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "700"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Educational space"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-022",
+      "name": "Canteen Serving",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-022"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Canteen Serving"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M15"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1500"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-02-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-12-20"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-02-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD350"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-022"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-005"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "65"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "850"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Food service"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-023",
+      "name": "Employee Lockers",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-023"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Employee Lockers"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M16"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1200"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-04-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-05"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-04-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD400"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-023"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-011"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "58"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "650"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Storage area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-024",
+      "name": "Shipping Dock",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-024"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Shipping Dock"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building D - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI90"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M17"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "industrial_steel"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDD"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2400"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "4"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2018-10-01"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-08-30"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-10-01"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD700"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-024"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-004-002"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "125"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "High traffic industrial"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-025",
+      "name": "Quarantine Zone",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-025"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Quarantine Zone"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E10"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2023-01-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2028-01-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADZ700"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-025"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-006"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "82"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4200"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Isolation room"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-026",
+      "name": "Quality Control Lab",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-026"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Quality Control Lab"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E11"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "glass_aluminium"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "aluminium_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-11-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-20"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-11-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MLD800"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-026"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-007"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "60"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1300"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Scientific space"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-027",
+      "name": "Maintenance Workshop",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-027"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Maintenance Workshop"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building D - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M18"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "industrial_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDD"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1400"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2300"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2017-09-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-04-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-09-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD800"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-027"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-004-003"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "105"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "2400"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Heavy equipment"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-028",
+      "name": "Visitor Reception",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-028"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Visitor Reception"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M19"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_veneered"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-12-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-10-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-12-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD450"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-028"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-012"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "54"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "750"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Public area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-029",
+      "name": "Data Center Entry",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-029"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Data Center Entry"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI120"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "VERY_HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E12"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "800"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-08-01"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-08-01"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADB500"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-029"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-007"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "90"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "5200"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Ultra-secure"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-030",
+      "name": "Library Main Entrance",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-030"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Library Main Entrance"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M20"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1200"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2019-10-05"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-09-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2024-10-05"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD500"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-030"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-008"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "58"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "800"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Public building"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-031",
+      "name": "Research Lab 1",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-031"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Research Lab 1"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Floor 2"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E13"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "2"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "glass_aluminium"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "aluminium_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-05-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-25"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-05-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MLD900"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-031"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-008"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "65"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1400"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Lab environment"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-032",
+      "name": "Hazmat Storage",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-032"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Hazmat Storage"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building D - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI120"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E14"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "industrial_steel"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDD"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-12-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-12-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADC600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-032"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-004-004"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "95"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4600"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Chemical storage"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-033",
+      "name": "Parking Gate Entry",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-033"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Parking Gate Entry"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "MEDIUM"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E15"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "exterior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "2500"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "50"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_reinforced"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "4"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-03-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-11-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-03-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD1000"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-033"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-013"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "150"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "3500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Vehicle entry"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-034",
+      "name": "Fitness Center",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-034"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Fitness Center"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M21"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "North"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1300"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "both"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-06-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-10"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-06-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD550"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-034"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-009"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "68"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "900"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Recreation area"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-035",
+      "name": "Fire Command Center",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-035"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Fire Command Center"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI60"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E16"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "3"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-01-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-02-05"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-01-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADD700"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-035"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-014"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "80"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4500"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Safety critical"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-036",
+      "name": "Stairwell Door 3-4",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-036"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Stairwell Door 3-4"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 3"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M22"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "3"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2200"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-11-05"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-10-30"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "24"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-11-05"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "AD250"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-036"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-015"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "70"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "1400"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Between floors"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-037",
+      "name": "Chemical Storage Lab",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-037"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Chemical Storage Lab"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building B - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI90"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E17"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_concrete"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDB"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "West"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "900"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "45"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-04-01"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-31"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-04-01"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADE800"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-037"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-002-010"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "78"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4300"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Hazmat environment"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-038",
+      "name": "Security Office",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-038"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Security Office"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "VERY_HIGH"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "electronic"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-E18"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "Central"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1000"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "40"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "steel"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "steel_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "true"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "true"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2021-07-15"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-20"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "12"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2026-07-15"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Assa Abloy"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "ADF600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-038"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-016"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "75"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "4000"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Control center"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-039",
+      "name": "Lobby Corridor 2",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-039"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Lobby Corridor 2"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building C - Ground"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M23"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDC"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "0"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "East"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "1100"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_veneered"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "2"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2020-08-20"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2023-12-01"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2025-08-20"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD600"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-039"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-003-009"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "56"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "700"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Main corridor"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "object_type_id": 1,
+      "external_id": "D-040",
+      "name": "Gender Neutral Toilet",
+      "attribute_values": [
+        {
+          "attribute_id": 1,
+          "attribute_name": "door_id",
+          "value": "D-040"
+        },
+        {
+          "attribute_id": 2,
+          "attribute_name": "door_name",
+          "value": "Gender Neutral Toilet"
+        },
+        {
+          "attribute_id": 3,
+          "attribute_name": "location",
+          "value": "Building A - Floor 1"
+        },
+        {
+          "attribute_id": 4,
+          "attribute_name": "fire_class",
+          "value": "EI30"
+        },
+        {
+          "attribute_id": 5,
+          "attribute_name": "security_class",
+          "value": "LOW"
+        },
+        {
+          "attribute_id": 6,
+          "attribute_name": "lock_type",
+          "value": "mortise"
+        },
+        {
+          "attribute_id": 7,
+          "attribute_name": "automation_model",
+          "value": "Model-M24"
+        },
+        {
+          "attribute_id": 8,
+          "attribute_name": "wall_type",
+          "value": "interior_drywall"
+        },
+        {
+          "attribute_id": 9,
+          "attribute_name": "building_code",
+          "value": "BLDA"
+        },
+        {
+          "attribute_id": 10,
+          "attribute_name": "floor_number",
+          "value": "1"
+        },
+        {
+          "attribute_id": 11,
+          "attribute_name": "wing_section",
+          "value": "South"
+        },
+        {
+          "attribute_id": 12,
+          "attribute_name": "width_mm",
+          "value": "800"
+        },
+        {
+          "attribute_id": 13,
+          "attribute_name": "height_mm",
+          "value": "2100"
+        },
+        {
+          "attribute_id": 14,
+          "attribute_name": "thickness_mm",
+          "value": "35"
+        },
+        {
+          "attribute_id": 15,
+          "attribute_name": "material",
+          "value": "wood_composite"
+        },
+        {
+          "attribute_id": 16,
+          "attribute_name": "frame_type",
+          "value": "wood_frame"
+        },
+        {
+          "attribute_id": 17,
+          "attribute_name": "hinges_count",
+          "value": "1"
+        },
+        {
+          "attribute_id": 18,
+          "attribute_name": "door_swing",
+          "value": "single"
+        },
+        {
+          "attribute_id": 19,
+          "attribute_name": "has_closer",
+          "value": "false"
+        },
+        {
+          "attribute_id": 20,
+          "attribute_name": "has_panic_bar",
+          "value": "false"
+        },
+        {
+          "attribute_id": 21,
+          "attribute_name": "has_visual_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 22,
+          "attribute_name": "has_acoustic_alarm",
+          "value": "false"
+        },
+        {
+          "attribute_id": 23,
+          "attribute_name": "installation_date",
+          "value": "2022-02-10"
+        },
+        {
+          "attribute_id": 24,
+          "attribute_name": "last_maintenance_date",
+          "value": "2024-01-15"
+        },
+        {
+          "attribute_id": 25,
+          "attribute_name": "maintenance_interval_months",
+          "value": "36"
+        },
+        {
+          "attribute_id": 26,
+          "attribute_name": "warranty_expiry_date",
+          "value": "2027-02-10"
+        },
+        {
+          "attribute_id": 27,
+          "attribute_name": "manufacturer",
+          "value": "Dormakaba"
+        },
+        {
+          "attribute_id": 28,
+          "attribute_name": "model_number",
+          "value": "MD650"
+        },
+        {
+          "attribute_id": 29,
+          "attribute_name": "batch_number",
+          "value": "BATCH-040"
+        },
+        {
+          "attribute_id": 30,
+          "attribute_name": "serial_number",
+          "value": "SN-001-017"
+        },
+        {
+          "attribute_id": 31,
+          "attribute_name": "weight_kg",
+          "value": "45"
+        },
+        {
+          "attribute_id": 32,
+          "attribute_name": "cost_eur",
+          "value": "550"
+        },
+        {
+          "attribute_id": 33,
+          "attribute_name": "status",
+          "value": "operational"
+        },
+        {
+          "attribute_id": 34,
+          "attribute_name": "notes",
+          "value": "Inclusive facility"
+        }
+      ],
+      "validation": {
+        "errors": [],
+        "warnings": []
+      }
+    }
+  ],
+  "failed": [],
+  "summary": {
+    "totalRows": 40,
+    "successful": 40,
+    "failed": 0,
+    "warnings": 0
+  }
+}
