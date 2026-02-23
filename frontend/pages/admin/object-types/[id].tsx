@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
@@ -241,6 +241,164 @@ export default function ObjectTypeDetailPage() {
           </table>
         )}
       </div>
+
+      {/* Attributes - B012 Implementation */}
+      <AttributesSection objectTypeId={Number(id)} />
     </Layout>
+  );
+}
+
+// B012: Object Type Attributes Section
+interface ObjectAttribute {
+  id: number;
+  attribute_name: string;
+  attribute_type: string;
+  is_required: boolean;
+  is_key: boolean;
+  default_value: string | null;
+  help_text: string | null;
+}
+
+function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
+  const [attributes, setAttributes] = useState<ObjectAttribute[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingAttr, setEditingAttr] = useState<ObjectAttribute | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState<Partial<ObjectAttribute>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`http://localhost:3000/api/admin/object-types/${objectTypeId}/attributes`);
+      const data = await res.json();
+      if (data.success) setAttributes(data.data);
+    } catch (e) {
+      console.error('Failed to load attributes:', e);
+    }
+    setLoading(false);
+  }, [objectTypeId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const saveAttr = async () => {
+    const url = editingAttr 
+      ? `http://localhost:3000/api/admin/object-types/attributes/${editingAttr.id}`
+      : `http://localhost:3000/api/admin/object-types/${objectTypeId}/attributes`;
+    const method = editingAttr ? 'PUT' : 'POST';
+    
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    
+    setEditingAttr(null);
+    setShowAdd(false);
+    setForm({});
+    load();
+  };
+
+  const deleteAttr = async (id: number) => {
+    if (!confirm('Delete this attribute?')) return;
+    await fetch(`http://localhost:3000/api/admin/object-types/attributes/${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+        <div>
+          <h2 className="font-semibold text-gray-800">Attribut ({attributes.length})</h2>
+          <p className="text-sm text-gray-500">Object type attributes</p>
+        </div>
+        <button onClick={() => { setShowAdd(true); setForm({}); }}
+          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+          + Lägg till attribut
+        </button>
+      </div>
+      
+      {loading ? (
+        <div className="px-6 py-8 text-center text-gray-400">Laddar...</div>
+      ) : attributes.length === 0 ? (
+        <div className="px-6 py-8 text-center text-gray-400">Inga attribut definierade.</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Namn</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Typ</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-20">Oblig.</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-20">Nyckel</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-32">Åtgärder</th>
+            </tr>
+          </thead>
+          <tbody>
+            {attributes.map((attr, i) => (
+              <tr key={attr.id} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                <td className="px-4 py-3 font-medium text-gray-800">{attr.attribute_name}</td>
+                <td className="px-4 py-3">
+                  <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{attr.attribute_type}</span>
+                </td>
+                <td className="px-4 py-3 text-center">{attr.is_required ? '✓' : '—'}</td>
+                <td className="px-4 py-3 text-center">{attr.is_key ? '★' : '—'}</td>
+                <td className="px-4 py-3 text-center">
+                  <button onClick={() => { setEditingAttr(attr); setForm(attr); }}
+                    className="text-blue-600 hover:text-blue-800 text-xs mr-2">Ändra</button>
+                  <button onClick={() => deleteAttr(attr.id)}
+                    className="text-red-600 hover:text-red-800 text-xs">Radera</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* Add/Edit Modal */}
+      {(showAdd || editingAttr) && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-800">{editingAttr ? 'Ändra attribut' : 'Nytt attribut'}</h3>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Attributnamn</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  value={form.attribute_name || ''} onChange={e => setForm(f => ({ ...f, attribute_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Typ</label>
+                <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  value={form.attribute_type || 'text'} onChange={e => setForm(f => ({ ...f, attribute_type: e.target.value }))}>
+                  <option value="text">text</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                  <option value="date">date</option>
+                  <option value="enum">enum</option>
+                </select>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!form.is_required} 
+                    onChange={e => setForm(f => ({ ...f, is_required: e.target.checked }))} />
+                  Obligatorisk
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={!!form.is_key} 
+                    onChange={e => setForm(f => ({ ...f, is_key: e.target.checked }))} />
+                  Nyckel
+                </label>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button onClick={() => { setShowAdd(false); setEditingAttr(null); }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Avbryt</button>
+              <button onClick={saveAttr}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Spara</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
