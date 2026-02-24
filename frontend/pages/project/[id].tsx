@@ -239,6 +239,12 @@ export default function ProjectPage() {
                     }`}>
                       {selectedModule.allow_incomplete_versions ? 'Tillåter ofullständiga' : 'Kräver komplett data'}
                     </span>
+                    <Link
+                      href={`/modules/${selectedModule.id}`}
+                      className="px-4 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Öppna modul →
+                    </Link>
                   </div>
                 </div>
               </div>

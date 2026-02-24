@@ -32,6 +32,7 @@ interface DataGridProps<T = Record<string, unknown>> {
   toolbarActions?: ToolbarAction[];
   onRowClick?: (row: T) => void;
   selectable?: boolean;
+  onSelectionChange?: (selectedIds: (string | number)[]) => void;
   loading?: boolean;
   emptyMessage?: string;
   totalCount?: number;
