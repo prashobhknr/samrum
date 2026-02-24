@@ -415,7 +415,7 @@ export default function ModuleInstanceViewPage() {
         filterable: true,
         width: '110px',
         render: (v, row) => (
-          <Link href={`/admin/instances/${row._id}`}
+          <Link href={`/objects/${row._id}`}
             className="text-samrum-blue hover:underline font-medium text-xs"
             onClick={e => e.stopPropagation()}>
             {String(v ?? '—')}

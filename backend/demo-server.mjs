@@ -207,6 +207,37 @@ const server = http.createServer(async (req, res) => {
       req.on('error', reject);
     });
 
+    // ─── Object Instances: PUT + DELETE ───────────────────────────────────────
+    if (pathname.match(/^\/api\/objects\/instances\/\d+$/) && req.method === 'PUT') {
+      const instanceId = parseInt(pathname.split('/').pop() ?? '0');
+      const body = await readBody();
+      if (body.attribute_values && typeof body.attribute_values === 'object') {
+        for (const [attrName, val] of Object.entries(body.attribute_values)) {
+          await client.query(`
+            UPDATE attribute_values av SET value = $1
+            FROM object_attributes oa
+            WHERE av.object_attribute_id = oa.id
+              AND av.object_instance_id = $2
+              AND oa.attribute_name = $3
+          `, [String(val), instanceId, attrName]);
+        }
+      }
+      if (body.name !== undefined || body.external_id !== undefined) {
+        await client.query(
+          `UPDATE object_instances SET name = COALESCE($1, name), external_id = COALESCE($2, external_id) WHERE id = $3`,
+          [body.name ?? null, body.external_id ?? null, instanceId]
+        );
+      }
+      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+    }
+
+    if (pathname.match(/^\/api\/objects\/instances\/\d+$/) && req.method === 'DELETE') {
+      const instanceId = parseInt(pathname.split('/').pop() ?? '0');
+      await client.query(`DELETE FROM attribute_values WHERE object_instance_id = $1`, [instanceId]);
+      await client.query(`DELETE FROM object_instances WHERE id = $1`, [instanceId]);
+      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+    }
+
     // ─── Admin: Storage Types ──────────────────────────────────────────────────
     if (pathname === '/api/admin/storage-types' && req.method === 'GET') {
       const r = await client.query('SELECT * FROM samrum_storage_types ORDER BY id');
