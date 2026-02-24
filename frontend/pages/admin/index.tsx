@@ -9,6 +9,7 @@ interface Stats {
   module_folders: number;
   classifications: number;
   projects?: number;
+  users?: number;
 }
 
 interface StatCardProps {
@@ -51,11 +52,16 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(async d => {
         const s = d.stats ?? d;
-        // Also fetch project count
+        // Also fetch project count and users count
         let projectCount = 0;
+        let userCount = 0;
         try {
           const pRes = await fetch('http://localhost:3000/api/admin/projects').then(r => r.json());
           projectCount = pRes.total ?? pRes.data?.length ?? 0;
+        } catch {}
+        try {
+          const uRes = await fetch('http://localhost:3000/api/admin/users').then(r => r.json());
+          userCount = uRes.total ?? uRes.data?.length ?? 0;
         } catch {}
         setStats({
           object_types: s.samrum_object_types ?? s.object_types ?? 0,
@@ -64,6 +70,7 @@ export default function AdminDashboard() {
           module_folders: s.samrum_module_folders ?? s.module_folders ?? 0,
           classifications: s.samrum_classifications ?? s.classifications ?? 0,
           projects: projectCount,
+          users: userCount,
         });
       })
       .catch(() => setStats({ object_types: 1400, relationships: 4259, modules: 271, module_folders: 9, classifications: 0, projects: 21 }))
@@ -73,10 +80,12 @@ export default function AdminDashboard() {
   const navLinks = [
     { href: '/select-project', label: 'Val av projekt', desc: 'Välj och öppna ett projekt', accent: true },
     { href: '/admin/projects', label: 'Projektdatabaser (B010)', desc: 'Skapa och hantera projekt' },
+    { href: '/admin/users', label: 'Användare (B000)', desc: 'Administrera användare och roller' },
     { href: '/admin/object-types', label: 'Objekttyper (B012)', desc: 'Hantera objekttypdefinitioner' },
     { href: '/admin/modules', label: 'Moduler (B011)', desc: 'Projektmoduler och mappar' },
     { href: '/admin/relationships', label: 'Relationer', desc: 'Objekttypsrelationer' },
     { href: '/admin/classifications', label: 'Klassifikationer (B013)', desc: 'Klassifikationssystem' },
+    { href: '/admin/import-export', label: 'Import/Export (B014)', desc: 'ID-uppsättningar och definitioner' },
     { href: '/admin/module-folders', label: 'Modulmappar', desc: 'Mappstruktur' },
   ];
 
@@ -91,7 +100,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="bg-white rounded-lg border border-samrum-border p-6 animate-pulse">
@@ -130,6 +139,12 @@ export default function AdminDashboard() {
                   subtitle="Klassifikationer" href="/admin/classifications"
                   color="text-rose-600"
                   icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>}
+                />
+                <StatCard
+                  title="Användare" value={stats.users ?? 0}
+                  subtitle="Systemanvändare" href="/admin/users"
+                  color="text-teal-600"
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>}
                 />
                 <StatCard
                   title="Projekt" value={stats.projects ?? 0}
