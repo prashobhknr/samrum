@@ -811,6 +811,112 @@ if (attrReorderMatch && req.method === 'PUT') {
       return;
     }
 
+
+// ─── B000: User Administration ──────────────────────────────────────────────
+if (pathname === '/api/admin/users') {
+  if (req.method === 'GET') {
+    const r = await client.query(`SELECT id, username, email, created_at FROM samrum_users ORDER BY username`);
+    res.writeHead(200); res.end(JSON.stringify({ success: true, data: r.rows, total: r.rows.length })); return;
+  }
+  if (req.method === 'POST') {
+    const body = await readBody();
+    const r = await client.query(`INSERT INTO samrum_users (username, email) VALUES ($1,$2) RETURNING id,username,email,created_at`, [body.username, body.email || null]);
+    res.writeHead(201); res.end(JSON.stringify({ success: true, data: r.rows[0] })); return;
+  }
+}
+const userMatch = pathname.match(/^\/api\/admin\/users\/(\d+)$/);
+if (userMatch) {
+  const uid = parseInt(userMatch[1]);
+  if (req.method === 'GET') {
+    const r = await client.query(`SELECT id,username,email,created_at FROM samrum_users WHERE id=$1`, [uid]);
+    if (!r.rows[0]) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
+    res.writeHead(200); res.end(JSON.stringify({ success: true, data: r.rows[0] })); return;
+  }
+  if (req.method === 'PUT') {
+    const body = await readBody();
+    await client.query(`UPDATE samrum_users SET username=$1, email=$2 WHERE id=$3`, [body.username, body.email, uid]);
+    res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+  }
+  if (req.method === 'DELETE') {
+    await client.query(`DELETE FROM samrum_users WHERE id=$1`, [uid]);
+    res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+  }
+}
+const userRolesMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/roles$/);
+if (userRolesMatch) {
+  const uid = parseInt(userRolesMatch[1]);
+  if (req.method === 'GET') {
+    const r = await client.query(`SELECT role FROM samrum_user_roles WHERE user_id=$1`, [uid]);
+    res.writeHead(200); res.end(JSON.stringify({ success: true, data: { global_security_admin: r.rows.some(row => row.role === 'global_security_admin') } })); return;
+  }
+  if (req.method === 'PUT') {
+    const body = await readBody();
+    await client.query(`DELETE FROM samrum_user_roles WHERE user_id=$1`, [uid]);
+    if (body.global_security_admin) {
+      await client.query(`INSERT INTO samrum_user_roles (user_id, role) VALUES ($1,'global_security_admin')`, [uid]);
+    }
+    res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+  }
+}
+const userProjectsMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/projects$/);
+if (userProjectsMatch) {
+  const uid = parseInt(userProjectsMatch[1]);
+  if (req.method === 'GET') {
+    const projects = await client.query(`SELECT id, name FROM samrum_projects ORDER BY name`);
+    const access = await client.query(`SELECT project_id FROM samrum_user_projects WHERE user_id=$1`, [uid]);
+    const accessIds = new Set(access.rows.map(r => r.project_id));
+    res.writeHead(200); res.end(JSON.stringify({ success: true, data: projects.rows.map(p => ({ ...p, has_access: accessIds.has(p.id) })) })); return;
+  }
+  if (req.method === 'PUT') {
+    const body = await readBody();
+    await client.query(`DELETE FROM samrum_user_projects WHERE user_id=$1`, [uid]);
+    for (const pid of (body.project_ids || [])) {
+      await client.query(`INSERT INTO samrum_user_projects (user_id, project_id) VALUES ($1,$2)`, [uid, pid]);
+    }
+    res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+  }
+}
+const userPwdMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/reset-password$/);
+if (userPwdMatch && req.method === 'POST') {
+  res.writeHead(200); res.end(JSON.stringify({ success: true, message: 'Nytt lösenord har skickats till användaren.' })); return;
+}
+
+    // B014 — Import/Export ID Sets
+    if (pathname === '/api/admin/import-export/id-sets') {
+      if (req.method === 'GET') {
+        const r = await client.query(`SELECT id, name, description, created_at FROM samrum_import_id_sets ORDER BY name`);
+        res.writeHead(200); res.end(JSON.stringify({ success: true, data: r.rows })); return;
+      }
+      if (req.method === 'POST') {
+        const body = await readBody();
+        const r = await client.query(`INSERT INTO samrum_import_id_sets (name, description) VALUES ($1,$2) RETURNING id,name,description,created_at`, [body.name, body.description || null]);
+        res.writeHead(201); res.end(JSON.stringify({ success: true, data: r.rows[0] })); return;
+      }
+    }
+    const idSetMatch = pathname.match(/^\/api\/admin\/import-export\/id-sets\/(\d+)$/);
+    if (idSetMatch && req.method === 'DELETE') {
+      await client.query(`DELETE FROM samrum_import_id_sets WHERE id=$1`, [parseInt(idSetMatch[1])]);
+      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+    }
+
+    // B014 — Import/Export Definitions
+    if (pathname === '/api/admin/import-export/definitions') {
+      if (req.method === 'GET') {
+        const r = await client.query(`SELECT id, name, type, created_at FROM samrum_import_definitions ORDER BY name`);
+        res.writeHead(200); res.end(JSON.stringify({ success: true, data: r.rows })); return;
+      }
+      if (req.method === 'POST') {
+        const body = await readBody();
+        const r = await client.query(`INSERT INTO samrum_import_definitions (name, type) VALUES ($1,$2) RETURNING id,name,type,created_at`, [body.name, body.type || 'IFC']);
+        res.writeHead(201); res.end(JSON.stringify({ success: true, data: r.rows[0] })); return;
+      }
+    }
+    const defMatch = pathname.match(/^\/api\/admin\/import-export\/definitions\/(\d+)$/);
+    if (defMatch && req.method === 'DELETE') {
+      await client.query(`DELETE FROM samrum_import_definitions WHERE id=$1`, [parseInt(defMatch[1])]);
+      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+    }
+
     // 404
     res.writeHead(404);
     res.end(JSON.stringify({

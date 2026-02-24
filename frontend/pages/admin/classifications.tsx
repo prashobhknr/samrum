@@ -76,7 +76,7 @@ export default function ClassificationsPage() {
     setLoading(true);
     fetch('http://localhost:3000/api/admin/classifications')
       .then(r => r.json())
-      .then(setData)
+      .then(r => setData(r.data ?? r))
       .catch(() => setError('Kunde inte ladda klassifikationer'))
       .finally(() => setLoading(false));
   };

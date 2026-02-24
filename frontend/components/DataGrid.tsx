@@ -218,7 +218,7 @@ export default function DataGrid<T extends Record<string, unknown>>({
   };
 
   // Apply column filters + sort
-  const processedData = [...data]
+  const processedData = [...(data ?? [])]
     .filter(row => {
       for (const [key, filterVal] of Object.entries(colFilterValues)) {
         if (!filterVal) continue;
