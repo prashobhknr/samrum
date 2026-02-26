@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import SamrumLayout from '../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../components/TreeNav';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
+import { getStoredToken } from '../../lib/auth';
 
 interface Module extends Record<string, unknown> {
   id: number;
@@ -46,7 +47,7 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
   if (!item) return (
     <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
       <svg className="w-12 h-12 mb-3 text-slate-200" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
       </svg>
       <p className="text-sm">Välj en modul för att se detaljer</p>
     </div>
@@ -63,7 +64,7 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -73,13 +74,13 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-samrum-blue text-white rounded hover:bg-samrum-blue-dark transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Ändra
         </button>
         <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 border border-red-200 transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
           Radera
         </button>
@@ -106,11 +107,10 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
       </div>
 
       <div className="px-4 py-3 border-t border-samrum-border bg-slate-50">
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-          item.allow_incomplete_versions
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.allow_incomplete_versions
             ? 'bg-amber-100 text-amber-700'
             : 'bg-green-100 text-green-700'
-        }`}>
+          }`}>
           {item.allow_incomplete_versions ? 'Tillåter ofullständiga' : 'Kräver komplett data'}
         </span>
       </div>
@@ -168,9 +168,12 @@ export default function ModulesPage() {
 
   const load = useCallback(() => {
     setLoading(true);
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+
     Promise.all([
-      fetch('http://localhost:3000/api/admin/modules').then(r => r.json()),
-      fetch('http://localhost:3000/api/admin/module-folders').then(r => r.json()),
+      fetch('http://localhost:3000/api/admin/modules', { headers }).then(r => r.json()),
+      fetch('http://localhost:3000/api/admin/module-folders', { headers }).then(r => r.json()),
     ]).then(([mRes, fRes]) => {
       const mods: Module[] = mRes.success ? mRes.data : [];
       const folds: Folder[] = fRes.success ? fRes.data : [];
@@ -179,7 +182,7 @@ export default function ModulesPage() {
       setFilteredModules(mods);
       setTreeNodes(buildTree(folds, mods));
     }).catch(console.error)
-    .finally(() => setLoading(false));
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -281,7 +284,7 @@ export default function ModulesPage() {
       label: 'Skapa ny',
       variant: 'primary',
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
       </svg>,
       onClick: () => alert('Skapa ny modul'),
     },
@@ -314,7 +317,7 @@ export default function ModulesPage() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
           <span>Admin</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="font-medium text-slate-900">Moduler</span>
         </div>
@@ -333,10 +336,10 @@ export default function ModulesPage() {
           onSearch={q => {
             setFilteredModules(q
               ? modules.filter(m =>
-                  m.name.toLowerCase().includes(q.toLowerCase()) ||
-                  (m.description ?? '').toLowerCase().includes(q.toLowerCase()) ||
-                  (m.folder_name ?? '').toLowerCase().includes(q.toLowerCase())
-                )
+                m.name.toLowerCase().includes(q.toLowerCase()) ||
+                (m.description ?? '').toLowerCase().includes(q.toLowerCase()) ||
+                (m.folder_name ?? '').toLowerCase().includes(q.toLowerCase())
+              )
               : modules);
           }}
           searchPlaceholder="Sök modul..."

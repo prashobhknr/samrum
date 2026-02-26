@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import TreeNav, { TreeNode } from '../../components/TreeNav';
+import { getStoredToken } from '../../lib/auth';
 
 interface Project {
   id: number;
@@ -84,9 +85,12 @@ export default function ProjectPage() {
   const load = useCallback(async (projectId: string) => {
     setLoading(true);
     try {
+      const token = getStoredToken();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+
       const [pRes, tRes] = await Promise.all([
-        fetch(`http://localhost:3000/api/admin/projects/${projectId}`).then(r => r.json()),
-        fetch(`http://localhost:3000/api/admin/projects/${projectId}/module-tree`).then(r => r.json()),
+        fetch(`http://localhost:3000/api/admin/projects/${projectId}`, { headers }).then(r => r.json()),
+        fetch(`http://localhost:3000/api/admin/projects/${projectId}/module-tree`, { headers }).then(r => r.json()),
       ]);
       if (pRes.success) setProject(pRes.data);
       if (tRes.success) {
@@ -118,14 +122,14 @@ export default function ProjectPage() {
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/select-project" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity flex-shrink-0">
             <svg className="w-5 h-5 text-samrum-accent" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             </svg>
             <span className="text-lg font-bold tracking-widest">SAMRUM</span>
           </Link>
           {project && (
             <>
               <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               <span className="text-sm text-slate-200 truncate">{project.name}</span>
             </>
@@ -163,7 +167,7 @@ export default function ProjectPage() {
               <svg className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
@@ -196,7 +200,7 @@ export default function ProjectPage() {
                   >
                     <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span className="truncate">{m.name}</span>
                   </button>
@@ -232,11 +236,10 @@ export default function ProjectPage() {
                     <h1 className="text-xl font-bold text-slate-900">{selectedModule.name}</h1>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      selectedModule.allow_incomplete_versions
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${selectedModule.allow_incomplete_versions
                         ? 'bg-amber-100 text-amber-700'
                         : 'bg-green-100 text-green-700'
-                    }`}>
+                      }`}>
                       {selectedModule.allow_incomplete_versions ? 'Tillåter ofullständiga' : 'Kräver komplett data'}
                     </span>
                     <Link
@@ -303,7 +306,7 @@ export default function ProjectPage() {
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8">
               <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
                 <svg className="w-10 h-10 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+                  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-slate-600 mb-1">

@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
+import { getStoredToken } from '@/lib/auth';
 
 interface ObjectType {
   id: number;
@@ -52,11 +53,13 @@ export default function ObjectTypeDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
     Promise.all([
-      fetch(`${API}/api/admin/object-types/${id}`).then(r => r.json()),
-      fetch(`${API}/api/admin/object-types/${id}/relationships`).then(r => r.json()),
-      fetch(`${API}/api/admin/data-types`).then(r => r.json()),
-      fetch(`${API}/api/admin/classifications`).then(r => r.json()),
+      fetch(`${API}/api/admin/object-types/${id}`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/object-types/${id}/relationships`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/data-types`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/classifications`, { headers }).then(r => r.json()),
     ]).then(([otData, relData, dtData, clData]) => {
       setOt(otData.data);
       setForm(otData.data || {});
@@ -69,9 +72,13 @@ export default function ObjectTypeDetailPage() {
 
   const saveEdit = async () => {
     setSaving(true);
+    const token = getStoredToken();
     const r = await fetch(`${API}/api/admin/object-types/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(form),
     });
     const d = await r.json();
@@ -255,6 +262,8 @@ interface ObjectAttribute {
   attribute_type: string;
   is_required: boolean;
   is_key: boolean;
+  is_readonly: boolean;
+  validation_regex: string | null;
   default_value: string | null;
   help_text: string | null;
 }
@@ -269,7 +278,9 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/admin/object-types/${objectTypeId}/attributes`);
+      const token = getStoredToken();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+      const res = await fetch(`http://localhost:3000/api/admin/object-types/${objectTypeId}/attributes`, { headers });
       const data = await res.json();
       if (data.success) setAttributes(data.data);
     } catch (e) {
@@ -281,17 +292,20 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
   useEffect(() => { load(); }, [load]);
 
   const saveAttr = async () => {
-    const url = editingAttr 
+    const url = editingAttr
       ? `http://localhost:3000/api/admin/object-types/attributes/${editingAttr.id}`
       : `http://localhost:3000/api/admin/object-types/${objectTypeId}/attributes`;
     const method = editingAttr ? 'PUT' : 'POST';
-    
+    const token = getStoredToken();
     await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(form),
     });
-    
+
     setEditingAttr(null);
     setShowAdd(false);
     setForm({});
@@ -300,7 +314,9 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
 
   const deleteAttr = async (id: number) => {
     if (!confirm('Delete this attribute?')) return;
-    await fetch(`http://localhost:3000/api/admin/object-types/attributes/${id}`, { method: 'DELETE' });
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    await fetch(`http://localhost:3000/api/admin/object-types/attributes/${id}`, { method: 'DELETE', headers });
     load();
   };
 
@@ -316,7 +332,7 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
           + Lägg till attribut
         </button>
       </div>
-      
+
       {loading ? (
         <div className="px-6 py-8 text-center text-gray-400">Laddar...</div>
       ) : attributes.length === 0 ? (
@@ -327,8 +343,9 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="px-4 py-3 text-left font-semibold text-gray-600">Namn</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-600">Typ</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-20">Oblig.</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-20">Nyckel</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-16">Oblig.</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-16">Låst</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-16">Nyckel</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-600 w-32">Åtgärder</th>
             </tr>
           </thead>
@@ -340,6 +357,7 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
                   <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{attr.attribute_type}</span>
                 </td>
                 <td className="px-4 py-3 text-center">{attr.is_required ? '✓' : '—'}</td>
+                <td className="px-4 py-3 text-center">{attr.is_readonly ? '🔒' : '—'}</td>
                 <td className="px-4 py-3 text-center">{attr.is_key ? '★' : '—'}</td>
                 <td className="px-4 py-3 text-center">
                   <button onClick={() => { setEditingAttr(attr); setForm(attr); }}
@@ -377,17 +395,31 @@ function AttributesSection({ objectTypeId }: { objectTypeId: number }) {
                   <option value="enum">enum</option>
                 </select>
               </div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={!!form.is_required} 
+              <div className="grid grid-cols-3 gap-2 py-2 border-y border-gray-50">
+                <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" className="rounded border-gray-300 text-blue-600"
+                    checked={!!form.is_required}
                     onChange={e => setForm(f => ({ ...f, is_required: e.target.checked }))} />
                   Obligatorisk
                 </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={!!form.is_key} 
+                <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" className="rounded border-gray-300 text-blue-600"
+                    checked={!!form.is_readonly}
+                    onChange={e => setForm(f => ({ ...f, is_readonly: e.target.checked }))} />
+                  Låst (Läs-endast)
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" className="rounded border-gray-300 text-blue-600"
+                    checked={!!form.is_key}
                     onChange={e => setForm(f => ({ ...f, is_key: e.target.checked }))} />
                   Nyckel
                 </label>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Validerings-RegEx (valfritt)</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
+                  placeholder="t.ex. ^D-[0-9]+$"
+                  value={form.validation_regex || ''} onChange={e => setForm(f => ({ ...f, validation_regex: e.target.value }))} />
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">

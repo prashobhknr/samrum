@@ -86,7 +86,7 @@ function ColumnSelector({
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+            d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
         </svg>
         Kolumner
       </button>
@@ -145,7 +145,7 @@ function FilterInput({
           className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       )}
@@ -160,6 +160,7 @@ export default function DataGrid<T extends Record<string, unknown>>({
   toolbarActions = [],
   onRowClick,
   selectable = false,
+  onSelectionChange,
   loading = false,
   emptyMessage = 'Inga poster att visa',
   totalCount,
@@ -238,14 +239,16 @@ export default function DataGrid<T extends Record<string, unknown>>({
   const activeFiltersCount = Object.values(colFilterValues).filter(Boolean).length;
 
   const toggleAll = () => {
-    if (selected.size === data.length) setSelected(new Set());
-    else setSelected(new Set(data.map(r => r[keyField])));
+    const next = selected.size === data.length ? new Set<unknown>() : new Set(data.map(r => r[keyField]));
+    setSelected(next);
+    onSelectionChange?.(Array.from(next) as (string | number)[]);
   };
 
   const toggleRow = (id: unknown) => {
     const s = new Set(selected);
     s.has(id) ? s.delete(id) : s.add(id);
     setSelected(s);
+    onSelectionChange?.(Array.from(s) as (string | number)[]);
   };
 
   const clearAllFilters = () => setColFilterValues({});
@@ -265,8 +268,8 @@ export default function DataGrid<T extends Record<string, unknown>>({
                   ${action.variant === 'danger'
                     ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
                     : action.variant === 'primary'
-                    ? 'bg-samrum-blue text-white hover:bg-samrum-blue-dark'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'}`}
+                      ? 'bg-samrum-blue text-white hover:bg-samrum-blue-dark'
+                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'}`}
               >
                 {action.icon && <span>{action.icon}</span>}
                 {action.label}
@@ -281,7 +284,7 @@ export default function DataGrid<T extends Record<string, unknown>>({
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} aktiva
               </button>
@@ -298,7 +301,7 @@ export default function DataGrid<T extends Record<string, unknown>>({
                 <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
                   type="text"
@@ -364,8 +367,8 @@ export default function DataGrid<T extends Record<string, unknown>>({
                 <td colSpan={activeColumns.length + (selectable ? 1 : 0)} className="text-center py-12 text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
                     </svg>
                     Laddar...
                   </div>

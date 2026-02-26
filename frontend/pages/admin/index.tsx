@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SamrumLayout from '../../components/SamrumLayout';
+import { getStoredUser, getStoredToken, User } from '../../lib/auth';
 
-interface Stats {
+interface AppMetrics { // Renamed from Stats
   object_types: number;
   relationships: number;
   modules: number;
@@ -44,11 +45,16 @@ function StatCard({ title, value, subtitle, href, color, icon }: StatCardProps) 
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [metrics, setMetrics] = useState<AppMetrics | null>(null); // Renamed from stats
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null); // Keep user state for header display
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/stats')
+    setUser(getStoredUser()); // Keep this for user info display
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token} ` } : undefined;
+
+    fetch('http://localhost:3000/api/stats', { headers })
       .then(r => r.json())
       .then(async d => {
         const s = d.stats ?? d;
@@ -56,14 +62,14 @@ export default function AdminDashboard() {
         let projectCount = 0;
         let userCount = 0;
         try {
-          const pRes = await fetch('http://localhost:3000/api/admin/projects').then(r => r.json());
+          const pRes = await fetch('http://localhost:3000/api/admin/projects', { headers }).then(r => r.json());
           projectCount = pRes.total ?? pRes.data?.length ?? 0;
-        } catch {}
+        } catch { }
         try {
-          const uRes = await fetch('http://localhost:3000/api/admin/users').then(r => r.json());
+          const uRes = await fetch('http://localhost:3000/api/admin/users', { headers }).then(r => r.json());
           userCount = uRes.total ?? uRes.data?.length ?? 0;
-        } catch {}
-        setStats({
+        } catch { }
+        setMetrics({ // Changed setStats to setMetrics
           object_types: s.samrum_object_types ?? s.object_types ?? 0,
           relationships: s.samrum_relationships ?? s.relationships ?? 0,
           modules: s.samrum_modules ?? s.modules ?? 0,
@@ -73,30 +79,56 @@ export default function AdminDashboard() {
           users: userCount,
         });
       })
-      .catch(() => setStats({ object_types: 1400, relationships: 4259, modules: 271, module_folders: 9, classifications: 0, projects: 21 }))
+      .catch(() => setMetrics({ object_types: 1400, relationships: 4259, modules: 271, module_folders: 9, classifications: 0, projects: 21 })) // Changed setStats to setMetrics
       .finally(() => setLoading(false));
   }, []);
 
-  const navLinks = [
-    { href: '/select-project', label: 'Val av projekt', desc: 'Välj och öppna ett projekt', accent: true },
-    { href: '/admin/projects', label: 'Projektdatabaser (B010)', desc: 'Skapa och hantera projekt' },
-    { href: '/admin/users', label: 'Användare (B000)', desc: 'Administrera användare och roller' },
-    { href: '/admin/object-types', label: 'Objekttyper (B012)', desc: 'Hantera objekttypdefinitioner' },
-    { href: '/admin/modules', label: 'Moduler (B011)', desc: 'Projektmoduler och mappar' },
-    { href: '/admin/relationships', label: 'Relationer', desc: 'Objekttypsrelationer' },
-    { href: '/admin/classifications', label: 'Klassifikationer (B013)', desc: 'Klassifikationssystem' },
-    { href: '/admin/import-export', label: 'Import/Export (B014)', desc: 'ID-uppsättningar och definitioner' },
-    { href: '/admin/module-folders', label: 'Modulmappar', desc: 'Mappstruktur' },
+  // Removed isGlobalAdmin check
+  // const isGlobalAdmin = user?.groups?.includes('global_security_admin') || user?.groups?.includes('security_admin');
+
+  const allNavLinks = [
+    { href: '/select-project', label: 'Val av projekt', desc: 'Välj och öppna ett projekt', accent: true, adminOnly: false },
+    { href: '/admin/projects', label: 'Projektdatabaser (B010)', desc: 'Skapa och hantera projekt', adminOnly: true },
+    { href: '/admin/users', label: 'Användare (B000)', desc: 'Administrera användare och roller', adminOnly: true },
+    { href: '/admin/object-types', label: 'Objekttyper (B012)', desc: 'Hantera objekttypdefinitioner', adminOnly: true },
+    { href: '/admin/modules', label: 'Moduler (B011)', desc: 'Projektmoduler och mappar', adminOnly: true },
+    { href: '/admin/relationships', label: 'Relationer', desc: 'Objekttypsrelationer', adminOnly: true },
+    { href: '/admin/classifications', label: 'Klassifikationer (B013)', desc: 'Klassifikationssystem', adminOnly: true },
+    { href: '/admin/import-export', label: 'Import/Export (B014)', desc: 'ID-uppsättningar och definitioner', adminOnly: true },
+    { href: '/admin/module-folders', label: 'Modulmappar', desc: 'Mappstruktur', adminOnly: true },
   ];
+
+  const navLinks = allNavLinks; // Show all nav links unconditionally
 
   return (
     <SamrumLayout>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-6 py-8">
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Administrationsöversikt</h1>
-            <p className="text-slate-500 mt-1">Samrum databas- och objektadministration</p>
+          <div className="mb-8 flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Administrationsöversikt</h1>
+              <p className="text-slate-500 mt-1">Samrum databas- och objektadministration</p>
+            </div>
+            {user && (
+              <div className="bg-white border border-slate-200 shadow-sm rounded-lg px-4 py-3 flex items-center gap-3">
+                <div className="bg-samrum-blue/10 text-samrum-blue rounded-full p-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{user.name}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {user.groups.length > 0 ? user.groups.map(g => (
+                      <span key={g} className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                        {g.replace(/_/g, ' ')}
+                      </span>
+                    )) : <span className="text-[10px] text-slate-400">Inga roller</span>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Stats Grid */}
@@ -108,49 +140,49 @@ export default function AdminDashboard() {
                   <div className="h-8 bg-slate-200 rounded w-16" />
                 </div>
               ))
-            ) : stats ? (
+            ) : metrics ? (
               <>
                 <StatCard
-                  title="Objekttyper" value={stats.object_types}
+                  title="Objekttyper" value={metrics.object_types}
                   subtitle="Definierade objekttyper" href="/admin/object-types"
                   color="text-blue-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 3h6M9 3a1 1 0 00-1 1v1h8V4a1 1 0 00-1-1H9z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 3h6M9 3a1 1 0 00-1 1v1h8V4a1 1 0 00-1-1H9z" /></svg>}
                 />
                 <StatCard
-                  title="Relationer" value={stats.relationships}
+                  title="Relationer" value={metrics.relationships}
                   subtitle="Objekttypsrelationer" href="/admin/relationships"
                   color="text-purple-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                 />
                 <StatCard
-                  title="Moduler" value={stats.modules}
+                  title="Moduler" value={metrics.modules}
                   subtitle="Projektmoduler" href="/admin/modules"
                   color="text-green-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
                 />
                 <StatCard
-                  title="Modulmappar" value={stats.module_folders}
+                  title="Modulmappar" value={metrics.module_folders}
                   subtitle="Hierarkiska mappar" href="/admin/module-folders"
                   color="text-amber-600"
-                  icon={<svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" /></svg>}
                 />
                 <StatCard
-                  title="Klassifikationer" value={stats.classifications}
+                  title="Klassifikationer" value={metrics.classifications}
                   subtitle="Klassifikationer" href="/admin/classifications"
                   color="text-rose-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>}
                 />
                 <StatCard
-                  title="Användare" value={stats.users ?? 0}
+                  title="Användare" value={metrics.users ?? 0}
                   subtitle="Systemanvändare" href="/admin/users"
                   color="text-teal-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
                 />
                 <StatCard
-                  title="Projekt" value={stats.projects ?? 0}
+                  title="Projekt" value={metrics.projects ?? 0}
                   subtitle="Projektdatabaser" href="/admin/projects"
                   color="text-indigo-600"
-                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>}
                 />
               </>
             ) : null}
@@ -176,7 +208,7 @@ export default function AdminDashboard() {
                     <svg className={`w-4 h-4 transition-colors
                       ${'accent' in link && link.accent ? 'text-amber-400 group-hover:text-amber-600' : 'text-slate-400 group-hover:text-samrum-blue'}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                 </Link>

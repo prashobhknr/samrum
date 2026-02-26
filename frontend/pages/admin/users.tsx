@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import SamrumLayout from '../../components/SamrumLayout';
+import { getStoredToken } from '../../lib/auth';
 
 interface User {
   id: number;
@@ -15,18 +16,24 @@ export default function UsersAdminPage() {
   const [activeTab, setActiveTab] = useState<'info' | 'roles' | 'projects'>('info');
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ username: '', email: '' });
-  const [roles, setRoles] = useState({ global_security_admin: false });
   const [projects, setProjects] = useState<{ id: number; name: string; has_access: boolean }[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ username: '', email: '' });
   const [passwordResetShown, setPasswordResetShown] = useState(false);
   const API_URL = 'http://localhost:3000';
 
+  const getHeaders = () => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  };
+
   useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/users`);
+      const res = await fetch(`${API_URL}/api/admin/users`, { headers: getHeaders() });
       const data = await res.json();
       setUsers(data.data || []);
     } catch (e) {
@@ -36,14 +43,8 @@ export default function UsersAdminPage() {
     }
   };
 
-  const fetchRoles = async (userId: number) => {
-    const res = await fetch(`${API_URL}/api/admin/users/${userId}/roles`);
-    const data = await res.json();
-    setRoles(data.data || { global_security_admin: false });
-  };
-
   const fetchProjects = async (userId: number) => {
-    const res = await fetch(`${API_URL}/api/admin/users/${userId}/projects`);
+    const res = await fetch(`${API_URL}/api/admin/users/${userId}/projects`, { headers: getHeaders() });
     const data = await res.json();
     setProjects(data.data || []);
   };
@@ -54,14 +55,14 @@ export default function UsersAdminPage() {
     setPasswordResetShown(false);
     setEditForm({ username: user.username, email: user.email || '' });
     setActiveTab('info');
-    await Promise.all([fetchRoles(user.id), fetchProjects(user.id)]);
+    await fetchProjects(user.id);
   };
 
   const saveUserInfo = async () => {
     if (!selectedUser) return;
     await fetch(`${API_URL}/api/admin/users/${selectedUser.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(editForm),
     });
     setSelectedUser({ ...selectedUser, ...editForm });
@@ -69,21 +70,12 @@ export default function UsersAdminPage() {
     setEditMode(false);
   };
 
-  const saveRoles = async () => {
-    if (!selectedUser) return;
-    await fetch(`${API_URL}/api/admin/users/${selectedUser.id}/roles`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(roles),
-    });
-  };
-
   const saveProjects = async () => {
     if (!selectedUser) return;
     const projectIds = projects.filter(p => p.has_access).map(p => p.id);
     await fetch(`${API_URL}/api/admin/users/${selectedUser.id}/projects`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ project_ids: projectIds }),
     });
   };
@@ -92,7 +84,7 @@ export default function UsersAdminPage() {
     if (!selectedUser) return;
     await fetch(`${API_URL}/api/admin/users/${selectedUser.id}/reset-password`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
     });
     setPasswordResetShown(true);
   };
@@ -100,7 +92,7 @@ export default function UsersAdminPage() {
   const createUser = async () => {
     const res = await fetch(`${API_URL}/api/admin/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(createForm),
     });
     const data = await res.json();
@@ -114,7 +106,7 @@ export default function UsersAdminPage() {
   const deleteUser = async () => {
     if (!selectedUser) return;
     if (!confirm(`Delete user "${selectedUser.username}"?`)) return;
-    await fetch(`${API_URL}/api/admin/users/${selectedUser.id}`, { method: 'DELETE' });
+    await fetch(`${API_URL}/api/admin/users/${selectedUser.id}`, { method: 'DELETE', headers: getHeaders() });
     setUsers(users.filter(u => u.id !== selectedUser.id));
     setSelectedUser(null);
   };
@@ -141,7 +133,7 @@ export default function UsersAdminPage() {
         )}
       </div>
       <div className="px-4 py-2 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-center gap-2">
-        <span>◄</span>{[1,2,3,4,5].map(n => <span key={n} className={`cursor-pointer ${n===1?'font-semibold text-slate-700':''}`}>{n}</span>)}<span>►</span>
+        <span>◄</span>{[1, 2, 3, 4, 5].map(n => <span key={n} className={`cursor-pointer ${n === 1 ? 'font-semibold text-slate-700' : ''}`}>{n}</span>)}<span>►</span>
       </div>
     </div>
   );
@@ -164,19 +156,19 @@ export default function UsersAdminPage() {
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4">
           <div><label className="block text-sm font-medium text-slate-700 mb-1">Användarnamn</label>
-            {editMode ? <input value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/> : <div className="text-sm text-slate-900 py-2">{selectedUser?.username}</div>}
+            {editMode ? <input value={editForm.username} onChange={e => setEditForm({ ...editForm, username: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" /> : <div className="text-sm text-slate-900 py-2">{selectedUser?.username}</div>}
           </div>
           <div><label className="block text-sm font-medium text-slate-700 mb-1">Epost</label>
-            {editMode ? <input value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/> : <div className="text-sm text-slate-900 py-2">{selectedUser?.email || '-'}</div>}
+            {editMode ? <input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" /> : <div className="text-sm text-slate-900 py-2">{selectedUser?.email || '-'}</div>}
           </div></div>
         <div className="flex gap-3 pt-2">
           {editMode ? (
             <><button onClick={() => setEditMode(false)} className="px-4 py-2 text-sm border border-slate-300 rounded hover:bg-slate-50">Avbryt</button>
-            <button onClick={saveUserInfo} className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Spara</button></>
+              <button onClick={saveUserInfo} className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Spara</button></>
           ) : (
             <><button onClick={() => setEditMode(true)} className="px-4 py-2 text-sm border border-slate-300 rounded hover:bg-slate-50">Ändra</button>
-            <button onClick={resetPassword} className="px-4 py-2 text-sm bg-slate-600 text-white rounded hover:bg-slate-700">Byt lösenord</button>
-            <button onClick={deleteUser} className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">Radera</button></>
+              <button onClick={resetPassword} className="px-4 py-2 text-sm bg-slate-600 text-white rounded hover:bg-slate-700">Byt lösenord</button>
+              <button onClick={deleteUser} className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">Radera</button></>
           )}
         </div>
       </div>
@@ -185,11 +177,7 @@ export default function UsersAdminPage() {
     if (activeTab === 'roles') return (
       <div className="space-y-4">
         <div className="border-b border-slate-200 pb-2 mb-4"><h3 className="text-sm font-medium text-slate-700">Roll</h3></div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={roles.global_security_admin} onChange={e => setRoles({...roles, global_security_admin: e.target.checked})} className="w-4 h-4"/>
-          <span className="text-sm text-slate-700">Global säkerhetsadministratör</span>
-        </label>
-        <button onClick={saveRoles} className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Spara</button>
+        <p className="text-sm text-slate-500 italic">Rollhantering är inaktiverad.</p>
       </div>
     );
 
@@ -199,7 +187,7 @@ export default function UsersAdminPage() {
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {projects.map(p => (
             <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={p.has_access} onChange={e => setProjects(projects.map(x => x.id === p.id ? {...x, has_access: e.target.checked} : x))} className="w-4 h-4"/>
+              <input type="checkbox" checked={p.has_access} onChange={e => setProjects(projects.map(x => x.id === p.id ? { ...x, has_access: e.target.checked } : x))} className="w-4 h-4" />
               <span className="text-sm text-slate-700">{p.name}</span>
             </label>
           ))}
@@ -218,8 +206,8 @@ export default function UsersAdminPage() {
           <>
             <div className="border-b border-slate-200 mb-6">
               <div className="flex gap-6">
-                {[{id:'info',label:'Användarinformation'},{id:'roles',label:'Roller'},{id:'projects',label:'Projekttillgång'}].map(t => (
-                  <button key={t.id} onClick={() => setActiveTab(t.id as typeof activeTab)} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab===t.id?'border-blue-600 text-blue-600':'border-transparent text-slate-500 hover:text-slate-700'}`}>{t.label}</button>
+                {[{ id: 'info', label: 'Användarinformation' }, { id: 'roles', label: 'Roller' }, { id: 'projects', label: 'Projekttillgång' }].map(t => (
+                  <button key={t.id} onClick={() => setActiveTab(t.id as typeof activeTab)} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{t.label}</button>
                 ))}
               </div>
             </div>
@@ -236,8 +224,8 @@ export default function UsersAdminPage() {
             <div className="bg-white rounded-lg p-6 w-96">
               <h3 className="text-lg font-semibold mb-4">Ny användare</h3>
               <div className="space-y-3">
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Användarnamn</label><input value={createForm.username} onChange={e => setCreateForm({...createForm, username: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded text-sm"/></div>
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Epost</label><input value={createForm.email} onChange={e => setCreateForm({...createForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded text-sm"/></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Användarnamn</label><input value={createForm.username} onChange={e => setCreateForm({ ...createForm, username: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded text-sm" /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Epost</label><input value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded text-sm" /></div>
               </div>
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm border border-slate-300 rounded hover:bg-slate-50">Avbryt</button>

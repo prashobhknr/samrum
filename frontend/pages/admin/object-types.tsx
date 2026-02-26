@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import SamrumLayout from '../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../components/TreeNav';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
+import { getStoredToken } from '../../lib/auth';
 
 interface ObjectType extends Record<string, unknown> {
   id: number;
@@ -28,7 +29,7 @@ function DetailPanel({ item, onEdit, onClose }: DetailPanelProps) {
     <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
       <svg className="w-12 h-12 mb-3 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 3h6"/>
+          d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M9 3h6" />
       </svg>
       <p className="text-sm">Välj en objekttyp för att se detaljer</p>
     </div>
@@ -58,7 +59,7 @@ function DetailPanel({ item, onEdit, onClose }: DetailPanelProps) {
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-2 flex-shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -69,7 +70,7 @@ function DetailPanel({ item, onEdit, onClose }: DetailPanelProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-samrum-blue text-white rounded hover:bg-samrum-blue-dark transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Ändra
         </button>
@@ -123,7 +124,10 @@ export default function ObjectTypesPage() {
     if (q) url += `&search=${encodeURIComponent(q)}`;
     if (classId) url += `&classificationId=${classId}`;
 
-    fetch(url)
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+
+    fetch(url, { headers })
       .then(r => r.json())
       .then(d => {
         if (d.success) {
@@ -137,7 +141,10 @@ export default function ObjectTypesPage() {
 
   // Build classification tree from data
   useEffect(() => {
-    fetch('http://localhost:3000/api/admin/object-types?page=1&pageSize=1400')
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+
+    fetch('http://localhost:3000/api/admin/object-types?page=1&pageSize=1400', { headers })
       .then(r => r.json())
       .then(d => {
         if (!d.success) return;
@@ -200,12 +207,12 @@ export default function ObjectTypesPage() {
   const toolbar: ToolbarAction[] = [
     {
       label: 'Skapa ny', variant: 'primary',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
       onClick: () => alert('Skapa ny objekttyp — ej implementerat'),
     },
     {
       label: 'Exportera',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
       onClick: () => {
         const csv = [
           ['ID', 'AdministrationsId', 'Namn', 'Datatyp', 'Klassificering'].join(','),
@@ -268,13 +275,13 @@ export default function ObjectTypesPage() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
           <span>Admin</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="font-medium text-slate-900">Objekttyper</span>
           {selectedFilter && (
             <>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
               <span className="font-medium text-slate-900 truncate max-w-[200px]">{selectedFilter}</span>
             </>

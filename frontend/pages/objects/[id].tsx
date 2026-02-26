@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import SamrumLayout from '../../components/SamrumLayout';
+import { getStoredToken } from '../../lib/auth';
 
 const API_URL = 'http://localhost:3000';
 
@@ -45,7 +46,9 @@ export default function ObjectDetailPage() {
     if (!id) return;
     setLoading(true);
     setError(null);
-    fetch(`${API_URL}/api/objects/instances/${id}`)
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    fetch(`${API_URL}/api/objects/instances/${id}`, { headers })
       .then(r => r.json())
       .then(d => {
         if (d.success) setObj(d.data);
@@ -60,7 +63,9 @@ export default function ObjectDetailPage() {
     if (!confirm(`Radera "${obj.external_id} — ${obj.name}"?`)) return;
     setDeleting(true);
     try {
-      await fetch(`${API_URL}/api/objects/instances/${obj.id}`, { method: 'DELETE' });
+      const token = getStoredToken();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+      await fetch(`${API_URL}/api/objects/instances/${obj.id}`, { method: 'DELETE', headers });
       router.back();
     } catch {
       alert('Kunde inte radera objektet');
@@ -79,7 +84,7 @@ export default function ObjectDetailPage() {
           {/* Root node */}
           <div className="flex items-center gap-1 px-2 py-1.5 rounded bg-blue-50">
             <svg className="w-3 h-3 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M5 12l5-5 5 5"/>
+              <path d="M5 12l5-5 5 5" />
             </svg>
             <span className="text-xs font-semibold text-blue-700 truncate">
               {obj.object_type}: {obj.external_id}

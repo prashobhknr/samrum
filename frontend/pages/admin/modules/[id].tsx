@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import SamrumLayout from '../../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../../components/TreeNav';
+import { getStoredToken } from '../../../lib/auth';
 import DataGrid, { Column } from '../../../components/DataGrid';
+import BulkEditModal from '../../../components/BulkEditModal';
 
 const API = 'http://localhost:3000';
 
@@ -184,7 +186,7 @@ function ModuleInfoPanel({ module: mod }: { module: ModuleInfo | null }) {
       {/* Links */}
       <div className="px-4 py-3">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Vydesigner</p>
-        <Link href={`/admin/modules/${mod.id}`}
+        <Link href={`/admin/view-designer?module=${mod.id}`}
           className="text-xs text-samrum-blue hover:underline block">
           Öppna inställningar →
         </Link>
@@ -241,14 +243,14 @@ function FilterDialog({
             <button onClick={() => addCondition('AND')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Lägg till OCH-villkor
             </button>
             <button onClick={() => addCondition('OR')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Lägg till ELLER-villkor
             </button>
@@ -287,7 +289,7 @@ function FilterDialog({
               <button onClick={() => remove(i)} title="Ta bort"
                 className="text-slate-400 hover:text-red-500">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
             </div>
@@ -299,14 +301,14 @@ function FilterDialog({
           <button onClick={() => { onChange([]); onClose(); }}
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
             Avbryt
           </button>
           <button onClick={() => { onChange(local.filter(c => c.value)); onClose(); }}
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-samrum-blue text-white rounded hover:bg-samrum-blue-dark">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Ok
           </button>
@@ -337,11 +339,17 @@ export default function ModuleInstanceViewPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
 
+  // Bulk edit
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+
   // Load tree data once
   useEffect(() => {
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
     Promise.all([
-      fetch(`${API}/api/admin/module-folders`).then(r => r.json()),
-      fetch(`${API}/api/admin/modules`).then(r => r.json()),
+      fetch(`${API}/api/admin/module-folders`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/modules`, { headers }).then(r => r.json()),
     ]).then(([fRes, mRes]) => {
       const f: ModuleFolder[] = fRes.success ? fRes.data : [];
       const m: ModuleListItem[] = mRes.success ? mRes.data : [];
@@ -361,7 +369,9 @@ export default function ModuleInstanceViewPage() {
   const loadInstances = useCallback(() => {
     if (!moduleId) return;
     setLoading(true);
-    fetch(`${API}/api/admin/modules/${moduleId}/instances`)
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    fetch(`${API}/api/admin/modules/${moduleId}/instances`, { headers })
       .then(r => r.json())
       .then(data => {
         if (data.success) {
@@ -469,19 +479,25 @@ export default function ModuleInstanceViewPage() {
       label: 'Skapa ny',
       variant: 'primary' as const,
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
       onClick: () => alert('Skapa ny instans'),
     },
     {
       label: 'Radera',
       variant: 'danger' as const,
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
       onClick: () => alert('Radera markerade'),
     },
     {
       label: 'Utskrifter',
-      onClick: () => alert('Utskrifter'),
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>,
+      disabled: selectedIds.length === 0,
+      onClick: () => {
+        const ids = selectedIds.join(',');
+        window.open(`${API}/api/admin/reports/spec-sheet?ids=${ids}`, '_blank');
+      },
     },
     {
       label: 'Exportera',
@@ -492,9 +508,16 @@ export default function ModuleInstanceViewPage() {
       onClick: () => alert('Importera'),
     },
     {
+      label: 'Massredigera',
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+      disabled: selectedIds.length === 0,
+      onClick: () => setBulkEditOpen(true),
+    },
+    {
       label: activeFilterCount > 0 ? `Filter (${activeFilterCount})` : 'Filter',
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>,
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" /></svg>,
       variant: activeFilterCount > 0 ? 'primary' as const : 'secondary' as const,
       onClick: () => setFilterOpen(true),
     },
@@ -525,10 +548,10 @@ export default function ModuleInstanceViewPage() {
           <nav className="flex items-center gap-1 text-xs text-slate-500 mb-1">
             <Link href="/admin" className="hover:text-samrum-blue">Admin</Link>
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             <Link href="/admin/modules" className="hover:text-samrum-blue">Moduler</Link>
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             <span className="font-medium text-slate-800 truncate max-w-xs">{moduleInfo?.name ?? '…'}</span>
           </nav>
           <div className="flex items-center justify-between">
@@ -561,6 +584,7 @@ export default function ModuleInstanceViewPage() {
             loading={loading}
             keyField="_id"
             selectable
+            onSelectionChange={setSelectedIds}
             columnSelector
             columnFilters
             toolbarActions={toolbarActions}
@@ -573,6 +597,30 @@ export default function ModuleInstanceViewPage() {
           />
         </div>
       </SamrumLayout>
+
+      {/* Bulk Edit Modal */}
+      <BulkEditModal
+        isOpen={bulkEditOpen}
+        onClose={() => setBulkEditOpen(false)}
+        selectedIds={selectedIds}
+        columns={gridColumns as any}
+        onSave={async (attrValues) => {
+          const token = getStoredToken();
+          const res = await fetch(`${API}/api/objects/instances/bulk-update`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              ids: selectedIds,
+              attribute_values: attrValues
+            })
+          });
+          if (!res.ok) throw new Error('Misslyckades att uppdatera poster');
+          await loadInstances();
+        }}
+      />
 
       {/* Filter dialog */}
       {filterOpen && (
