@@ -30,6 +30,22 @@ client.connect(err => {
 // In-memory view settings store (module_id -> column config)
 const viewSettings = {};
 
+// Derive the ID column label from an OMS object type name
+function getIdColumnLabel(typeName) {
+  if (!typeName) return 'Objekt-ID';
+  const map = {
+    'Door': 'DörrID', 'Lock': 'LåsID', 'Door Frame': 'KarmID',
+    'Door Automation': 'AutomatikID', 'Wall Type': 'VäggtypsID',
+  };
+  if (map[typeName]) return map[typeName];
+  if (typeName.startsWith('ID ')) {
+    const rest = typeName.substring(3);
+    return rest.charAt(0).toUpperCase() + rest.slice(1) + '-ID';
+  }
+  if (typeName.endsWith('ID')) return typeName;
+  return typeName + '-ID';
+}
+
 // Create HTTP server
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
@@ -157,6 +173,47 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // POST /api/objects/instances — create a new instance
+    if (pathname === '/api/objects/instances' && req.method === 'POST') {
+      const body = await readBody();
+      const { object_type_id, name, external_id, attribute_values_by_id, is_active } = body;
+      if (!object_type_id) {
+        res.writeHead(400); res.end(JSON.stringify({ success: false, error: 'object_type_id is required' })); return;
+      }
+      await client.query('BEGIN');
+      try {
+        const instR = await client.query(
+          `INSERT INTO object_instances (object_type_id, external_id, name, is_active)
+           VALUES ($1, $2, $3, $4) RETURNING id, external_id, name`,
+          [object_type_id, external_id || null, name || null, is_active !== false]
+        );
+        const newId = instR.rows[0].id;
+        if (attribute_values_by_id && typeof attribute_values_by_id === 'object') {
+          for (const [attrId, val] of Object.entries(attribute_values_by_id)) {
+            if (val === null || val === undefined || String(val).trim() === '') continue;
+            await client.query(
+              `INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (object_instance_id, object_attribute_id) DO UPDATE SET value = $3, updated_at = NOW()`,
+              [newId, parseInt(attrId), String(val)]
+            );
+          }
+        }
+        await client.query('COMMIT');
+        res.writeHead(201);
+        res.end(JSON.stringify({ success: true, id: newId, external_id: instR.rows[0].external_id, name: instR.rows[0].name }));
+      } catch (err) {
+        await client.query('ROLLBACK');
+        if (err.code === '23505') {
+          res.writeHead(409);
+          res.end(JSON.stringify({ success: false, error: 'En instans med detta ID finns redan' }));
+        } else {
+          throw err;
+        }
+      }
+      return;
+    }
+
     // Get object instances (doors)
     if (pathname === '/api/objects/instances' && req.method === 'GET') {
       const result = await client.query(`
@@ -176,6 +233,164 @@ const server = http.createServer(async (req, res) => {
         count: result.rows.length
       }));
       return;
+    }
+
+    // GET /api/objects/types/:typeId/instances — list all instances of an OMS type
+    const typeInstMatch = pathname.match(/^\/api\/objects\/types\/(\d+)\/instances$/);
+    if (typeInstMatch && req.method === 'GET') {
+      const typeId = typeInstMatch[1];
+      const r = await client.query(
+        `SELECT id, external_id, name FROM object_instances WHERE object_type_id = $1 ORDER BY external_id`,
+        [typeId]
+      );
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true, data: r.rows }));
+      return;
+    }
+
+    // GET /api/objects/instances/:id/details?module=:moduleId
+    const detailsMatch = pathname.match(/^\/api\/objects\/instances\/(\d+)\/details$/);
+    if (detailsMatch && req.method === 'GET') {
+      const instanceId = parseInt(detailsMatch[1]);
+      const moduleId = parsedUrl.query.module ? parseInt(parsedUrl.query.module) : null;
+
+      // 1. Load instance + OMS type
+      const instR = await client.query(
+        `SELECT oi.id, oi.external_id, oi.name, oi.object_type_id, oi.is_active,
+                ot.name AS object_type_name, ot.samrum_ot_id
+         FROM object_instances oi
+         JOIN object_types ot ON ot.id = oi.object_type_id
+         WHERE oi.id = $1`, [instanceId]);
+      if (!instR.rows.length) {
+        res.writeHead(404); res.end(JSON.stringify({ success: false, error: 'Instance not found' })); return;
+      }
+      const inst = instR.rows[0];
+
+      // 2. Load module info (if moduleId given)
+      let moduleInfo = null;
+      if (moduleId) {
+        const modR = await client.query(
+          `SELECT id, name FROM samrum_modules WHERE id = $1`, [moduleId]);
+        if (modR.rows.length) moduleInfo = modR.rows[0];
+      }
+
+      // 3. Load column definitions
+      let columns = [];
+      if (moduleId) {
+        const mvcR = await client.query(
+          `SELECT mvc.column_key AS key, mvc.label, mvc.col_type AS type,
+                  mvc.col_order, mvc.is_required, mvc.is_editable,
+                  mvc.oms_attribute_id, oa.enum_values
+           FROM module_view_columns mvc
+           LEFT JOIN object_attributes oa ON oa.id = mvc.oms_attribute_id
+           WHERE mvc.module_id = $1
+           ORDER BY mvc.col_order, mvc.id`, [moduleId]);
+        columns = mvcR.rows;
+      }
+      // Fallback: all OMS attributes for this type
+      if (columns.length === 0) {
+        const fbR = await client.query(
+          `SELECT attribute_name AS key, attribute_name AS label, attribute_type AS type,
+                  0 AS col_order, is_required, TRUE AS is_editable, id AS oms_attribute_id, enum_values
+           FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [inst.object_type_id]);
+        columns = fbR.rows;
+      }
+
+      // 4. Load attribute_values for this instance
+      const attrIds = [...new Set(columns.filter(c => c.oms_attribute_id).map(c => Number(c.oms_attribute_id)))];
+      let avMap = {};
+      if (attrIds.length > 0) {
+        const avR = await client.query(
+          `SELECT object_attribute_id, value FROM attribute_values
+           WHERE object_instance_id = $1 AND object_attribute_id = ANY($2::int[])`,
+          [instanceId, attrIds]);
+        avR.rows.forEach(av => { avMap[av.object_attribute_id] = av.value; });
+      }
+
+      // 5. Build fields array (skip reference-type cols — handled as related_groups)
+      const mapType = (t) => t || 'text';
+      const fields = columns
+        .filter(c => mapType(c.type) !== 'reference')
+        .map(c => ({
+          key: c.key,
+          label: c.label || c.key,
+          type: mapType(c.type),
+          col_order: c.col_order,
+          is_required: c.is_required || false,
+          is_editable: c.is_editable !== false,
+          enum_values: c.enum_values || null,
+          oms_attribute_id: c.oms_attribute_id ? Number(c.oms_attribute_id) : null,
+          value: c.oms_attribute_id ? (avMap[c.oms_attribute_id] ?? null) : null,
+        }));
+
+      // 6. Load object_relationships for this OMS type
+      const relR = await client.query(
+        `SELECT r.id AS relationship_id, r.child_object_type_id AS type_id,
+                ot.name AS type_name, r.relationship_name, r.cardinality
+         FROM object_relationships r
+         JOIN object_types ot ON ot.id = r.child_object_type_id
+         WHERE r.parent_object_type_id = $1
+         ORDER BY r.id`, [inst.object_type_id]);
+
+      // 7. For each relationship, load linked child instances
+      const relatedGroups = [];
+      for (const rel of relR.rows) {
+        const linksR = await client.query(
+          `SELECT oir.id AS link_id, ci.id, ci.external_id, ci.name
+           FROM object_instance_relationships oir
+           JOIN object_instances ci ON ci.id = oir.child_instance_id
+           WHERE oir.parent_instance_id = $1 AND oir.relationship_id = $2
+           ORDER BY ci.external_id`, [instanceId, rel.relationship_id]);
+        relatedGroups.push({
+          relationship_id: rel.relationship_id,
+          type_id: rel.type_id,
+          type_name: rel.type_name,
+          relationship_name: rel.relationship_name,
+          cardinality: rel.cardinality,
+          instances: linksR.rows,
+        });
+      }
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        instance: {
+          id: inst.id, external_id: inst.external_id, name: inst.name,
+          object_type_id: inst.object_type_id, object_type_name: inst.object_type_name,
+          id_column_label: getIdColumnLabel(inst.object_type_name),
+          is_active: inst.is_active,
+        },
+        module: moduleInfo,
+        fields,
+        related_groups: relatedGroups,
+      }));
+      return;
+    }
+
+    // POST /api/objects/instances/:id/relationships
+    const relPostMatch = pathname.match(/^\/api\/objects\/instances\/(\d+)\/relationships$/);
+    if (relPostMatch && req.method === 'POST') {
+      const parentId = parseInt(relPostMatch[1]);
+      const body = await readBody();
+      const { child_instance_id, relationship_id } = body;
+      if (!child_instance_id || !relationship_id) {
+        res.writeHead(400); res.end(JSON.stringify({ success: false, error: 'child_instance_id and relationship_id required' })); return;
+      }
+      await client.query(
+        `INSERT INTO object_instance_relationships (parent_instance_id, child_instance_id, relationship_id)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [parentId, child_instance_id, relationship_id]);
+      res.writeHead(201); res.end(JSON.stringify({ success: true })); return;
+    }
+
+    // DELETE /api/objects/instances/:id/relationships/:linkId
+    const relDelMatch = pathname.match(/^\/api\/objects\/instances\/(\d+)\/relationships\/(\d+)$/);
+    if (relDelMatch && req.method === 'DELETE') {
+      const [, parentId, linkId] = relDelMatch;
+      await client.query(
+        `DELETE FROM object_instance_relationships WHERE id = $1 AND parent_instance_id = $2`,
+        [linkId, parentId]);
+      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
     }
 
     // Get instance with attributes
@@ -279,7 +494,7 @@ const server = http.createServer(async (req, res) => {
     // ─── Object Instances: Bulk Update ────────────────────────────────────────
     if (pathname === '/api/objects/instances/bulk-update' && req.method === 'PUT') {
       const body = await readBody();
-      const { ids, attribute_values, name } = body;
+      const { ids, attribute_values, attribute_values_by_id, name, is_active } = body;
 
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
         res.writeHead(400);
@@ -290,22 +505,36 @@ const server = http.createServer(async (req, res) => {
       await client.query('BEGIN');
       try {
         for (const id of ids) {
+          // attribute_values_by_id: { [oms_attribute_id]: value } — preferred path (by attr ID)
+          if (attribute_values_by_id && typeof attribute_values_by_id === 'object') {
+            for (const [attrId, val] of Object.entries(attribute_values_by_id)) {
+              await client.query(`
+                INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (object_instance_id, object_attribute_id)
+                DO UPDATE SET value = $3, updated_at = NOW()
+              `, [id, parseInt(attrId), val !== null && val !== undefined ? String(val) : null]);
+            }
+          }
+          // attribute_values: { [attrName]: value } — legacy path (by attr name)
           if (attribute_values && typeof attribute_values === 'object') {
             for (const [attrName, val] of Object.entries(attribute_values)) {
-              // UPSERT logic for attribute values
               await client.query(`
                 INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
                 SELECT $1, oa.id, $2
                 FROM object_attributes oa
                 WHERE oa.attribute_name = $3
                   AND oa.object_type_id = (SELECT object_type_id FROM object_instances WHERE id = $1)
-                ON CONFLICT (object_instance_id, object_attribute_id) 
+                ON CONFLICT (object_instance_id, object_attribute_id)
                 DO UPDATE SET value = $2, updated_at = NOW()
               `, [id, String(val), attrName]);
             }
           }
           if (name !== undefined) {
             await client.query(`UPDATE object_instances SET name = $1 WHERE id = $2`, [name, id]);
+          }
+          if (is_active !== undefined) {
+            await client.query(`UPDATE object_instances SET is_active = $1 WHERE id = $2`, [is_active, id]);
           }
         }
         await client.query('COMMIT');
@@ -321,24 +550,51 @@ const server = http.createServer(async (req, res) => {
     if (pathname.match(/^\/api\/objects\/instances\/\d+$/) && req.method === 'PUT') {
       const instanceId = parseInt(pathname.split('/').pop() ?? '0');
       const body = await readBody();
-      if (body.attribute_values && typeof body.attribute_values === 'object') {
-        for (const [attrName, val] of Object.entries(body.attribute_values)) {
-          await client.query(`
-            UPDATE attribute_values av SET value = $1
-            FROM object_attributes oa
-            WHERE av.object_attribute_id = oa.id
-              AND av.object_instance_id = $2
-              AND oa.attribute_name = $3
-          `, [String(val), instanceId, attrName]);
+      await client.query('BEGIN');
+      try {
+        // attribute_values_by_id: { [oms_attribute_id]: value } — preferred path from new edit form
+        if (body.attribute_values_by_id && typeof body.attribute_values_by_id === 'object') {
+          for (const [attrId, val] of Object.entries(body.attribute_values_by_id)) {
+            await client.query(`
+              INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
+              VALUES ($1, $2, $3)
+              ON CONFLICT (object_instance_id, object_attribute_id)
+              DO UPDATE SET value = $3, updated_at = NOW()
+            `, [instanceId, parseInt(attrId), val !== null && val !== undefined ? String(val) : null]);
+          }
         }
+        // attribute_values: { [attrName]: value } — legacy path from old edit form
+        if (body.attribute_values && typeof body.attribute_values === 'object') {
+          for (const [attrName, val] of Object.entries(body.attribute_values)) {
+            await client.query(`
+              INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
+              SELECT $1, oa.id, $2
+              FROM object_attributes oa
+              WHERE oa.attribute_name = $3
+                AND oa.object_type_id = (SELECT object_type_id FROM object_instances WHERE id = $1)
+              ON CONFLICT (object_instance_id, object_attribute_id)
+              DO UPDATE SET value = $2, updated_at = NOW()
+            `, [instanceId, String(val), attrName]);
+          }
+        }
+        if (body.name !== undefined || body.external_id !== undefined || body.is_active !== undefined) {
+          await client.query(
+            `UPDATE object_instances
+             SET name = COALESCE($1, name),
+                 external_id = COALESCE($2, external_id),
+                 is_active = COALESCE($3, is_active)
+             WHERE id = $4`,
+            [body.name ?? null, body.external_id ?? null,
+             body.is_active !== undefined ? body.is_active : null, instanceId]
+          );
+        }
+        await client.query('COMMIT');
+        res.writeHead(200); res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
       }
-      if (body.name !== undefined || body.external_id !== undefined) {
-        await client.query(
-          `UPDATE object_instances SET name = COALESCE($1, name), external_id = COALESCE($2, external_id) WHERE id = $3`,
-          [body.name ?? null, body.external_id ?? null, instanceId]
-        );
-      }
-      res.writeHead(200); res.end(JSON.stringify({ success: true })); return;
+      return;
     }
 
     if (pathname.match(/^\/api\/objects\/instances\/\d+$/) && req.method === 'DELETE') {
@@ -658,10 +914,61 @@ const server = http.createServer(async (req, res) => {
       } else { res.writeHead(405); res.end(JSON.stringify({ error: 'Method not allowed' })); }
       return;
     }
+    // GET /api/admin/modules/:id/columns — lightweight: module info + column defs only (no instance pivot)
+    const modColsMatch = pathname.match(/^\/api\/admin\/modules\/(\d+)\/columns$/);
+    if (modColsMatch && req.method === 'GET') {
+      const modId = modColsMatch[1];
+      const modR = await client.query(
+        `SELECT m.id, m.name, m.description, f.name as folder_name,
+                ot.id as oms_ot_id, ot.name as oms_ot_name
+         FROM samrum_modules m
+         LEFT JOIN samrum_module_folders f ON f.id = m.folder_id
+         LEFT JOIN object_types ot ON ot.id = m.oms_object_type_id
+         WHERE m.id = $1`, [modId]);
+      if (!modR.rows.length) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
+      const mod = modR.rows[0];
+
+      const mvcR = await client.query(
+        `SELECT mvc.column_key AS key, mvc.label, mvc.col_type AS type,
+                mvc.col_order, mvc.is_required, mvc.is_editable,
+                mvc.oms_attribute_id, oa.enum_values
+         FROM module_view_columns mvc
+         LEFT JOIN object_attributes oa ON oa.id = mvc.oms_attribute_id
+         WHERE mvc.module_id = $1
+         ORDER BY mvc.col_order, mvc.id`, [modId]);
+
+      let columns = mvcR.rows;
+      if (columns.length === 0 && mod.oms_ot_id) {
+        const fbR = await client.query(
+          `SELECT attribute_name AS key, attribute_name AS label, attribute_type AS type,
+                  0 AS col_order, is_required, TRUE AS is_editable, id AS oms_attribute_id, enum_values
+           FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [mod.oms_ot_id]);
+        columns = fbR.rows;
+      }
+
+      const mapType = (t) => t || 'text';
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        module: { id: mod.id, name: mod.name, description: mod.description, folder_name: mod.folder_name },
+        oms_object_type: { id: mod.oms_ot_id, name: mod.oms_ot_name },
+        id_column_label: getIdColumnLabel(mod.oms_ot_name),
+        columns: columns.map(c => ({
+          key: c.key, label: c.label || c.key, type: mapType(c.type),
+          col_order: c.col_order, is_required: c.is_required || false,
+          is_editable: c.is_editable !== false,
+          oms_attribute_id: c.oms_attribute_id ? Number(c.oms_attribute_id) : null,
+          enum_values: c.enum_values || null,
+        })),
+      }));
+      return;
+    }
+
     // --- Module instances (dynamic column pivot) ---
     const modInstMatch = pathname.match(/^\/api\/admin\/modules\/(\d+)\/instances$/);
     if (modInstMatch && req.method === 'GET') {
       const modId = modInstMatch[1];
+
       // 1. Load module + its OMS object type
       const modR = await client.query(
         `SELECT m.*, f.name as folder_name, ot.id as oms_ot_id, ot.name as oms_ot_name
@@ -672,11 +979,71 @@ const server = http.createServer(async (req, res) => {
       if (!modR.rows.length) { res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' })); return; }
       const mod = modR.rows[0];
 
-      // 2. Load attribute definitions (columns)
-      const attrsR = await client.query(
-        `SELECT id, attribute_name, attribute_type, is_required, is_key, enum_values
-         FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [mod.oms_ot_id]);
-      const attrs = attrsR.rows;
+      // 2. Load per-module column definitions from module_view_columns.
+      //    Each module has its own ordered column list sourced from samrum_module_relationships.
+      //    Columns with oms_attribute_id have live data from attribute_values.
+      const mvcR = await client.query(
+        `SELECT mvc.id, mvc.column_key, mvc.label, mvc.col_order, mvc.col_type,
+                mvc.is_editable, mvc.is_required, mvc.show_by_default,
+                mvc.oms_attribute_id,
+                oa.is_key, oa.enum_values
+         FROM module_view_columns mvc
+         LEFT JOIN object_attributes oa ON oa.id = mvc.oms_attribute_id
+         WHERE mvc.module_id = $1
+         ORDER BY mvc.col_order, mvc.id`, [modId]);
+
+      // Fallback: if no module_view_columns exist, use all OMS object_attributes
+      let moduleColumns = mvcR.rows;
+      if (moduleColumns.length === 0 && mod.oms_ot_id) {
+        const fbR = await client.query(
+          `SELECT id AS oms_attribute_id, attribute_name AS column_key,
+                  attribute_name AS label, attribute_type AS col_type,
+                  is_required, is_key, enum_values,
+                  TRUE AS show_by_default, TRUE AS is_editable
+           FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [mod.oms_ot_id]);
+        moduleColumns = fbR.rows;
+      }
+
+      // Map type to frontend-compatible values
+      const mapType = (t) => {
+        if (t === 'reference') return 'text';
+        if (t === 'file') return 'text';
+        return t || 'text';
+      };
+
+      // 2b. Load related OMS object types (structural column groups, always shown for OMS types)
+      const relatedGroups = [];
+      if (mod.oms_ot_id) {
+        const relTypesR = await client.query(
+          `SELECT r.child_object_type_id AS type_id, ot.name AS type_name,
+                  r.relationship_name, r.cardinality
+           FROM object_relationships r
+           JOIN object_types ot ON ot.id = r.child_object_type_id
+           WHERE r.parent_object_type_id = $1
+           ORDER BY r.id`, [mod.oms_ot_id]);
+
+        for (const rel of relTypesR.rows) {
+          const snakeName = rel.type_name.toLowerCase().replace(/\s+/g, '_');
+          const relAttrsR = await client.query(
+            `SELECT id, attribute_name, attribute_type, is_required, is_key, enum_values
+             FROM object_attributes WHERE object_type_id = $1 ORDER BY id`, [rel.type_id]);
+          relatedGroups.push({
+            key: `rel_${rel.type_id}`,
+            type_id: rel.type_id,
+            type_name: rel.type_name,
+            relationship_name: rel.relationship_name,
+            cardinality: rel.cardinality,
+            columns: relAttrsR.rows.map(a => ({
+              key: `${snakeName}__${a.attribute_name}`,
+              label: a.attribute_name,
+              type: a.attribute_type,
+              is_required: a.is_required,
+              is_key: a.is_key,
+              enum_values: a.enum_values,
+            })),
+          });
+        }
+      }
 
       // 3. Load all instances of this OMS object type
       const instsR = await client.query(
@@ -684,24 +1051,30 @@ const server = http.createServer(async (req, res) => {
          FROM object_instances WHERE object_type_id = $1 ORDER BY external_id`, [mod.oms_ot_id]);
       const instances = instsR.rows;
 
-      // 4. Load all attribute values for those instances
+      // 4. Load attribute values only for columns that have an OMS attribute mapping
       let attrValues = [];
-      if (instances.length > 0) {
+      const mappedAttrIds = [...new Set(
+        moduleColumns.filter(c => c.oms_attribute_id).map(c => Number(c.oms_attribute_id))
+      )];
+      if (instances.length > 0 && mappedAttrIds.length > 0) {
         const instIds = instances.map(i => i.id);
         const avR = await client.query(
           `SELECT object_instance_id, object_attribute_id, value
-           FROM attribute_values WHERE object_instance_id = ANY($1::int[])`, [instIds]);
+           FROM attribute_values
+           WHERE object_instance_id = ANY($1::int[])
+             AND object_attribute_id = ANY($2::int[])`, [instIds, mappedAttrIds]);
         attrValues = avR.rows;
       }
 
-      // 5. Pivot: build a map instanceId → { attrId: value }
+      // 5. Pivot: instanceId → { attrId: value }
       const pivot = {};
       attrValues.forEach(av => {
         if (!pivot[av.object_instance_id]) pivot[av.object_instance_id] = {};
         pivot[av.object_instance_id][av.object_attribute_id] = av.value;
       });
 
-      // 6. Build final rows
+      // 6. Build final rows — each column gets its value from attribute_values if mapped,
+      //    otherwise null (data not yet stored in OMS for this samrum-derived column)
       const rows = instances.map(inst => {
         const row = {
           _id: inst.id,
@@ -710,8 +1083,10 @@ const server = http.createServer(async (req, res) => {
           _created_at: inst.created_at,
           _updated_at: inst.updated_at,
         };
-        attrs.forEach(attr => {
-          row[attr.attribute_name] = pivot[inst.id]?.[attr.id] ?? null;
+        moduleColumns.forEach(col => {
+          row[col.column_key] = col.oms_attribute_id
+            ? (pivot[inst.id]?.[col.oms_attribute_id] ?? null)
+            : null;
         });
         return row;
       });
@@ -725,15 +1100,19 @@ const server = http.createServer(async (req, res) => {
           created_at: mod.created_at, created_by: mod.created_by,
           changed_at: mod.changed_at, changed_by: mod.changed_by,
           oms_object_type: { id: mod.oms_ot_id, name: mod.oms_ot_name },
+          id_column_label: getIdColumnLabel(mod.oms_ot_name),
         },
-        columns: attrs.map(a => ({
-          key: a.attribute_name,
-          label: a.attribute_name,
-          type: a.attribute_type,
-          is_required: a.is_required,
-          is_key: a.is_key,
-          enum_values: a.enum_values,
+        columns: moduleColumns.map(c => ({
+          key: c.column_key,
+          label: c.label || c.column_key,
+          type: mapType(c.col_type),
+          is_required: c.is_required || false,
+          is_key: c.is_key || false,
+          enum_values: c.enum_values || null,
+          show_by_default: c.show_by_default || false,
+          is_editable: c.is_editable !== false,
         })),
+        related_groups: relatedGroups,
         data: rows,
         total: rows.length,
       }));

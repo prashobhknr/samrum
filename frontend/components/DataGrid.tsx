@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 export interface Column<T = Record<string, unknown>> {
   key: string;
@@ -10,6 +10,21 @@ export interface Column<T = Record<string, unknown>> {
   className?: string;
   /** If true, column is hidden by default */
   defaultHidden?: boolean;
+}
+
+export interface ColumnGroup<T = Record<string, unknown>> {
+  /** Unique key for the group */
+  key: string;
+  /** Display label (type name) */
+  label: string;
+  /** Columns belonging to this group */
+  columns: Column<T>[];
+  /** Expand by default */
+  defaultExpanded?: boolean;
+  /** OMS relationship name, e.g. "contains" */
+  relationshipName?: string;
+  /** OMS cardinality, e.g. "1:N" */
+  cardinality?: string;
 }
 
 export interface ToolbarAction {
@@ -45,6 +60,8 @@ interface DataGridProps<T = Record<string, unknown>> {
   columnSelector?: boolean;
   /** Show per-column filter row */
   columnFilters?: boolean;
+  /** Related object type column groups (expandable) */
+  columnGroups?: ColumnGroup<T>[];
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
@@ -60,10 +77,14 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 /** Dropdown for column visibility toggle */
 function ColumnSelector({
   columns,
+  columnGroups,
+  expandedGroups,
   visible,
   onChange,
 }: {
   columns: Column[];
+  columnGroups?: ColumnGroup[];
+  expandedGroups: Set<string>;
   visible: Set<string>;
   onChange: (key: string, show: boolean) => void;
 }) {
@@ -91,9 +112,10 @@ function ColumnSelector({
         Kolumner
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg w-52 py-1 max-h-80 overflow-y-auto">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg w-56 py-1 max-h-96 overflow-y-auto">
+          {/* Primary columns */}
           <div className="px-3 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100 mb-1">
-            Visa kolumner
+            Primära kolumner
           </div>
           {columns.map(col => (
             <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
@@ -106,6 +128,28 @@ function ColumnSelector({
               {col.header}
             </label>
           ))}
+          {/* Group columns by group */}
+          {columnGroups?.map(group => {
+            if (!expandedGroups.has(group.key)) return null;
+            return (
+              <div key={group.key}>
+                <div className="px-3 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide border-b border-t border-slate-100 mt-1 mb-1">
+                  {group.label}
+                </div>
+                {group.columns.map(col => (
+                  <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={visible.has(col.key)}
+                      onChange={e => onChange(col.key, e.target.checked)}
+                      className="rounded text-samrum-blue"
+                    />
+                    {col.header}
+                  </label>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -153,6 +197,14 @@ function FilterInput({
   );
 }
 
+// Group accent colors (cycles through these for visual distinction)
+const GROUP_COLORS = [
+  { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', badge: 'bg-violet-100 text-violet-700 border-violet-200', headerBg: 'bg-violet-50' },
+  { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', headerBg: 'bg-emerald-50' },
+  { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700 border-amber-200', headerBg: 'bg-amber-50' },
+  { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', badge: 'bg-rose-100 text-rose-700 border-rose-200', headerBg: 'bg-rose-50' },
+];
+
 export default function DataGrid<T extends Record<string, unknown>>({
   columns,
   data,
@@ -171,23 +223,70 @@ export default function DataGrid<T extends Record<string, unknown>>({
   searchPlaceholder = 'Sök...',
   columnSelector = false,
   columnFilters = false,
+  columnGroups,
 }: DataGridProps<T>) {
   const [selected, setSelected] = useState<Set<unknown>>(new Set());
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [search, setSearch] = useState('');
 
-  // Column visibility: start with all visible except defaultHidden
+  // Which groups are expanded
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(columnGroups?.filter(g => g.defaultExpanded).map(g => g.key) ?? [])
+  );
+
+  // Column visibility: start with primary columns (non-defaultHidden)
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     () => new Set(columns.filter(c => !c.defaultHidden).map(c => c.key))
   );
+
+  // When columns prop changes (loaded from API), re-init visible cols
+  useEffect(() => {
+    setVisibleCols(new Set(columns.filter(c => !c.defaultHidden).map(c => c.key)));
+  }, [columns]);
+
+  // When columnGroups change, add their non-hidden columns to visibleCols
+  useEffect(() => {
+    if (!columnGroups?.length) return;
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      columnGroups.forEach(g => {
+        g.columns.forEach(c => {
+          if (!c.defaultHidden) next.add(c.key);
+        });
+      });
+      return next;
+    });
+    // Also sync expandedGroups with defaultExpanded
+    setExpandedGroups(new Set(columnGroups.filter(g => g.defaultExpanded).map(g => g.key)));
+  }, [columnGroups]);
 
   // Per-column filter values
   const [colFilterValues, setColFilterValues] = useState<Record<string, string>>({});
 
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 1;
 
-  const activeColumns = columns.filter(c => visibleCols.has(c.key));
+  // Build active columns: primary visible + expanded groups' visible columns
+  const activeColumns = useMemo(() => {
+    const primary = columns.filter(c => visibleCols.has(c.key));
+    const grouped = columnGroups
+      ? columnGroups.flatMap(g =>
+          expandedGroups.has(g.key)
+            ? g.columns.filter(c => visibleCols.has(c.key))
+            : []
+        )
+      : [];
+    return [...primary, ...grouped];
+  }, [columns, columnGroups, visibleCols, expandedGroups]);
+
+  // Map column key → group index for header styling
+  const colGroupIndex = useMemo(() => {
+    const map: Record<string, number> = {};
+    columnGroups?.forEach((g, i) => {
+      g.columns.forEach(c => { map[c.key] = i; });
+    });
+    return map;
+  }, [columnGroups]);
 
   // Get distinct raw string values for a column (for datalist suggestions)
   const getColOptions = useCallback((key: string): string[] => {
@@ -215,6 +314,15 @@ export default function DataGrid<T extends Record<string, unknown>>({
     setVisibleCols(prev => {
       const next = new Set(prev);
       show ? next.add(key) : next.delete(key);
+      return next;
+    });
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
       return next;
     });
   };
@@ -292,6 +400,8 @@ export default function DataGrid<T extends Record<string, unknown>>({
             {columnSelector && (
               <ColumnSelector
                 columns={columns as Column[]}
+                columnGroups={columnGroups as ColumnGroup[] | undefined}
+                expandedGroups={expandedGroups}
                 visible={visibleCols}
                 onChange={handleColVisibility}
               />
@@ -316,6 +426,40 @@ export default function DataGrid<T extends Record<string, unknown>>({
         </div>
       )}
 
+      {/* Related object groups toggle bar */}
+      {columnGroups && columnGroups.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-samrum-border flex-wrap">
+          <span className="text-xs font-medium text-slate-500 mr-1 flex-shrink-0">Relaterade objekt:</span>
+          {columnGroups.map((group, i) => {
+            const color = GROUP_COLORS[i % GROUP_COLORS.length];
+            const isExpanded = expandedGroups.has(group.key);
+            return (
+              <button
+                key={group.key}
+                onClick={() => toggleGroup(group.key)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all
+                  ${isExpanded
+                    ? `${color.badge} border-current`
+                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                  }`}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d={isExpanded ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7'} />
+                </svg>
+                {group.label}
+                {group.cardinality && (
+                  <span className="opacity-60">[{group.cardinality}]</span>
+                )}
+                {!isExpanded && (
+                  <span className="text-slate-400">{group.columns.length} kol.</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-sm min-w-max">
@@ -327,37 +471,52 @@ export default function DataGrid<T extends Record<string, unknown>>({
                     onChange={toggleAll} className="rounded" />
                 </th>
               )}
-              {activeColumns.map(col => (
-                <th
-                  key={col.key}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  className={`px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide bg-slate-50
-                    ${col.sortable ? 'cursor-pointer select-none hover:text-slate-900' : ''}
-                    ${col.width ? `w-[${col.width}]` : ''} ${col.className ?? ''}`}
-                >
-                  {col.header}
-                  {col.sortable && (
-                    <SortIcon active={sortKey === col.key} dir={sortDir} />
-                  )}
-                </th>
-              ))}
+              {activeColumns.map(col => {
+                const groupIdx = colGroupIndex[col.key];
+                const color = groupIdx !== undefined ? GROUP_COLORS[groupIdx % GROUP_COLORS.length] : null;
+                return (
+                  <th
+                    key={col.key}
+                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                    className={`px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide
+                      ${color ? color.headerBg : 'bg-slate-50'}
+                      ${col.sortable ? 'cursor-pointer select-none hover:text-slate-900' : ''}
+                      ${col.width ? `w-[${col.width}]` : ''} ${col.className ?? ''}`}
+                  >
+                    {/* Group badge for grouped columns */}
+                    {color && columnGroups && (
+                      <span className={`inline-block text-xs px-1 py-0 rounded mr-1 border ${color.badge} normal-case tracking-normal font-normal opacity-75`}>
+                        {columnGroups[groupIdx]?.label?.slice(0, 4) ?? ''}
+                      </span>
+                    )}
+                    {col.header}
+                    {col.sortable && (
+                      <SortIcon active={sortKey === col.key} dir={sortDir} />
+                    )}
+                  </th>
+                );
+              })}
             </tr>
             {/* Filter row */}
             {columnFilters && (
               <tr className="bg-white border-b border-slate-200">
                 {selectable && <th className="px-4 py-1.5 bg-white" />}
-                {activeColumns.map(col => (
-                  <th key={col.key} className="px-3 py-1.5 bg-white font-normal">
-                    {col.filterable !== false ? (
-                      <FilterInput
-                        colKey={col.key}
-                        value={colFilterValues[col.key] ?? ''}
-                        options={getColOptions(col.key)}
-                        onChange={handleColFilter}
-                      />
-                    ) : <div />}
-                  </th>
-                ))}
+                {activeColumns.map(col => {
+                  const groupIdx = colGroupIndex[col.key];
+                  const color = groupIdx !== undefined ? GROUP_COLORS[groupIdx % GROUP_COLORS.length] : null;
+                  return (
+                    <th key={col.key} className={`px-3 py-1.5 font-normal ${color ? color.bg : 'bg-white'}`}>
+                      {col.filterable !== false ? (
+                        <FilterInput
+                          colKey={col.key}
+                          value={colFilterValues[col.key] ?? ''}
+                          options={getColOptions(col.key)}
+                          onChange={handleColFilter}
+                        />
+                      ) : <div />}
+                    </th>
+                  );
+                })}
               </tr>
             )}
           </thead>
@@ -401,11 +560,15 @@ export default function DataGrid<T extends Record<string, unknown>>({
                           onChange={() => toggleRow(id)} className="rounded" />
                       </td>
                     )}
-                    {activeColumns.map(col => (
-                      <td key={col.key} className={`px-3 py-2.5 text-slate-700 ${col.className ?? ''}`}>
-                        {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '')}
-                      </td>
-                    ))}
+                    {activeColumns.map(col => {
+                      const groupIdx = colGroupIndex[col.key];
+                      const color = groupIdx !== undefined ? GROUP_COLORS[groupIdx % GROUP_COLORS.length] : null;
+                      return (
+                        <td key={col.key} className={`px-3 py-2.5 text-slate-700 ${color ? `${color.bg}/40` : ''} ${col.className ?? ''}`}>
+                          {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '')}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })

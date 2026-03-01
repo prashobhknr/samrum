@@ -4,7 +4,7 @@ import Link from 'next/link';
 import SamrumLayout from '../../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../../components/TreeNav';
 import { getStoredToken } from '../../../lib/auth';
-import DataGrid, { Column } from '../../../components/DataGrid';
+import DataGrid, { Column, ColumnGroup } from '../../../components/DataGrid';
 import BulkEditModal from '../../../components/BulkEditModal';
 
 const API = 'http://localhost:3000';
@@ -22,6 +22,7 @@ interface ModuleInfo {
   changed_at: string | null;
   changed_by: string | null;
   oms_object_type: { id: number; name: string } | null;
+  id_column_label?: string;
 }
 
 interface ColumnDef {
@@ -31,6 +32,17 @@ interface ColumnDef {
   is_required: boolean;
   is_key: boolean;
   enum_values: string[] | null;
+  show_by_default?: boolean;
+  is_editable?: boolean;
+}
+
+interface RelatedGroupDef {
+  key: string;
+  type_id: number;
+  type_name: string;
+  relationship_name: string | null;
+  cardinality: string | null;
+  columns: ColumnDef[];
 }
 
 interface InstanceRow extends Record<string, unknown> {
@@ -327,6 +339,7 @@ export default function ModuleInstanceViewPage() {
 
   const [moduleInfo, setModuleInfo] = useState<ModuleInfo | null>(null);
   const [colDefs, setColDefs] = useState<ColumnDef[]>([]);
+  const [relatedGroupDefs, setRelatedGroupDefs] = useState<RelatedGroupDef[]>([]);
   const [instances, setInstances] = useState<InstanceRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -376,8 +389,9 @@ export default function ModuleInstanceViewPage() {
       .then(data => {
         if (data.success) {
           setModuleInfo(data.module);
-          setColDefs(data.columns);
-          setInstances(data.data);
+          setColDefs(data.columns ?? []);
+          setRelatedGroupDefs(data.related_groups ?? []);
+          setInstances(data.data ?? []);
         }
       })
       .catch(console.error)
@@ -415,17 +429,39 @@ export default function ModuleInstanceViewPage() {
     return firstPassed ? result : instances;
   }, [instances, filterConditions]);
 
-  // Build DataGrid columns from ColumnDefs
+  // Helper: build column def from API column def
+  function makeColumn(def: ColumnDef): Column<InstanceRow> {
+    return {
+      key: def.key,
+      header: def.label || toLabel(def.key),
+      sortable: true,
+      filterable: true,
+      // Show by default only if explicitly flagged — keeps large per-module column lists manageable
+      defaultHidden: def.show_by_default === false,
+      render: (v: unknown) => {
+        if (v === null || v === undefined) return <span className="text-slate-300 text-xs">—</span>;
+        if (def.type === 'boolean') {
+          return v === 'true' || v === true
+            ? <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Ja</span>
+            : <span className="bg-slate-100 text-slate-500 text-xs px-2 py-0.5 rounded-full">Nej</span>;
+        }
+        if (def.type === 'number') return <span className="font-mono text-xs">{String(v)}</span>;
+        return <span className="text-xs">{String(v)}</span>;
+      },
+    };
+  }
+
+  // Build DataGrid columns from ColumnDefs (primary columns only)
   const gridColumns = useMemo((): Column<InstanceRow>[] => {
     const fixed: Column<InstanceRow>[] = [
       {
         key: '_external_id',
-        header: 'DörrID',
+        header: moduleInfo?.id_column_label ?? 'Objekt-ID',
         sortable: true,
         filterable: true,
         width: '110px',
         render: (v, row) => (
-          <Link href={`/objects/${row._id}`}
+          <Link href={`/objects/${row._id}?module=${moduleId}`}
             className="text-samrum-blue hover:underline font-medium text-xs"
             onClick={e => e.stopPropagation()}>
             {String(v ?? '—')}
@@ -440,23 +476,7 @@ export default function ModuleInstanceViewPage() {
       },
     ];
 
-    const dynamic: Column<InstanceRow>[] = colDefs.map(def => ({
-      key: def.key,
-      header: toLabel(def.key),
-      sortable: true,
-      filterable: true,
-      defaultHidden: !def.is_key && !['door_type', 'lock_type', 'fire_class', 'security_class', 'width_mm', 'height_mm', 'has_access_control', 'status'].includes(def.key),
-      render: (v: unknown) => {
-        if (v === null || v === undefined) return <span className="text-slate-300 text-xs">—</span>;
-        if (def.type === 'boolean') {
-          return v === 'true' || v === true
-            ? <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Ja</span>
-            : <span className="bg-slate-100 text-slate-500 text-xs px-2 py-0.5 rounded-full">Nej</span>;
-        }
-        if (def.type === 'number') return <span className="font-mono text-xs">{String(v)}</span>;
-        return <span className="text-xs">{String(v)}</span>;
-      },
-    }));
+    const dynamic: Column<InstanceRow>[] = colDefs.map(makeColumn);
 
     const audit: Column<InstanceRow>[] = [
       {
@@ -470,7 +490,19 @@ export default function ModuleInstanceViewPage() {
     ];
 
     return [...fixed, ...dynamic, ...audit];
-  }, [colDefs]);
+  }, [colDefs, moduleInfo?.id_column_label]);
+
+  // Build column groups from related group defs
+  const gridColumnGroups = useMemo((): ColumnGroup<InstanceRow>[] => {
+    return relatedGroupDefs.map(g => ({
+      key: g.key,
+      label: g.type_name,
+      relationshipName: g.relationship_name ?? undefined,
+      cardinality: g.cardinality ?? undefined,
+      defaultExpanded: false,
+      columns: g.columns.map(def => makeColumn({ ...def, key: `${g.key.replace('rel_', '')}__${def.key}` })),
+    }));
+  }, [relatedGroupDefs]);
 
   const activeFilterCount = filterConditions.filter(c => c.value).length;
 
@@ -480,7 +512,7 @@ export default function ModuleInstanceViewPage() {
       variant: 'primary' as const,
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
-      onClick: () => alert('Skapa ny instans'),
+      onClick: () => router.push(`/objects/new?module=${moduleId}`),
     },
     {
       label: 'Radera',
@@ -508,11 +540,11 @@ export default function ModuleInstanceViewPage() {
       onClick: () => alert('Importera'),
     },
     {
-      label: 'Massredigera',
+      label: 'Gruppvis ändring',
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
       disabled: selectedIds.length === 0,
-      onClick: () => setBulkEditOpen(true),
+      onClick: () => router.push(`/objects/bulk-edit?module=${moduleId}&ids=${selectedIds.join(',')}`),
     },
     {
       label: activeFilterCount > 0 ? `Filter (${activeFilterCount})` : 'Filter',
@@ -587,6 +619,7 @@ export default function ModuleInstanceViewPage() {
             onSelectionChange={setSelectedIds}
             columnSelector
             columnFilters
+            columnGroups={gridColumnGroups.length > 0 ? gridColumnGroups : undefined}
             toolbarActions={toolbarActions}
             emptyMessage={
               filterConditions.length > 0
