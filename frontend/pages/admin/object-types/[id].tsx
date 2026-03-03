@@ -473,12 +473,121 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
   onEdit: (attr: AttrRow) => void;
   onDelete: (attr: AttrRow) => void;
 }) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const toggle = (id: number) => setExpanded(prev => {
-    const s = new Set(prev);
-    s.has(id) ? s.delete(id) : s.add(id);
-    return s;
-  });
+  // Expanded row keys: `${depth}-${attr.id}`
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Cache of fetched attrs keyed by ref_type_id; uses refs to avoid stale closures
+  const cacheRef = useRef<Record<number, AttrRow[]>>({});
+  const loadingRef = useRef<Set<number>>(new Set());
+  const [, forceRender] = useState(0);
+
+  const fetchRefAttrs = async (refTypeId: number) => {
+    if (refTypeId in cacheRef.current || loadingRef.current.has(refTypeId)) return;
+    loadingRef.current.add(refTypeId);
+    forceRender(n => n + 1);
+    try {
+      const r = await fetch(`${API}/api/admin/object-types/${refTypeId}/attributes`, { headers: authHeaders() }).then(r => r.json());
+      cacheRef.current[refTypeId] = r.data ?? [];
+    } catch { cacheRef.current[refTypeId] = []; }
+    finally {
+      loadingRef.current.delete(refTypeId);
+      forceRender(n => n + 1);
+    }
+  };
+
+  const toggleRow = (rowKey: string, attr: AttrRow) => {
+    setExpanded(prev => {
+      const s = new Set(prev);
+      s.has(rowKey) ? s.delete(rowKey) : s.add(rowKey);
+      return s;
+    });
+    if (attr.is_reference && attr.ref_type_id) fetchRefAttrs(attr.ref_type_id);
+  };
+
+  // Recursive renderer — depth drives indent and visual treatment
+  const renderRows = (rows: AttrRow[], depth: number): React.ReactNode => {
+    return rows.map(attr => {
+      const rowKey = `${depth}-${attr.id}`;
+      const isExpanded = expanded.has(rowKey);
+      const refId = attr.is_reference ? attr.ref_type_id : null;
+      const childRows = refId != null ? (cacheRef.current[refId] ?? null) : null;
+      const isLoading = refId != null ? loadingRef.current.has(refId) : false;
+      const indentPx = depth * 24;
+
+      return (
+        <React.Fragment key={rowKey}>
+          <tr className={`${attr.is_reference ? 'bg-indigo-50/30' : depth > 0 ? 'bg-slate-50/40' : 'hover:bg-slate-50'}`}>
+            <td className="py-2 pr-4" style={{ paddingLeft: `${16 + indentPx}px` }}>
+              <div className="flex items-center gap-2">
+                {attr.is_reference ? (
+                  <button
+                    onClick={() => toggleRow(rowKey, attr)}
+                    className="flex-shrink-0 w-5 h-5 rounded bg-indigo-100 hover:bg-indigo-200 flex items-center justify-center text-indigo-600 transition-colors"
+                    title={isExpanded ? 'Dölj' : 'Visa attribut'}>
+                    {isLoading && !isExpanded
+                      ? <span className="text-[10px] animate-pulse font-bold">·</span>
+                      : <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                        </svg>
+                    }
+                  </button>
+                ) : depth > 0 ? (
+                  <span className="text-slate-300 font-mono text-xs select-none">{Array(depth).fill('|').join(' ')}</span>
+                ) : (
+                  <span className="w-5 flex-shrink-0" />
+                )}
+                <div>
+                  <p className={`text-sm ${depth === 0 ? 'font-medium text-slate-800' : 'text-slate-600'}`}>
+                    {attr.caption_singular ?? <span className="italic text-slate-400 text-xs">Ej angiven</span>}
+                  </p>
+                  {attr.caption_plural && attr.caption_plural !== attr.caption_singular && (
+                    <p className="text-[10px] text-slate-400">{attr.caption_plural}</p>
+                  )}
+                </div>
+              </div>
+            </td>
+            <td className="px-4 py-2">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${attr.is_reference ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-600'}`}>
+                {attr.type_name ?? '—'}
+              </span>
+              {attr.is_reference && childRows !== null && (
+                <span className="ml-1 text-[10px] text-slate-400">({childRows.length})</span>
+              )}
+            </td>
+            <td className="px-4 py-2 text-center">{attr.is_requirement ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-center">{attr.allow_in_lists ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-center">{attr.copy_attribute ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-right">
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => onEdit(attr)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Ändra</button>
+                <button onClick={() => onDelete(attr)} className="text-xs text-red-500 hover:text-red-700 font-medium">Radera</button>
+              </div>
+            </td>
+          </tr>
+
+          {/* Recursive children when expanded */}
+          {attr.is_reference && isExpanded && (
+            isLoading && childRows === null
+              ? <tr>
+                  <td colSpan={6} className="py-2 text-xs text-slate-400 italic"
+                    style={{ paddingLeft: `${40 + indentPx}px` }}>
+                    Hämtar attribut…
+                  </td>
+                </tr>
+              : childRows && childRows.length > 0
+                ? renderRows(childRows, depth + 1)
+                : childRows
+                  ? <tr>
+                      <td colSpan={6} className="py-2 text-xs text-slate-400 italic"
+                        style={{ paddingLeft: `${40 + indentPx}px` }}>
+                        Inga attribut
+                      </td>
+                    </tr>
+                  : null
+          )}
+        </React.Fragment>
+      );
+    });
+  };
 
   if (attrs.length === 0) return (
     <div className="px-5 py-12 text-center text-slate-400">
@@ -503,76 +612,7 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {attrs.map(attr => (
-            <React.Fragment key={attr.id}>
-              <tr className={`hover:bg-slate-50 ${attr.is_reference ? 'bg-indigo-50/40' : ''}`}>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    {attr.is_reference && (
-                      <button
-                        onClick={() => toggle(attr.id)}
-                        className="flex-shrink-0 w-5 h-5 rounded bg-indigo-100 hover:bg-indigo-200 flex items-center justify-center text-indigo-600 transition-colors"
-                        title={expanded.has(attr.id) ? 'Dölj attribut' : 'Visa attribut'}>
-                        <svg className={`w-3 h-3 transition-transform ${expanded.has(attr.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    )}
-                    <div>
-                      <p className="font-medium text-slate-800">
-                        {attr.caption_singular ?? <span className="italic text-slate-400 text-xs">Ej angiven</span>}
-                      </p>
-                      {attr.caption_plural && attr.caption_plural !== attr.caption_singular && (
-                        <p className="text-[10px] text-slate-400">{attr.caption_plural}</p>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${attr.is_reference ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-600'}`}>
-                    {attr.type_name ?? '—'}
-                  </span>
-                  {attr.is_reference && attr.children && (
-                    <span className="ml-1.5 text-[10px] text-slate-400">({attr.children.length} attribut)</span>
-                  )}
-                </td>
-                <td className="px-4 py-2.5 text-center">{attr.is_requirement ? <CheckBadge /> : <Dash />}</td>
-                <td className="px-4 py-2.5 text-center">{attr.allow_in_lists ? <CheckBadge /> : <Dash />}</td>
-                <td className="px-4 py-2.5 text-center">{attr.copy_attribute ? <CheckBadge /> : <Dash />}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit(attr)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Ändra</button>
-                    <button onClick={() => onDelete(attr)} className="text-xs text-red-500 hover:text-red-700 font-medium">Radera</button>
-                  </div>
-                </td>
-              </tr>
-              {/* Children rows when expanded */}
-              {attr.is_reference && expanded.has(attr.id) && attr.children && attr.children.map(child => (
-                <tr key={`child-${child.id}`} className="bg-indigo-50/20 border-l-4 border-indigo-200">
-                  <td className="pl-12 pr-4 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-indigo-300 font-mono text-sm">|</span>
-                      <span className="text-sm text-slate-700">{child.caption_singular ?? <span className="italic text-slate-400 text-xs">Ej angiven</span>}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
-                      {child.type_name ?? '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-center text-xs">{child.is_requirement ? <CheckBadge size="sm" /> : <Dash />}</td>
-                  <td className="px-4 py-2 text-center text-xs">{child.allow_in_lists ? <CheckBadge size="sm" /> : <Dash />}</td>
-                  <td className="px-4 py-2 text-center text-xs">{child.copy_attribute ? <CheckBadge size="sm" /> : <Dash />}</td>
-                  <td className="px-4 py-2 text-right">
-                    <Link href={`/admin/object-types/${attr.ref_type_id}`}
-                      className="text-[10px] text-indigo-600 hover:underline">
-                      ↗ Visa typ
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </React.Fragment>
-          ))}
+          {renderRows(attrs, 0)}
         </tbody>
       </table>
     </div>
@@ -695,11 +735,6 @@ function DetailedAttrView({ attrs, onEdit, onDelete, onReorder }: {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
                 <span className="font-medium">Kopplade attribut ({attr.children.length})</span>
-                {attr.ref_type_id && (
-                  <Link href={`/admin/object-types/${attr.ref_type_id}`}
-                    onClick={e => e.stopPropagation()}
-                    className="ml-auto text-[10px] text-indigo-500 hover:underline">↗ Öppna typ</Link>
-                )}
               </button>
               {expandedChildren.has(attr.id) && (
                 <div className="bg-indigo-50/40 border-t border-indigo-100 divide-y divide-indigo-100">
