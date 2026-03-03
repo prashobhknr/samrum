@@ -42,6 +42,7 @@ interface InstanceInfo {
   object_type_name: string;
   id_column_label: string;
   is_active: boolean;
+  is_locked: boolean;
 }
 
 interface ModuleInfo {
@@ -84,6 +85,8 @@ export default function ObjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -117,6 +120,42 @@ export default function ObjectDetailPage() {
       alert('Kunde inte radera objektet');
       setDeleting(false);
     }
+  };
+
+  const handleCopy = async () => {
+    if (!data) return;
+    if (!confirm(`Kopiera "${data.instance.external_id}"? En ny kopia skapas och öppnas för redigering.`)) return;
+    setCopying(true);
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    try {
+      const r = await fetch(`${API_URL}/api/objects/instances/${id}/copy`, { method: 'POST', headers });
+      const d = await r.json();
+      if (d.success) {
+        const editUrl = moduleId ? `/objects/${d.id}/edit?module=${moduleId}` : `/objects/${d.id}/edit`;
+        router.push(editUrl);
+      } else { alert('Kopieringen misslyckades'); }
+    } catch { alert('Kunde inte kopiera objektet'); }
+    finally { setCopying(false); }
+  };
+
+  const handleLock = async () => {
+    if (!data) return;
+    const newLocked = !data.instance.is_locked;
+    if (newLocked && !confirm(`Lås "${data.instance.external_id}"? Låsta objekt kan inte redigeras.`)) return;
+    setLocking(true);
+    const token = getStoredToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    try {
+      const r = await fetch(`${API_URL}/api/objects/instances/${id}/lock`, {
+        method: 'PATCH', headers, body: JSON.stringify({ is_locked: newLocked }),
+      });
+      const d = await r.json();
+      if (d.success) setData(prev => prev ? { ...prev, instance: { ...prev.instance, is_locked: d.is_locked } } : prev);
+    } catch { alert('Kunde inte ändra låsstatus'); }
+    finally { setLocking(false); }
   };
 
   const editHref = moduleId
@@ -205,22 +244,45 @@ export default function ObjectDetailPage() {
               </Link>
               <button
                 onClick={handleDelete}
-                disabled={deleting}
+                disabled={deleting || data.instance.is_locked}
                 className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
               >
                 Radera
               </button>
               <Link
-                href={editHref}
-                className="px-4 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                href={data.instance.is_locked ? '#' : editHref}
+                onClick={e => data.instance.is_locked && e.preventDefault()}
+                className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  data.instance.is_locked
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 Ändra
               </Link>
               <button
-                onClick={() => alert('Kopiera')}
-                className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                onClick={handleCopy}
+                disabled={copying}
+                className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
-                Kopiera
+                {copying ? 'Kopierar...' : 'Kopiera'}
+              </button>
+              <button
+                onClick={handleLock}
+                disabled={locking}
+                title={data.instance.is_locked ? 'Lås upp objekt' : 'Lås version (A010)'}
+                className={`px-3 py-1.5 text-sm border rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 ${
+                  data.instance.is_locked
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {data.instance.is_locked
+                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />}
+                </svg>
+                {data.instance.is_locked ? 'Lås upp' : 'Lås version'}
               </button>
             </>
           )}
@@ -263,6 +325,14 @@ export default function ObjectDetailPage() {
                   <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-200">Inaktivt</span>
                 ) : (
                   <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-600 border border-green-200">Aktivt</span>
+                )}
+                {data.instance.is_locked && (
+                  <span className="inline-flex items-center mt-1 ml-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Låst version
+                  </span>
                 )}
               </div>
 

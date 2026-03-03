@@ -6,6 +6,9 @@ import TreeNav, { TreeNode } from '../../../components/TreeNav';
 import { getStoredToken } from '../../../lib/auth';
 import DataGrid, { Column, ColumnGroup } from '../../../components/DataGrid';
 import BulkEditModal from '../../../components/BulkEditModal';
+import ImportModal from '../../../components/ImportModal';
+import ExportModal from '../../../components/ExportModal';
+import PrintModal from '../../../components/PrintModal';
 
 const API = 'http://localhost:3000';
 
@@ -347,6 +350,7 @@ export default function ModuleInstanceViewPage() {
   const [folders, setFolders] = useState<ModuleFolder[]>([]);
   const [allModules, setAllModules] = useState<ModuleListItem[]>([]);
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
+  const [treeSelectedId, setTreeSelectedId] = useState<string | number>(moduleId);
 
   // Filter dialog
   const [filterOpen, setFilterOpen] = useState(false);
@@ -355,6 +359,11 @@ export default function ModuleInstanceViewPage() {
   // Bulk edit
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+
+  // Import / Export / Print
+  const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
   // Load tree data once
   useEffect(() => {
@@ -526,18 +535,15 @@ export default function ModuleInstanceViewPage() {
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>,
       disabled: selectedIds.length === 0,
-      onClick: () => {
-        const ids = selectedIds.join(',');
-        window.open(`${API}/api/admin/reports/spec-sheet?ids=${ids}`, '_blank');
-      },
+      onClick: () => setPrintOpen(true),
     },
     {
       label: 'Exportera',
-      onClick: () => alert('Exportera'),
+      onClick: () => setExportOpen(true),
     },
     {
       label: 'Importera',
-      onClick: () => alert('Importera'),
+      onClick: () => setImportOpen(true),
     },
     {
       label: 'Gruppvis ändring',
@@ -561,8 +567,9 @@ export default function ModuleInstanceViewPage() {
         sidebar={
           <TreeNav
             nodes={treeNodes}
-            selectedId={moduleId}
+            selectedId={treeSelectedId}
             onSelect={node => {
+              setTreeSelectedId(node.id);
               if (!String(node.id).startsWith('f_')) {
                 router.push(`/admin/modules/${node.id}`);
               }
@@ -653,6 +660,32 @@ export default function ModuleInstanceViewPage() {
           if (!res.ok) throw new Error('Misslyckades att uppdatera poster');
           await loadInstances();
         }}
+      />
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        moduleId={moduleId}
+        columns={colDefs}
+        onImported={loadInstances}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        moduleId={moduleId}
+        moduleName={moduleInfo?.name}
+        selectedIds={selectedIds}
+      />
+
+      {/* Print Modal */}
+      <PrintModal
+        isOpen={printOpen}
+        onClose={() => setPrintOpen(false)}
+        selectedIds={selectedIds}
+        moduleName={moduleInfo?.name}
       />
 
       {/* Filter dialog */}

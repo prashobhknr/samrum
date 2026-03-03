@@ -5,6 +5,8 @@ import TreeNav, { TreeNode } from '../../components/TreeNav';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
 import { getStoredToken } from '../../lib/auth';
 
+const API = 'http://localhost:3000';
+
 interface Module extends Record<string, unknown> {
   id: number;
   name: string;
@@ -25,12 +27,6 @@ interface Folder extends Record<string, unknown> {
   description: string | null;
 }
 
-interface ModuleDetailProps {
-  item: Module | null;
-  onEdit: () => void;
-  onClose: () => void;
-}
-
 function formatDate(val: string | null | undefined): string {
   if (!val) return '—';
   try {
@@ -43,7 +39,147 @@ function formatDate(val: string | null | undefined): string {
   }
 }
 
-function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
+// ─── Module Form Modal ─────────────────────────────────────────────────────────
+
+interface ModuleFormProps {
+  folders: Folder[];
+  module?: Module | null;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function ModuleFormModal({ folders, module, onClose, onSaved }: ModuleFormProps) {
+  const [form, setForm] = useState({
+    name: module?.name ?? '',
+    description: module?.description ?? '',
+    allow_incomplete_versions: module?.allow_incomplete_versions ?? false,
+    folder_id: module?.folder_id != null ? String(module.folder_id) : '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!form.name.trim()) { setError('Modulnamn krävs'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const token = getStoredToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const body = {
+        name: form.name.trim(),
+        description: form.description.trim() || null,
+        allow_incomplete_versions: form.allow_incomplete_versions,
+        folder_id: form.folder_id ? parseInt(form.folder_id) : null,
+      };
+      const url = module ? `${API}/api/admin/modules/${module.id}` : `${API}/api/admin/modules`;
+      const method = module ? 'PUT' : 'POST';
+      const r = await fetch(url, { method, headers, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (d.success) { onSaved(); onClose(); }
+      else setError(d.error ?? 'Kunde inte spara modulen');
+    } catch {
+      setError('Nätverksfel');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">{module ? 'Ändra modul' : 'Ny modul'}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Modulnamn <span className="text-red-500">*</span></label>
+            <input
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              value={form.name}
+              onChange={e => setForm(v => ({ ...v, name: e.target.value }))}
+              placeholder="Ange modulnamn..."
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mapp</label>
+            <select
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 bg-white"
+              value={form.folder_id}
+              onChange={e => setForm(v => ({ ...v, folder_id: e.target.value }))}
+            >
+              <option value="">— Ingen mapp (rotnivå) —</option>
+              {folders.map(f => (
+                <option key={f.id} value={String(f.id)}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Beskrivning</label>
+            <textarea
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+              rows={3}
+              value={form.description}
+              onChange={e => setForm(v => ({ ...v, description: e.target.value }))}
+              placeholder="Valfri beskrivning..."
+            />
+          </div>
+
+          <div className="flex items-center gap-3 py-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.allow_incomplete_versions}
+              onClick={() => setForm(v => ({ ...v, allow_incomplete_versions: !v.allow_incomplete_versions }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                form.allow_incomplete_versions ? 'bg-amber-500' : 'bg-slate-200'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                form.allow_incomplete_versions ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+            <span className="text-sm text-slate-700">Tillåt ofullständiga versioner</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-200 rounded-lg">Avbryt</button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
+          >
+            {saving ? 'Sparar...' : 'Spara'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Module Detail Panel ────────────────────────────────────────────────────────
+
+interface ModuleDetailProps {
+  item: Module | null;
+  folders: Folder[];
+  onEdit: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+function ModuleDetail({ item, onEdit, onDelete, onClose }: ModuleDetailProps) {
   if (!item) return (
     <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
       <svg className="w-12 h-12 mb-3 text-slate-200" fill="currentColor" viewBox="0 0 24 24">
@@ -78,7 +214,8 @@ function ModuleDetail({ item, onEdit, onClose }: ModuleDetailProps) {
           </svg>
           Ändra
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 border border-red-200 transition-colors">
+        <button onClick={onDelete}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 border border-red-200 transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
@@ -166,14 +303,18 @@ export default function ModulesPage() {
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
   const [filteredModules, setFilteredModules] = useState<Module[]>([]);
 
+  // Modal state
+  const [showForm, setShowForm] = useState(false);
+  const [editingModule, setEditingModule] = useState<Module | null>(null);
+
   const load = useCallback(() => {
     setLoading(true);
     const token = getStoredToken();
     const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
 
     Promise.all([
-      fetch('http://localhost:3000/api/admin/modules', { headers }).then(r => r.json()),
-      fetch('http://localhost:3000/api/admin/module-folders', { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/modules`, { headers }).then(r => r.json()),
+      fetch(`${API}/api/admin/module-folders`, { headers }).then(r => r.json()),
     ]).then(([mRes, fRes]) => {
       const mods: Module[] = mRes.success ? mRes.data : [];
       const folds: Folder[] = fRes.success ? fRes.data : [];
@@ -187,12 +328,22 @@ export default function ModulesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDelete = async (mod: Module) => {
+    if (!confirm(`Radera modulen "${mod.name}"? Denna åtgärd kan inte ångras.`)) return;
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    await fetch(`${API}/api/admin/modules/${mod.id}`, { method: 'DELETE', headers });
+    setSelected(null);
+    load();
+  };
+
   const handleTreeSelect = (node: TreeNode) => {
     if (!String(node.id).startsWith('f_')) {
-      // Navigate to the module instance view
-      router.push(`/admin/modules/${node.id}`);
+      // Module leaf in tree → show detail panel for editing
+      setSelected(node.meta as Module);
     } else {
-      // Filter list to this folder
+      // Folder in tree → filter grid to that folder
       const folderId = parseInt(String(node.id).replace('f_', ''));
       setFilteredModules(modules.filter(m => m.folder_id === folderId));
       setSelected(null);
@@ -200,19 +351,8 @@ export default function ModulesPage() {
   };
 
   const columns: Column<Module>[] = [
-    {
-      key: 'id',
-      header: 'ID',
-      width: '60px',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'name',
-      header: 'Modulnamn',
-      sortable: true,
-      filterable: true,
-    },
+    { key: 'id', header: 'ID', width: '60px', sortable: true, filterable: true },
+    { key: 'name', header: 'Modulnamn', sortable: true, filterable: true },
     {
       key: 'folder_name',
       header: 'Mapp',
@@ -226,7 +366,7 @@ export default function ModulesPage() {
       key: 'allow_incomplete_versions',
       header: 'Tillåt ofullständiga',
       sortable: true,
-      filterable: false, // boolean badge — filter via text won't work well
+      filterable: false,
       render: v => v
         ? <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Ja</span>
         : <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">Nej</span>,
@@ -286,7 +426,7 @@ export default function ModulesPage() {
       icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
       </svg>,
-      onClick: () => alert('Skapa ny modul'),
+      onClick: () => { setEditingModule(null); setShowForm(true); },
     },
     {
       label: 'Visa alla',
@@ -295,59 +435,75 @@ export default function ModulesPage() {
   ];
 
   return (
-    <SamrumLayout
-      sidebar={
-        <TreeNav
-          nodes={treeNodes}
-          onSelect={handleTreeSelect}
-          defaultExpanded={false}
-        />
-      }
-      sidebarTitle="Modulhierarki"
-      rightPanel={
-        <ModuleDetail
-          item={selected}
-          onEdit={() => alert('Ändra modul')}
-          onClose={() => setSelected(null)}
-        />
-      }
-      rightPanelTitle="Moduldetaljer"
-    >
-      <div className="px-6 py-4 bg-white border-b border-samrum-border flex-shrink-0">
-        <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
-          <span>Admin</span>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span className="font-medium text-slate-900">Moduler</span>
+    <>
+      <SamrumLayout
+        sidebar={
+          <TreeNav
+            nodes={treeNodes}
+            onSelect={handleTreeSelect}
+            defaultExpanded={false}
+          />
+        }
+        sidebarTitle="Modulhierarki"
+        rightPanel={
+          <ModuleDetail
+            item={selected}
+            folders={folders}
+            onEdit={() => { setEditingModule(selected); setShowForm(true); }}
+            onDelete={() => selected && handleDelete(selected)}
+            onClose={() => setSelected(null)}
+          />
+        }
+        rightPanelTitle="Moduldetaljer"
+      >
+        <div className="px-6 py-4 bg-white border-b border-samrum-border flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
+            <span>Admin</span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="font-medium text-slate-900">Moduler</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">B011 – Administrera moduler</h1>
+          <p className="text-sm text-slate-500">{modules.length} moduler i {folders.length} mappar</p>
         </div>
-        <h1 className="text-xl font-bold text-slate-900">B011 – Administrera moduler</h1>
-        <p className="text-sm text-slate-500">{modules.length} moduler i {folders.length} mappar</p>
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <DataGrid
-          columns={columns}
-          data={filteredModules}
-          loading={loading}
-          selectable
-          columnSelector
-          columnFilters
-          toolbarActions={toolbar}
-          onSearch={q => {
-            setFilteredModules(q
-              ? modules.filter(m =>
-                m.name.toLowerCase().includes(q.toLowerCase()) ||
-                (m.description ?? '').toLowerCase().includes(q.toLowerCase()) ||
-                (m.folder_name ?? '').toLowerCase().includes(q.toLowerCase())
-              )
-              : modules);
+        <div className="flex-1 overflow-hidden">
+          <DataGrid
+            columns={columns}
+            data={filteredModules}
+            loading={loading}
+            selectable
+            columnSelector
+            columnFilters
+            toolbarActions={toolbar}
+            onSearch={q => {
+              setFilteredModules(q
+                ? modules.filter(m =>
+                  m.name.toLowerCase().includes(q.toLowerCase()) ||
+                  (m.description ?? '').toLowerCase().includes(q.toLowerCase()) ||
+                  (m.folder_name ?? '').toLowerCase().includes(q.toLowerCase())
+                )
+                : modules);
+            }}
+            searchPlaceholder="Sök modul..."
+            onRowClick={row => router.push(`/admin/modules/${row.id}`)}
+            totalCount={filteredModules.length}
+            emptyMessage="Inga moduler hittades"
+          />
+        </div>
+      </SamrumLayout>
+
+      {showForm && (
+        <ModuleFormModal
+          folders={folders}
+          module={editingModule}
+          onClose={() => { setShowForm(false); setEditingModule(null); }}
+          onSaved={() => {
+            load();
+            if (editingModule) setSelected(null);
           }}
-          searchPlaceholder="Sök modul..."
-          onRowClick={row => router.push(`/admin/modules/${row.id}`)}
-          totalCount={filteredModules.length}
-          emptyMessage="Inga moduler hittades"
         />
-      </div>
-    </SamrumLayout>
+      )}
+    </>
   );
 }

@@ -93,9 +93,11 @@ export default function AdminDashboard() {
     { href: '/admin/object-types', label: 'Objekttyper (B012)', desc: 'Hantera objekttypdefinitioner', adminOnly: true },
     { href: '/admin/modules', label: 'Moduler (B011)', desc: 'Projektmoduler och mappar', adminOnly: true },
     { href: '/admin/relationships', label: 'Relationer', desc: 'Objekttypsrelationer', adminOnly: true },
+    { href: '/admin/classify', label: 'Klassificera objekt (A005)', desc: 'Bläddra objekt per klassificering', adminOnly: false },
     { href: '/admin/classifications', label: 'Klassifikationer (B013)', desc: 'Klassifikationssystem', adminOnly: true },
     { href: '/admin/import-export', label: 'Import/Export (B014)', desc: 'ID-uppsättningar och definitioner', adminOnly: true },
     { href: '/admin/module-folders', label: 'Modulmappar', desc: 'Mappstruktur', adminOnly: true },
+    { href: '/admin/analysis', label: 'Analys & Kvalitet (A006/A007)', desc: 'Ofullständiga objekt och valideringsfel', adminOnly: false },
   ];
 
   const navLinks = allNavLinks; // Show all nav links unconditionally
