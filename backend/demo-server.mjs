@@ -1022,8 +1022,12 @@ const server = http.createServer(async (req, res) => {
       }
       if (adjQ.rows.length) {
         const adj = adjQ.rows[0];
+        // Swap sort_order between the two samrum_relationships rows
         await client.query('UPDATE samrum_relationships SET sort_order=$1 WHERE id=$2', [adj.sort_order, relId]);
         await client.query('UPDATE samrum_relationships SET sort_order=$1 WHERE id=$2', [sort_order, adj.id]);
+        // Keep module_view_columns.col_order in sync so object views reflect the new order
+        await client.query('UPDATE module_view_columns SET col_order=$1 WHERE samrum_relationship_id=$2', [adj.sort_order, relId]);
+        await client.query('UPDATE module_view_columns SET col_order=$1 WHERE samrum_relationship_id=$2', [sort_order, adj.id]);
       }
       res.writeHead(200);
       res.end(JSON.stringify({ success: true }));

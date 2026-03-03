@@ -471,10 +471,11 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
 
 // ─── Simplified View ──────────────────────────────────────────────────────────
 
-function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
+function SimplifiedAttrTable({ attrs, onEdit, onDelete, onReorder }: {
   attrs: AttrRow[];
   onEdit: (attr: AttrRow) => void;
   onDelete: (attr: AttrRow) => void;
+  onReorder: (id: number, direction: 'up' | 'down') => void;
 }) {
   // Expanded row keys: `${depth}-${attr.id}` — pre-expand all top-level refs
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -514,6 +515,18 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
     });
     if (attr.is_reference && attr.ref_type_id) fetchRefAttrs(attr.ref_type_id);
   };
+
+  // Reorder a child-depth attribute: call API then invalidate its parent's cache
+  const reorderChild = useCallback(async (attr: AttrRow, direction: 'up' | 'down') => {
+    await fetch(`${API}/api/admin/object-types/attributes/${attr.id}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ direction }),
+    }).catch(() => {});
+    // Bust the cache for this attr's parent type so the next expand re-fetches
+    delete cacheRef.current[attr.from_type_id];
+    fetchRefAttrs(attr.from_type_id);
+  }, [fetchRefAttrs]);
 
   // Recursive renderer — depth drives indent and visual treatment
   const renderRows = (rows: AttrRow[], depth: number): React.ReactNode => {
@@ -569,7 +582,23 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
             <td className="px-4 py-2 text-center">{attr.is_changeable ? <CheckBadge size="sm" /> : <Dash />}</td>
             <td className="px-4 py-2 text-center">{attr.can_create ? <CheckBadge size="sm" /> : <Dash />}</td>
             <td className="px-4 py-2 text-right">
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  onClick={() => depth === 0 ? onReorder(attr.id, 'up') : reorderChild(attr, 'up')}
+                  title="Flytta upp"
+                  className="p-0.5 text-slate-400 hover:text-slate-700 transition-colors">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => depth === 0 ? onReorder(attr.id, 'down') : reorderChild(attr, 'down')}
+                  title="Flytta ned"
+                  className="p-0.5 text-slate-400 hover:text-slate-700 transition-colors mr-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
                 <button onClick={() => onEdit(attr)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Ändra</button>
                 <button onClick={() => onDelete(attr)} className="text-xs text-red-500 hover:text-red-700 font-medium">Radera</button>
               </div>
@@ -620,7 +649,7 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
             <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Huvudobjekt för modul</th>
             <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Ändringsbar</th>
             <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Kan skapas</th>
-            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Åtgärd</th>
+            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-36">Åtgärd</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -1061,6 +1090,7 @@ export default function ObjectTypeDetailPage() {
                     attrs={filteredAttrs}
                     onEdit={setEditAttrModal}
                     onDelete={handleDeleteAttr}
+                    onReorder={handleReorder}
                   />
             )}
 
