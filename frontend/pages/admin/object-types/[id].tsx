@@ -52,6 +52,9 @@ interface AttrRow {
   exists_only_in_parent: boolean;
   required_in_locked_version: boolean;
   sort_order: number | null;
+  is_main_for_module: boolean;
+  is_changeable: boolean;
+  can_create: boolean;
   children?: AttrRow[];
   used_in_modules?: { module_id: number; module_name: string; allow_edit: boolean }[];
 }
@@ -473,14 +476,18 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
   onEdit: (attr: AttrRow) => void;
   onDelete: (attr: AttrRow) => void;
 }) {
-  // Expanded row keys: `${depth}-${attr.id}`
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Expanded row keys: `${depth}-${attr.id}` — pre-expand all top-level refs
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const s = new Set<string>();
+    attrs.filter(a => a.is_reference).forEach(a => s.add(`0-${a.id}`));
+    return s;
+  });
   // Cache of fetched attrs keyed by ref_type_id; uses refs to avoid stale closures
   const cacheRef = useRef<Record<number, AttrRow[]>>({});
   const loadingRef = useRef<Set<number>>(new Set());
   const [, forceRender] = useState(0);
 
-  const fetchRefAttrs = async (refTypeId: number) => {
+  const fetchRefAttrs = useCallback(async (refTypeId: number) => {
     if (refTypeId in cacheRef.current || loadingRef.current.has(refTypeId)) return;
     loadingRef.current.add(refTypeId);
     forceRender(n => n + 1);
@@ -492,7 +499,12 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
       loadingRef.current.delete(refTypeId);
       forceRender(n => n + 1);
     }
-  };
+  }, []);
+
+  // Auto-fetch all top-level refs on mount
+  useEffect(() => {
+    attrs.filter(a => a.is_reference && a.ref_type_id).forEach(a => fetchRefAttrs(a.ref_type_id!));
+  }, [attrs, fetchRefAttrs]);
 
   const toggleRow = (rowKey: string, attr: AttrRow) => {
     setExpanded(prev => {
@@ -553,9 +565,9 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
                 <span className="ml-1 text-[10px] text-slate-400">({childRows.length})</span>
               )}
             </td>
-            <td className="px-4 py-2 text-center">{attr.is_requirement ? <CheckBadge size="sm" /> : <Dash />}</td>
-            <td className="px-4 py-2 text-center">{attr.allow_in_lists ? <CheckBadge size="sm" /> : <Dash />}</td>
-            <td className="px-4 py-2 text-center">{attr.copy_attribute ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-center">{attr.is_main_for_module ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-center">{attr.is_changeable ? <CheckBadge size="sm" /> : <Dash />}</td>
+            <td className="px-4 py-2 text-center">{attr.can_create ? <CheckBadge size="sm" /> : <Dash />}</td>
             <td className="px-4 py-2 text-right">
               <div className="flex items-center justify-end gap-2">
                 <button onClick={() => onEdit(attr)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Ändra</button>
@@ -605,9 +617,9 @@ function SimplifiedAttrTable({ attrs, onEdit, onDelete }: {
           <tr className="bg-slate-50 border-b border-slate-200">
             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Attribut</th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Objekttyp</th>
-            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Oblig.</th>
-            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Visas</th>
-            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Kopieras</th>
+            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Huvudobjekt för modul</th>
+            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Ändringsbar</th>
+            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Kan skapas</th>
             <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Åtgärd</th>
           </tr>
         </thead>
@@ -701,6 +713,23 @@ function DetailedAttrView({ attrs, onEdit, onDelete, onReorder }: {
                 { flag: attr.exists_only_in_parent, label: 'Bara med förälder' },
               ].filter(f => f.flag).map(f => (
                 <span key={f.label} className="text-[10px] bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-medium">{f.label}</span>
+              ))}
+            </div>
+            {/* Module-level properties */}
+            <div className="col-span-2 flex gap-4 pt-1 border-t border-slate-100 mt-1">
+              {[
+                { flag: attr.is_main_for_module, label: 'Huvudobjekt för modul' },
+                { flag: attr.is_changeable, label: 'Ändringsbar' },
+                { flag: attr.can_create, label: 'Kan skapas' },
+              ].map(f => (
+                <span key={f.label} className={`text-[10px] flex items-center gap-1 ${f.flag ? 'text-indigo-700 font-medium' : 'text-slate-300'}`}>
+                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {f.flag
+                      ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />}
+                  </svg>
+                  {f.label}
+                </span>
               ))}
             </div>
           </div>

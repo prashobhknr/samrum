@@ -874,16 +874,28 @@ const server = http.createServer(async (req, res) => {
       const otId = otAttrMatch[1];
       // Complex types (references) have data_type_id IN (14,16); scalars have data_type_id 1-13
       const relR = await client.query(
-        `SELECT r.*,
+        `WITH mot_agg AS (
+           SELECT object_type_id,
+             BOOL_OR(is_main_object_type) AS is_main_for_module,
+             BOOL_OR(allow_edit)          AS is_changeable,
+             BOOL_OR(allow_insert)        AS can_create
+           FROM samrum_module_object_types
+           GROUP BY object_type_id
+         )
+         SELECT r.*,
            CASE WHEN to_ot.data_type_id IN (14,16) THEN TRUE ELSE FALSE END AS is_reference,
            CASE WHEN to_ot.data_type_id IN (14,16) THEN to_ot.name_singular ELSE dt.name END AS type_name,
            CASE WHEN to_ot.data_type_id IN (14,16) THEN to_ot.id ELSE NULL END AS ref_type_id,
            CASE WHEN to_ot.data_type_id IN (14,16) THEN to_ot.name_singular ELSE NULL END AS ref_type_name,
            CASE WHEN to_ot.data_type_id NOT IN (14,16) THEN dt.name ELSE NULL END AS data_type_name,
-           to_ot.name_singular AS to_type_name
+           to_ot.name_singular AS to_type_name,
+           COALESCE(mot.is_main_for_module, FALSE) AS is_main_for_module,
+           COALESCE(mot.is_changeable, FALSE)      AS is_changeable,
+           COALESCE(mot.can_create, FALSE)         AS can_create
          FROM samrum_relationships r
          JOIN samrum_object_types to_ot ON r.to_type_id = to_ot.id
          LEFT JOIN samrum_data_types dt ON to_ot.data_type_id = dt.id
+         LEFT JOIN mot_agg mot ON mot.object_type_id = r.to_type_id
          WHERE r.from_type_id = $1
          ORDER BY r.sort_order NULLS LAST, r.caption_singular NULLS LAST`,
         [otId]);
