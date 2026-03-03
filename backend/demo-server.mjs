@@ -868,6 +868,27 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ─── B012: Per-attribute module associations (Används i modul / Ändringsbar i modul) ──
+    const attrModulesGetMatch = pathname.match(/^\/api\/admin\/object-types\/(\d+)\/attribute-modules$/);
+    if (attrModulesGetMatch && req.method === 'GET') {
+      const typeId = attrModulesGetMatch[1];
+      const relId  = parsedUrl.query.rel_id ? parseInt(parsedUrl.query.rel_id) : null;
+      const result = await client.query(
+        `SELECT m.id, m.name,
+           CASE WHEN mr.id IS NOT NULL THEN TRUE ELSE FALSE END AS is_used,
+           CASE WHEN mr.id IS NOT NULL AND mr.allow_edit THEN TRUE ELSE FALSE END AS is_editable
+         FROM samrum_module_object_types mot
+         JOIN samrum_modules m ON mot.module_id = m.id
+         LEFT JOIN samrum_module_relationships mr
+           ON mr.module_id = m.id AND mr.relationship_id = $1
+         WHERE mot.object_type_id = $2
+         ORDER BY m.name`,
+        [relId, typeId]);
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true, data: result.rows }));
+      return;
+    }
+
     // ─── B012: Object Type Attributes CRUD (via samrum_relationships) ────────────
     const otAttrMatch = pathname.match(/^\/api\/admin\/object-types\/(\d+)\/attributes$/);
     if (otAttrMatch && req.method === 'GET') {
@@ -998,6 +1019,73 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
+    // ─── B012: PUT module associations for an attribute ────────────────────────
+    const attrModulesPutMatch = pathname.match(/^\/api\/admin\/object-types\/attributes\/(\d+)\/modules$/);
+    if (attrModulesPutMatch && req.method === 'PUT') {
+      const relId = parseInt(attrModulesPutMatch[1]);
+      const body = await readBody();
+      const modules = body.modules ?? [];
+      for (const mod of modules) {
+        const { module_id, is_used, is_editable } = mod;
+        const cur = await client.query(
+          'SELECT id FROM samrum_module_relationships WHERE module_id=$1 AND relationship_id=$2',
+          [module_id, relId]);
+        if (is_used && !cur.rows.length) {
+          // Add to samrum_module_relationships
+          await client.query(
+            'INSERT INTO samrum_module_relationships (module_id, relationship_id, allow_edit, read_only) VALUES ($1,$2,$3,$4)',
+            [module_id, relId, is_editable, !is_editable]);
+          // Add to module_view_columns using the same normalization as migration 006
+          await client.query(
+            `INSERT INTO module_view_columns
+               (module_id, column_key, label, col_order, col_type,
+                is_editable, is_required, show_by_default, samrum_relationship_id)
+             SELECT $1,
+               lower(regexp_replace(
+                 translate(COALESCE(r.sys_caption, r.caption_singular, 'col_'||r.id::text),
+                           'öäåÖÄÅéèüÜïîôõ','oaaOAAeeuUiioo'),
+                 '[^a-zA-Z0-9_]','_','g')),
+               r.caption_singular,
+               COALESCE(r.sort_order, 0),
+               CASE WHEN to_ot.data_type_id IN (14,16)                                    THEN 'reference'
+                    WHEN dt.name = 'Nummer'                                                THEN 'number'
+                    WHEN dt.name = 'Datum'                                                 THEN 'date'
+                    WHEN dt.name IN ('Ja/Nej','Komplex Ja/Nej (adderar attribut)')        THEN 'boolean'
+                    WHEN dt.name IN ('Bild','PDF-dokument','Word-Dokument','Excel-dokument',
+                                     'Powerpointpresentation','Övriga filtyper','Film')   THEN 'file'
+                    ELSE 'text' END,
+               $2, r.is_requirement, r.show_in_lists_default, r.id
+             FROM samrum_relationships r
+             JOIN samrum_object_types to_ot ON to_ot.id = r.to_type_id
+             LEFT JOIN samrum_data_types dt ON dt.id = to_ot.data_type_id
+             WHERE r.id = $3
+             ON CONFLICT (module_id, column_key) DO UPDATE
+               SET is_editable = EXCLUDED.is_editable,
+                   samrum_relationship_id = EXCLUDED.samrum_relationship_id`,
+            [module_id, is_editable, relId]);
+        } else if (!is_used && cur.rows.length) {
+          // Remove from both tables
+          await client.query(
+            'DELETE FROM samrum_module_relationships WHERE module_id=$1 AND relationship_id=$2',
+            [module_id, relId]);
+          await client.query(
+            'DELETE FROM module_view_columns WHERE module_id=$1 AND samrum_relationship_id=$2',
+            [module_id, relId]);
+        } else if (is_used && cur.rows.length) {
+          // Update editability in both tables
+          await client.query(
+            'UPDATE samrum_module_relationships SET allow_edit=$1, read_only=$2 WHERE module_id=$3 AND relationship_id=$4',
+            [is_editable, !is_editable, module_id, relId]);
+          await client.query(
+            'UPDATE module_view_columns SET is_editable=$1 WHERE module_id=$2 AND samrum_relationship_id=$3',
+            [is_editable, module_id, relId]);
+        }
+      }
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
+      return;
+    }
+
     const attrReorderMatch = pathname.match(/^\/api\/admin\/object-types\/attributes\/(\d+)\/reorder$/);
     if (attrReorderMatch && req.method === 'PUT') {
       const relId = attrReorderMatch[1];

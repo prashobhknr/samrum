@@ -264,6 +264,13 @@ const emptyAttrForm: AttrFormState = {
   required_in_locked_version: false, copy_attribute: false,
 };
 
+interface ModuleAssoc {
+  module_id: number;
+  name: string;
+  is_used: boolean;
+  is_editable: boolean;
+}
+
 function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
   mode: 'add' | 'edit';
   typeId: number;
@@ -296,6 +303,8 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
   const [primitiveTypes, setPrimitiveTypes] = useState<PrimitiveType[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [moduleAssocs, setModuleAssocs] = useState<ModuleAssoc[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/api/admin/object-types?primitive=1&limit=100`, { headers: authHeaders() })
@@ -303,6 +312,18 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
       .then(d => setPrimitiveTypes(d.data ?? []))
       .catch(() => {});
   }, []);
+
+  // Load per-module usage/editability for this attribute
+  useEffect(() => {
+    setModulesLoading(true);
+    const relId = existing?.id ?? '';
+    fetch(`${API}/api/admin/object-types/${typeId}/attribute-modules?rel_id=${relId}`,
+      { headers: authHeaders() })
+      .then(r => r.json())
+      .then(d => setModuleAssocs(d.data ?? []))
+      .catch(() => {})
+      .finally(() => setModulesLoading(false));
+  }, [typeId, existing?.id]);
 
   const save = async () => {
     if (!form.caption_singular.trim()) { setError('Namn Singular krävs'); return; }
@@ -331,7 +352,18 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
         }),
       });
       const d = await r.json();
-      if (d.success) { onSaved(); onClose(); }
+      if (d.success) {
+        // Sync module associations (Används i modul / Ändringsbar i modul)
+        const relId = mode === 'add' ? d.data.id : existing!.id;
+        if (moduleAssocs.length > 0) {
+          await fetch(`${API}/api/admin/object-types/attributes/${relId}/modules`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ modules: moduleAssocs }),
+          }).catch(() => {});
+        }
+        onSaved(); onClose();
+      }
       else setError(d.error ?? 'Kunde inte spara');
     } catch { setError('Nätverksfel'); }
     finally { setSaving(false); }
@@ -339,7 +371,7 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
           <h2 className="text-lg font-semibold text-slate-900">
             {mode === 'add' ? 'Lägg till attribut' : 'Ändra attribut'}
@@ -454,6 +486,57 @@ function AddEditAttrModal({ mode, typeId, existing, onClose, onSaved }: {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Module associations – Används i modul / Ändringsbar i modul */}
+          <div className="border-t border-slate-100 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">
+                Moduler
+                {moduleAssocs.filter(m => m.is_used).length > 0 && (
+                  <span className="ml-1 text-blue-600">
+                    ({moduleAssocs.filter(m => m.is_used).length} aktiva)
+                  </span>
+                )}
+              </p>
+              {modulesLoading && <span className="text-[10px] text-slate-400 italic">Laddar...</span>}
+            </div>
+            {moduleAssocs.length > 0 && (
+              <>
+                <div className="grid grid-cols-[1fr_90px_110px] text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 mb-1">
+                  <span>Modul</span>
+                  <span className="text-center">Används i modul</span>
+                  <span className="text-center">Ändringsbar i modul</span>
+                </div>
+                <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+                  {moduleAssocs.map((m, i) => (
+                    <div key={m.module_id}
+                      className="grid grid-cols-[1fr_90px_110px] items-center px-3 py-1.5 hover:bg-slate-50">
+                      <span className="text-xs text-slate-700 truncate" title={m.name}>{m.name}</span>
+                      <div className="flex justify-center">
+                        <input type="checkbox" className="rounded border-slate-300"
+                          checked={m.is_used}
+                          onChange={e => {
+                            const used = e.target.checked;
+                            setModuleAssocs(prev => prev.map((x, j) =>
+                              j === i ? { ...x, is_used: used, is_editable: used ? x.is_editable : false } : x));
+                          }} />
+                      </div>
+                      <div className="flex justify-center">
+                        <input type="checkbox" className="rounded border-slate-300"
+                          checked={m.is_editable}
+                          disabled={!m.is_used}
+                          onChange={e => setModuleAssocs(prev => prev.map((x, j) =>
+                            j === i ? { ...x, is_editable: e.target.checked } : x))} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {!modulesLoading && moduleAssocs.length === 0 && (
+              <p className="text-xs text-slate-400 italic">Ingen modul använder denna objekttyp</p>
+            )}
           </div>
         </div>
 
