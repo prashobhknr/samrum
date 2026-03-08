@@ -164,3 +164,16 @@ Types: feat, fix, docs, refactor, test, chore
 - Point at logs, errors, failing tests – then resolve them
 - Zero context switching required from the user
 - Go fix failing CI tests without being told how
+
+## The "Progress & Pruning" Protocol
+- **Action Interval:** Every 2 tool actions (edits or shell commands), you MUST update `progress.md`.
+- **The progress.md Structure:**
+  - `## Current Objective`: The high-level goal.
+  - `## Findings`: Bullet points of what was discovered in the last 2 actions.
+  - `## Next Steps`: The immediate plan for the next 2 actions.
+- **Context Preservation:** Before any major refactor, copy the relevant original logic into a blockquote in `progress.md` labeled `[ORIGINAL CONTEXT]`.
+- **Aggressive Cleanup:**
+  - After completing a sub-task, use the `/compact` command to summarize the session and clear the token buffer.
+  - Delete temporary debug files, `.log` files, or "test_fix_v1.ts" files immediately after verification.
+
+  
