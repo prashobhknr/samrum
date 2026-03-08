@@ -1,30 +1,38 @@
-# Doorman — Camunda 7.23.0 Run configuration
-# Replaces H2 in-memory default with PostgreSQL
+# Find more available configuration properties on the following pages of the documentation.
+# https://docs.operaton.org/manual/latest/user-guide/operaton-bpm-run/#configure-operaton-bpm-run
+# https://docs.operaton.org/manual/latest/user-guide/spring-boot-integration/configuration/#operaton-engine-properties
 
-spring.datasource:
-  url: jdbc:postgresql://localhost:5432/doorman_db
-  username: doorman_user
-  password: doorman_pass
-  driver-class-name: org.postgresql.Driver
-
-spring.web.resources:
-  static-locations: NULL
-
-camunda.bpm:
-  database:
-    schema-update: true
+operaton.bpm:
   admin-user:
     id: demo
     password: demo
-    firstName: Demo
   filter:
-    create: All Tasks
+    create: All tasks
   run:
+# https://docs.operaton.org/manual/latest/user-guide/operaton-bpm-run/#cross-origin-resource-sharing
     cors:
-      enabled: false
+      enabled: true
+      allowed-origins: "*"
     rest:
       disable-wadl: false
     deployment:
       deploy-changed-only: true
+# https://docs.operaton.org/manual/latest/user-guide/operaton-bpm-run/#example-application
     example:
-      enabled: false
+      enabled: true
+
+# datasource configuration — PostgreSQL (doorman_db)
+spring.datasource:
+  url: jdbc:postgresql://localhost:5432/doorman_db
+  driver-class-name: org.postgresql.Driver
+  username: doorman_user
+  password: doorman_pass
+
+operaton.bpm.database:
+  schema-update: true
+
+# By default, Spring Boot serves static content from any directories called /static or /public or /resources or
+# /META-INF/resources in the classpath. To prevent users from accidentally sharing files, this is disabled here by setting static locations to NULL.
+# https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#boot-features-spring-mvc-static-content
+spring.web.resources:
+  static-locations: NULL
