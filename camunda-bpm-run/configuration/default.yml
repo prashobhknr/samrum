@@ -1,0 +1,30 @@
+# Doorman — Camunda 7.23.0 Run configuration
+# Replaces H2 in-memory default with PostgreSQL
+
+spring.datasource:
+  url: jdbc:postgresql://localhost:5432/doorman_db
+  username: doorman_user
+  password: doorman_pass
+  driver-class-name: org.postgresql.Driver
+
+spring.web.resources:
+  static-locations: NULL
+
+camunda.bpm:
+  database:
+    schema-update: true
+  admin-user:
+    id: demo
+    password: demo
+    firstName: Demo
+  filter:
+    create: All Tasks
+  run:
+    cors:
+      enabled: false
+    rest:
+      disable-wadl: false
+    deployment:
+      deploy-changed-only: true
+    example:
+      enabled: false
