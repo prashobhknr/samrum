@@ -1,0 +1,61 @@
+# .agentignore — files/dirs agents and coders can safely skip
+# These are reference material, not implementation targets.
+
+## Legacy SAS/Samrum app data (not needed for implementation)
+docs/old-app/
+
+## One-time setup docs
+GITHUB_SETUP.md
+
+## Historical/superseded architecture reviews
+ARCHITECTURE_REVIEW.md
+ARCHITECTURE_IMPL.md
+
+## BPMN files — already validated (39 files, 100% coverage)
+## Only read if you're specifically modifying process flows.
+processes/phases/
+processes/sub/
+processes/operations/
+processes/emergency/
+processes/renovation/
+processes/portfolio/
+processes/master-building-lifecycle.bpmn
+processes/door-maintenance.bpmn
+processes/door-unlock.bpmn
+processes/META-INF/
+
+## Architecture docs — reference only, read when planning a specific phase
+## doc 01-07 are design docs, not implementation targets
+docs/architecture/01-plcs-building-lifecycle.md
+docs/architecture/02-user-personas.md
+docs/architecture/03-master-building-process.md
+docs/architecture/04-phase-process-details.md
+docs/architecture/05-module-process-mapping.md
+docs/architecture/06-process-cross-reference.md
+docs/architecture/07-cross-discipline-integration.md
+docs/architecture/09-process-kpis-and-sla.md
+
+## Progress tracker (read-only reference)
+docs/architecture/TODO-progress.md
+
+## Database Excel dumps (binary/spreadsheets)
+docs/old-app/existing-app/Database\ Excel/
+
+## Migration files — read only when writing a new migration
+## Do NOT modify existing migrations (they are applied)
+database/migrations/001_*.sql
+database/migrations/002_*.sql
+database/migrations/003_*.sql
+database/migrations/004_*.sql
+database/migrations/005_*.sql
+database/migrations/006_*.sql
+database/migrations/007_*.sql
+
+## Demo HTML (static prototype, not production code)
+demo.html
+
+## Scripts (one-time ops)
+scripts/
+
+## samrum.pdf (original spec, large binary)
+docs/samrum.pdf
