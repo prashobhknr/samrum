@@ -27,7 +27,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. `java -jar camunda-bpm-run-7.23.0.jar` starts without errors and Cockpit is accessible at `localhost:8080`; startup logs confirm `org.postgresql` driver loaded, not H2
   2. All 39 BPMN files are visible as deployed process definitions in Camunda Cockpit after `demo-server.mjs` starts; restarting the server does not create additional versions
   3. `curl localhost:3000/api/camunda/engine-rest/process-definition` returns the process list (proxied through the backend, no CORS error from the frontend)
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-PLAN.md — Camunda 7.23.0 JAR + PostgreSQL config + first start verification
+- [ ] 02-PLAN.md — BPMN deployment script wired into demo-server.mjs startup
+- [ ] 03-PLAN.md — /api/camunda/* proxy routes in demo-server.mjs
 
 ### Phase 2: External Task Worker
 **Goal**: The backend external task worker polls Camunda service tasks and dispatches them to the existing delegate registry, completing tasks with typed variables and handling failures as Camunda incidents
@@ -68,7 +73,7 @@ Note: Phase 4 depends only on Phase 1 (not Phase 3) and may be scheduled before 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Camunda Infrastructure | 0/? | Not started | - |
+| 1. Camunda Infrastructure | 0/3 | Not started | - |
 | 2. External Task Worker | 0/? | Not started | - |
 | 3. Task Worker UI | 0/? | Not started | - |
 | 4. Process Instance Timeline | 0/? | Not started | - |
