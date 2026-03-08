@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="operations-phase-definitions"
+                   targetNamespace="http://doorman.local/operations-phase">
+
+  <!-- ================================================================== -->
+  <!-- OPERATIONS PHASE (Forvaltning)                                      -->
+  <!-- PLCS: AS_IS                                                         -->
+  <!-- Swedish building phase: Forvaltning / Drift                         -->
+  <!--                                                                     -->
+  <!-- This is a LONG-RUNNING phase (decades) with event-driven sub-       -->
+  <!-- processes running concurrently. Unlike project phases, operations    -->
+  <!-- does not have a linear flow — instead it orchestrates recurring     -->
+  <!-- and event-driven processes.                                         -->
+  <!--                                                                     -->
+  <!-- Sub-processes:                                                      -->
+  <!--   - Scheduled maintenance cycles                                    -->
+  <!--   - Access control management                                       -->
+  <!--   - Change management (tenant changes, renovations)                 -->
+  <!--   - Regulatory inspections (OVK, energy, fire, elevator)            -->
+  <!--   - Warranty management                                             -->
+  <!--   - Tenant move-in/move-out                                         -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-phase" name="Forvaltningsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Forvaltning startad">
+      <bpmn:outgoing>flow_start_to_setup</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Operations Setup                                       -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="operations_setup" name="Etablera driftorganisation"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Set up operations organization:
+        - Assign FM responsible per building/zone
+        - Establish maintenance contracts (if not in-house)
+        - Set up monitoring/alarm systems
+        - Configure maintenance schedules in Doorman
+        - Establish key performance indicators (KPIs)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_setup</bpmn:incoming>
+      <bpmn:outgoing>flow_setup_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- Parallel long-running sub-processes                            -->
+    <!-- All run concurrently for the lifetime of operations             -->
+    <!-- ============================================================== -->
+    <bpmn:parallelGateway id="fork_operations">
+      <bpmn:incoming>flow_setup_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_maintenance</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_inspections</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_warranty</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_tenant</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_energy</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_climate</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_poe</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK 1: Scheduled Maintenance -->
+    <bpmn:callActivity id="ca_maintenance" name="Planerat underhall"
+                       calledElement="maintenance-cycle">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="projectId" target="projectId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_maintenance</bpmn:incoming>
+      <bpmn:outgoing>flow_maintenance_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 2: Access Control Management -->
+    <bpmn:callActivity id="ca_access_mgmt" name="Behorighetshantering"
+                       calledElement="operations-access-management">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 3: Regulatory Inspections (OVK, fire, elevator) -->
+    <bpmn:callActivity id="ca_inspections" name="Lagstadgade besiktningar"
+                       calledElement="operations-inspections">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_inspections</bpmn:incoming>
+      <bpmn:outgoing>flow_inspections_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 4: Warranty Management -->
+    <bpmn:callActivity id="ca_warranty" name="Garantihantering"
+                       calledElement="operations-warranty">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="warrantyStartDate" target="warrantyStartDate" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_warranty</bpmn:incoming>
+      <bpmn:outgoing>flow_warranty_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 5: Tenant Management -->
+    <bpmn:callActivity id="ca_tenant" name="Hyresgasthantering"
+                       calledElement="operations-tenant">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_tenant</bpmn:incoming>
+      <bpmn:outgoing>flow_tenant_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 6: Energy Management -->
+    <bpmn:callActivity id="ca_energy" name="Energiuppfoljning"
+                       calledElement="operations-energy">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_energy</bpmn:incoming>
+      <bpmn:outgoing>flow_energy_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 7: Post-Occupancy Evaluation (first run 6 months after handover) -->
+    <bpmn:intermediateCatchEvent id="timer_poe_delay" name="Vänta 6 månader">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P180D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:incoming>flow_to_poe</bpmn:incoming>
+      <bpmn:outgoing>flow_poe_timer_to_ca</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:callActivity id="ca_poe" name="Bruksvärdering (POE)"
+                       calledElement="post-occupancy-evaluation">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_poe_timer_to_ca</bpmn:incoming>
+      <bpmn:outgoing>flow_poe_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 8: Indoor Climate & Air Quality -->
+    <bpmn:callActivity id="ca_climate" name="Inomhusklimat"
+                       calledElement="operations-indoor-climate">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_climate</bpmn:incoming>
+      <bpmn:outgoing>flow_climate_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Join (in practice, operations ends when decommission is decided) -->
+    <bpmn:parallelGateway id="join_operations">
+      <bpmn:incoming>flow_maintenance_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_access_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_inspections_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_warranty_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_tenant_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_energy_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_climate_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_poe_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_end</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:endEvent id="end" name="Forvaltning avslutad">
+      <bpmn:incoming>flow_join_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Event sub-process: Change Management (can happen anytime during operations) -->
+    <bpmn:subProcess id="change_event_subprocess" name="Andringshantering" triggeredByEvent="true">
+      <bpmn:startEvent id="change_start" name="Andringsforslag mottaget">
+        <bpmn:messageEventDefinition messageRef="msg_change_request" />
+      </bpmn:startEvent>
+      <bpmn:userTask id="evaluate_change" name="Utvardera andring"
+                     camunda:candidateGroups="facility_managers,project_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>Evaluate change request: scope, cost, impact on operations.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="approve_change" name="Godkann andring"
+                     camunda:candidateGroups="owners,facility_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>Approve or reject change. If major: may trigger mini-project (back to design phase).</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:userTask id="implement_change" name="Genomfor andring"
+                     camunda:candidateGroups="maintenance,contractors"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>Implement approved change. Update affected attribute values. Record in audit log.</bpmn:documentation>
+      </bpmn:userTask>
+      <bpmn:endEvent id="change_end" name="Andring klar" />
+
+      <bpmn:sequenceFlow id="cf1" sourceRef="change_start" targetRef="evaluate_change" />
+      <bpmn:sequenceFlow id="cf2" sourceRef="evaluate_change" targetRef="approve_change" />
+      <bpmn:sequenceFlow id="cf3" sourceRef="approve_change" targetRef="implement_change" />
+      <bpmn:sequenceFlow id="cf4" sourceRef="implement_change" targetRef="change_end" />
+    </bpmn:subProcess>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_setup" sourceRef="start" targetRef="operations_setup" />
+    <bpmn:sequenceFlow id="flow_setup_to_fork" sourceRef="operations_setup" targetRef="fork_operations" />
+    <bpmn:sequenceFlow id="flow_to_maintenance" sourceRef="fork_operations" targetRef="ca_maintenance" />
+    <bpmn:sequenceFlow id="flow_to_access" sourceRef="fork_operations" targetRef="ca_access_mgmt" />
+    <bpmn:sequenceFlow id="flow_to_inspections" sourceRef="fork_operations" targetRef="ca_inspections" />
+    <bpmn:sequenceFlow id="flow_to_warranty" sourceRef="fork_operations" targetRef="ca_warranty" />
+    <bpmn:sequenceFlow id="flow_to_tenant" sourceRef="fork_operations" targetRef="ca_tenant" />
+    <bpmn:sequenceFlow id="flow_to_energy" sourceRef="fork_operations" targetRef="ca_energy" />
+    <bpmn:sequenceFlow id="flow_maintenance_to_join" sourceRef="ca_maintenance" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_access_to_join" sourceRef="ca_access_mgmt" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_inspections_to_join" sourceRef="ca_inspections" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_warranty_to_join" sourceRef="ca_warranty" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_tenant_to_join" sourceRef="ca_tenant" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_energy_to_join" sourceRef="ca_energy" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_to_climate" sourceRef="fork_operations" targetRef="ca_climate" />
+    <bpmn:sequenceFlow id="flow_climate_to_join" sourceRef="ca_climate" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_to_poe" sourceRef="fork_operations" targetRef="timer_poe_delay" />
+    <bpmn:sequenceFlow id="flow_poe_timer_to_ca" sourceRef="timer_poe_delay" targetRef="ca_poe" />
+    <bpmn:sequenceFlow id="flow_poe_to_join" sourceRef="ca_poe" targetRef="join_operations" />
+    <bpmn:sequenceFlow id="flow_join_to_end" sourceRef="join_operations" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmn:message id="msg_change_request" name="msg_change_request" />
+
+  <bpmndi:BPMNDiagram id="operations-diagram">
+    <bpmndi:BPMNPlane id="operations-plane" bpmnElement="operations-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="setup_di" bpmnElement="operations_setup"><dc:Bounds x="140" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_operations"><dc:Bounds x="310" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="maint_di" bpmnElement="ca_maintenance"><dc:Bounds x="420" y="20" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="ca_access_mgmt"><dc:Bounds x="420" y="100" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect_di" bpmnElement="ca_inspections"><dc:Bounds x="420" y="180" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="warranty_di" bpmnElement="ca_warranty"><dc:Bounds x="420" y="260" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="tenant_di" bpmnElement="ca_tenant"><dc:Bounds x="420" y="340" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="energy_di" bpmnElement="ca_energy"><dc:Bounds x="420" y="420" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_operations"><dc:Bounds x="630" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="740" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

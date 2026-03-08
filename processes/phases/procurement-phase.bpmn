@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="procurement-phase-definitions"
+                   targetNamespace="http://doorman.local/procurement-phase">
+
+  <!-- ================================================================== -->
+  <!-- PROCUREMENT PHASE (Upphandling)                                     -->
+  <!-- PLCS: AS_DESIGNED                                                   -->
+  <!-- Swedish building phase: Upphandling                                 -->
+  <!--                                                                     -->
+  <!-- Supports multiple Swedish contract forms:                           -->
+  <!--   - Totalentreprenad (Design-Build)                                 -->
+  <!--   - Generalentreprenad (General Contractor)                         -->
+  <!--   - Delad entreprenad (Separated contracts)                         -->
+  <!--                                                                     -->
+  <!-- Activities:                                                         -->
+  <!--   1. Procurement strategy + contract packaging                      -->
+  <!--   2. Tender document preparation (Forfragninsunderlag)              -->
+  <!--   3. Tender period + Q&A                                            -->
+  <!--   4. Bid evaluation                                                 -->
+  <!--   5. Contract award + negotiation                                   -->
+  <!--   6. Contract signing                                               -->
+  <!-- ================================================================== -->
+  <bpmn:process id="procurement-phase" name="Upphandlingsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Upphandling startad">
+      <bpmn:outgoing>flow_start_to_strategy</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Procurement Strategy                                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="procurement_strategy" name="Upphandlingsstrategi"
+                   camunda:candidateGroups="project_managers,legal,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Define procurement strategy:
+        - Contract form (total/general/delad entreprenad)
+        - Contract packaging (how many contracts, scope per contract)
+        - Qualification requirements for bidders
+        - Evaluation criteria (price, quality, experience, sustainability)
+        - Public procurement rules (LOU) compliance if applicable
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_strategy</bpmn:incoming>
+      <bpmn:outgoing>flow_strategy_to_prepare</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2: Prepare Tender Documents                               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="prepare_tender_docs" name="Forbered forfragninsunderlag"
+                   camunda:candidateGroups="project_managers,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare tender documents (Forfragninsunderlag):
+        - Administrative provisions (AF AMA)
+        - Technical specifications (per discipline)
+        - Drawings and BIM models
+        - Bill of quantities (Mangdforteckning)
+        - Contract conditions (AB 04 / ABT 06)
+        - Time schedule requirements
+      </bpmn:documentation>
+      <bpmn:incoming>flow_strategy_to_prepare</bpmn:incoming>
+      <bpmn:outgoing>flow_prepare_to_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: Internal Review of Tender Documents                    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="review_tender_docs" name="Granska forfragninsunderlag"
+                   camunda:candidateGroups="owners,finance,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Owner/legal review tender documents before release:
+        - Budget alignment
+        - Contract terms acceptable
+        - Risk allocation appropriate
+        - Insurance requirements included
+      </bpmn:documentation>
+      <bpmn:incoming>flow_prepare_to_review</bpmn:incoming>
+      <bpmn:outgoing>flow_review_to_publish</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 4: Publish Tender                                         -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="publish_tender" name="Publicera forfragning"
+                      camunda:delegateExpression="${tenderPublishDelegate}">
+      <bpmn:incoming>flow_review_to_publish</bpmn:incoming>
+      <bpmn:outgoing>flow_publish_to_qa</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: Tender Period — Q&A with Bidders                       -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="tender_qa" name="Anbudstid - fragor och svar"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Manage tender period:
+        - Respond to bidder questions (within 6 days per LOU)
+        - Issue clarifications equally to all bidders
+        - Organize site visits if needed
+        - Track bid submissions
+      </bpmn:documentation>
+      <bpmn:incoming>flow_publish_to_qa</bpmn:incoming>
+      <bpmn:outgoing>flow_qa_to_receive</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Timer: Tender deadline -->
+    <bpmn:boundaryEvent id="timer_tender_deadline" attachedToRef="tender_qa" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_deadline_notify</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="notify_deadline" name="Papminn deadline"
+                      camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:incoming>flow_deadline_notify</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Receive and Register Bids                              -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="receive_bids" name="Ta emot anbud"
+                      camunda:delegateExpression="${bidRegistrationDelegate}">
+      <bpmn:incoming>flow_qa_to_receive</bpmn:incoming>
+      <bpmn:outgoing>flow_receive_to_evaluate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 7: Bid Evaluation                                         -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="evaluate_bids" name="Utvardera anbud"
+                   camunda:candidateGroups="project_managers,finance,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Evaluate bids:
+        - Qualification check (formal requirements)
+        - Technical evaluation (per criteria)
+        - Price evaluation
+        - Reference checks
+        - Weighted scoring
+        Document evaluation protocol (Utvarderingsprotokoll).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_receive_to_evaluate</bpmn:incoming>
+      <bpmn:outgoing>flow_evaluate_to_select</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 8: Supplier Selection and Negotiation                     -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="select_supplier" name="Valj entreprenor"
+                   camunda:candidateGroups="project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Select winning bid(s). Negotiate final terms if allowed.
+        For public procurement: observe standstill period (avtalssparr).
+        Notify unsuccessful bidders.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_evaluate_to_select</bpmn:incoming>
+      <bpmn:outgoing>flow_select_to_contract</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 9: Contract Preparation and Signing                       -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="prepare_contracts" name="Forbered kontrakt"
+                   camunda:candidateGroups="legal,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare contracts based on AB 04 / ABT 06:
+        - Scope of work
+        - Contract sum and payment schedule
+        - Time schedule with milestones
+        - Penalty clauses (viten)
+        - Insurance and guarantees
+        - Warranty period (garantitid) — typically 5 years
+      </bpmn:documentation>
+      <bpmn:incoming>flow_select_to_contract</bpmn:incoming>
+      <bpmn:outgoing>flow_contract_to_sign</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="sign_contracts" name="Underteckna kontrakt"
+                   camunda:candidateGroups="owners,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Owner signs contracts with all awarded contractors.
+        Trigger: contractor onboarding into Doorman system.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_contract_to_sign</bpmn:incoming>
+      <bpmn:outgoing>flow_sign_to_onboard</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 10: Contractor Onboarding                                 -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="onboard_contractors" name="Registrera entreprenorer"
+                      camunda:delegateExpression="${contractorOnboardDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="action" stringValue="create_user_groups" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_sign_to_onboard</bpmn:incoming>
+      <bpmn:outgoing>flow_onboard_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="audit_procurement" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_onboard_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Upphandling klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_strategy" sourceRef="start" targetRef="procurement_strategy" />
+    <bpmn:sequenceFlow id="flow_strategy_to_prepare" sourceRef="procurement_strategy" targetRef="prepare_tender_docs" />
+    <bpmn:sequenceFlow id="flow_prepare_to_review" sourceRef="prepare_tender_docs" targetRef="review_tender_docs" />
+    <bpmn:sequenceFlow id="flow_review_to_publish" sourceRef="review_tender_docs" targetRef="publish_tender" />
+    <bpmn:sequenceFlow id="flow_publish_to_qa" sourceRef="publish_tender" targetRef="tender_qa" />
+    <bpmn:sequenceFlow id="flow_qa_to_receive" sourceRef="tender_qa" targetRef="receive_bids" />
+    <bpmn:sequenceFlow id="flow_receive_to_evaluate" sourceRef="receive_bids" targetRef="evaluate_bids" />
+    <bpmn:sequenceFlow id="flow_evaluate_to_select" sourceRef="evaluate_bids" targetRef="select_supplier" />
+    <bpmn:sequenceFlow id="flow_select_to_contract" sourceRef="select_supplier" targetRef="prepare_contracts" />
+    <bpmn:sequenceFlow id="flow_contract_to_sign" sourceRef="prepare_contracts" targetRef="sign_contracts" />
+    <bpmn:sequenceFlow id="flow_sign_to_onboard" sourceRef="sign_contracts" targetRef="onboard_contractors" />
+    <bpmn:sequenceFlow id="flow_onboard_to_audit" sourceRef="onboard_contractors" targetRef="audit_procurement" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_procurement" targetRef="end" />
+    <bpmn:sequenceFlow id="flow_deadline_notify" sourceRef="timer_tender_deadline" targetRef="notify_deadline" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="procurement-diagram">
+    <bpmndi:BPMNPlane id="procurement-plane" bpmnElement="procurement-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="strategy_di" bpmnElement="procurement_strategy"><dc:Bounds x="140" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="prepare_di" bpmnElement="prepare_tender_docs"><dc:Bounds x="310" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="review_di" bpmnElement="review_tender_docs"><dc:Bounds x="480" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="publish_di" bpmnElement="publish_tender"><dc:Bounds x="650" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="qa_di" bpmnElement="tender_qa"><dc:Bounds x="820" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="receive_di" bpmnElement="receive_bids"><dc:Bounds x="140" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="evaluate_di" bpmnElement="evaluate_bids"><dc:Bounds x="310" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="select_di" bpmnElement="select_supplier"><dc:Bounds x="480" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="contract_di" bpmnElement="prepare_contracts"><dc:Bounds x="650" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sign_di" bpmnElement="sign_contracts"><dc:Bounds x="820" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="onboard_di" bpmnElement="onboard_contractors"><dc:Bounds x="990" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1200" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="tenant-move-definitions"
+                   targetNamespace="http://doorman.local/tenant-move">
+
+  <!-- ================================================================== -->
+  <!-- TENANT MOVE-IN / MOVE-OUT PROCESS                                   -->
+  <!-- Handles the full lifecycle of tenant changes:                       -->
+  <!--   - New tenant move-in                                              -->
+  <!--   - Existing tenant move-out                                        -->
+  <!--   - Tenant modification (expansion/contraction)                     -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-tenant" name="Hyresgast in-/utflyttning" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Hyresgastandring">
+      <bpmn:outgoing>flow_start_to_type</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Determine type of tenant change -->
+    <bpmn:exclusiveGateway id="gate_change_type" name="Typ av andring?">
+      <bpmn:incoming>flow_start_to_type</bpmn:incoming>
+      <bpmn:outgoing>flow_movein</bpmn:outgoing>
+      <bpmn:outgoing>flow_moveout</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- MOVE-OUT PATH                                                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="moveout_notification" name="Uppsagning mottagen"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Process tenant termination notice. Verify notice period.
+        Schedule move-out date. Plan space recovery.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_moveout</bpmn:incoming>
+      <bpmn:outgoing>flow_moveout_to_revoke</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="revoke_access" name="Aterkalla behorighet"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Revoke tenant access:
+        - Deactivate access cards
+        - Collect physical keys
+        - Update key groups in Doorman
+        - Remove from tenant mailing lists
+        Schedule for move-out date.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_moveout_to_revoke</bpmn:incoming>
+      <bpmn:outgoing>flow_revoke_to_inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="moveout_inspection" name="Avsyning lokal"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Inspect vacated space:
+        - Document condition (damage, wear)
+        - Final meter readings
+        - Identify required restoration work
+        - Security deposit assessment
+      </bpmn:documentation>
+      <bpmn:incoming>flow_revoke_to_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_inspect_to_restore</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="restore_space" name="Aterstaell lokal"
+                   camunda:candidateGroups="maintenance,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Restore space to base condition:
+        - Repair damage
+        - Repaint if needed
+        - Clean
+        - Update room status in Doorman (vacant)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_inspect_to_restore</bpmn:incoming>
+      <bpmn:outgoing>flow_restore_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- MOVE-IN PATH                                                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="tenant_requirements" name="Samla hyresgastkrav"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Gather new tenant requirements:
+        - Space needs (rooms, area)
+        - Special requirements (IT, security level, climate)
+        - Move-in date
+        - Fit-out requirements
+        - Number of occupants (for access cards)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_movein</bpmn:incoming>
+      <bpmn:outgoing>flow_req_to_fitout</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="tenant_fitout" name="Hyresgastanpassning"
+                   camunda:candidateGroups="facility_managers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Execute tenant fit-out if needed:
+        - Interior modifications
+        - Additional electrical/IT outlets
+        - Signage updates
+        - Furniture installation
+        May trigger mini-project if extensive.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_req_to_fitout</bpmn:incoming>
+      <bpmn:outgoing>flow_fitout_to_access</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="setup_access" name="Tilldela behorighet"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Set up tenant access:
+        - Issue access cards to personnel
+        - Assign to correct key groups
+        - Configure time schedules
+        - Set up mailbox/intercom
+        - Register in Doorman with ASSIGNED scope
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fitout_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_welcome</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="tenant_welcome" name="Valkomstgenomgang"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Welcome walk-through with tenant:
+        - Building rules and routines
+        - Emergency procedures
+        - Maintenance reporting instructions
+        - Key contact information
+        - Parking/bicycle storage
+      </bpmn:documentation>
+      <bpmn:incoming>flow_access_to_welcome</bpmn:incoming>
+      <bpmn:outgoing>flow_welcome_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Merge paths -->
+    <bpmn:exclusiveGateway id="merge_paths">
+      <bpmn:incoming>flow_restore_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_welcome_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_audit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="audit_tenant" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Hyresgastandring klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_type" sourceRef="start" targetRef="gate_change_type" />
+    <bpmn:sequenceFlow id="flow_movein" sourceRef="gate_change_type" targetRef="tenant_requirements">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${changeType == 'movein'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_moveout" sourceRef="gate_change_type" targetRef="moveout_notification">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${changeType == 'moveout'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_moveout_to_revoke" sourceRef="moveout_notification" targetRef="revoke_access" />
+    <bpmn:sequenceFlow id="flow_revoke_to_inspect" sourceRef="revoke_access" targetRef="moveout_inspection" />
+    <bpmn:sequenceFlow id="flow_inspect_to_restore" sourceRef="moveout_inspection" targetRef="restore_space" />
+    <bpmn:sequenceFlow id="flow_restore_to_merge" sourceRef="restore_space" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_req_to_fitout" sourceRef="tenant_requirements" targetRef="tenant_fitout" />
+    <bpmn:sequenceFlow id="flow_fitout_to_access" sourceRef="tenant_fitout" targetRef="setup_access" />
+    <bpmn:sequenceFlow id="flow_access_to_welcome" sourceRef="setup_access" targetRef="tenant_welcome" />
+    <bpmn:sequenceFlow id="flow_welcome_to_merge" sourceRef="tenant_welcome" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_merge_to_audit" sourceRef="merge_paths" targetRef="audit_tenant" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_tenant" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="tenant-diagram">
+    <bpmndi:BPMNPlane id="tenant-plane" bpmnElement="operations-tenant">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_di" bpmnElement="gate_change_type" isMarkerVisible="true"><dc:Bounds x="140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <!-- Move-out track (top) -->
+      <bpmndi:BPMNShape id="moveout_di" bpmnElement="moveout_notification"><dc:Bounds x="250" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="revoke_di" bpmnElement="revoke_access"><dc:Bounds x="420" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect_di" bpmnElement="moveout_inspection"><dc:Bounds x="590" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="restore_di" bpmnElement="restore_space"><dc:Bounds x="760" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <!-- Move-in track (bottom) -->
+      <bpmndi:BPMNShape id="req_di" bpmnElement="tenant_requirements"><dc:Bounds x="250" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fitout_di" bpmnElement="tenant_fitout"><dc:Bounds x="420" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="setup_access"><dc:Bounds x="590" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="welcome_di" bpmnElement="tenant_welcome"><dc:Bounds x="760" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <!-- Merge -->
+      <bpmndi:BPMNShape id="merge_di" bpmnElement="merge_paths" isMarkerVisible="true"><dc:Bounds x="940" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1100" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="structural-definitions"
+                   targetNamespace="http://doorman.local/structural">
+
+  <!-- ================================================================== -->
+  <!-- STRUCTURAL DESIGN PROCESS                                           -->
+  <!-- Samrum types: Grundkonstruktion, Grundlaggning                      -->
+  <!-- Standards: Eurocode (SS-EN 1990-1999), EKS 12 (Swedish national)    -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-structural" name="Konstruktion - Projektering" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Konstruktionsprocess startad">
+      <bpmn:outgoing>flow_start_to_geotech</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- DESIGN: Geotechnical investigation -->
+    <bpmn:userTask id="geotechnical_investigation" name="Geoteknisk undersokning"
+                   camunda:candidateGroups="designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Geotechnical investigation:
+        - Soil conditions, bearing capacity
+        - Groundwater level
+        - Rock depth
+        - Settlement risk
+        - Contamination (if renovation/brownfield)
+        Output: geotechnical report (Geoteknisk rapport).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_geotech</bpmn:incoming>
+      <bpmn:outgoing>flow_geotech_to_foundation</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Foundation design -->
+    <bpmn:userTask id="foundation_design" name="Grundlaggningsprojektering"
+                   camunda:candidateGroups="designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Foundation design:
+        - Type: spread footing, raft, piles
+        - Pile type and length (if applicable)
+        - Waterproofing and drainage
+        - Settlement calculations
+        - Seismic design (if applicable per EKS)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_geotech_to_foundation</bpmn:incoming>
+      <bpmn:outgoing>flow_foundation_to_frame</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Structural frame -->
+    <bpmn:userTask id="frame_design" name="Stomprojektering"
+                   camunda:candidateGroups="designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Structural frame design:
+        - Material: concrete, steel, timber, hybrid
+        - Column grid and spans
+        - Floor system (precast, in-situ, composite)
+        - Bracing/stability system
+        - Load calculations (Eurocode SS-EN 1991)
+        - Fire resistance requirements per structural elements
+        - Roof structure
+      </bpmn:documentation>
+      <bpmn:incoming>flow_foundation_to_frame</bpmn:incoming>
+      <bpmn:outgoing>flow_frame_to_openings</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Openings and penetrations -->
+    <bpmn:userTask id="openings_coordination" name="Oppningar och haldragningar"
+                   camunda:candidateGroups="designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Coordinate structural openings:
+        - Door and window openings (lintel design)
+        - HVAC shaft penetrations
+        - Electrical riser penetrations
+        - Plumbing core penetrations
+        - Fire-rated penetration sealing requirements
+        Coordinate with all MEP disciplines.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_frame_to_openings</bpmn:incoming>
+      <bpmn:outgoing>flow_openings_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_structural" name="Validera konstruktion"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_openings_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Third-party review (required for certain building types) -->
+    <bpmn:userTask id="third_party_review" name="Oberoende sakkunniggranskning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Independent structural review (Sakkunnig konstruktion) per PBL.
+        Required for complex structures or when municipality requires it.
+        Reviewer must be certified (SAK-K).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_structural" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Konstruktion klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_geotech" sourceRef="start" targetRef="geotechnical_investigation" />
+    <bpmn:sequenceFlow id="flow_geotech_to_foundation" sourceRef="geotechnical_investigation" targetRef="foundation_design" />
+    <bpmn:sequenceFlow id="flow_foundation_to_frame" sourceRef="foundation_design" targetRef="frame_design" />
+    <bpmn:sequenceFlow id="flow_frame_to_openings" sourceRef="frame_design" targetRef="openings_coordination" />
+    <bpmn:sequenceFlow id="flow_openings_to_validate" sourceRef="openings_coordination" targetRef="validate_structural" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_structural" targetRef="third_party_review" />
+    <bpmn:sequenceFlow id="flow_approve_to_audit" sourceRef="third_party_review" targetRef="audit_structural" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_structural" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="structural-diagram">
+    <bpmndi:BPMNPlane id="structural-plane" bpmnElement="design-structural">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="geotech_di" bpmnElement="geotechnical_investigation"><dc:Bounds x="140" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="foundation_di" bpmnElement="foundation_design"><dc:Bounds x="310" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="frame_di" bpmnElement="frame_design"><dc:Bounds x="480" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="openings_di" bpmnElement="openings_coordination"><dc:Bounds x="650" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="review_di" bpmnElement="third_party_review"><dc:Bounds x="990" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1230" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

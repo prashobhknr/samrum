@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="hvac-definitions"
+                   targetNamespace="http://doorman.local/hvac">
+
+  <!-- ================================================================== -->
+  <!-- HVAC LIFECYCLE PROCESS                                              -->
+  <!-- Source: Ventilation.bpm (Bizagi)                                    -->
+  <!-- Covers HVAC design, duct sizing, balancing, and commissioning       -->
+  <!-- ================================================================== -->
+  <bpmn:process id="hvac" name="VVS - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="VVS-process startad">
+      <bpmn:outgoing>flow_start_to_climate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN: Climate calculation                                     -->
+    <!-- Samrum module: 74 (3.66 Klimatberäkning)                        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="climate_calculation" name="Klimatberakning"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Perform climate calculations per room. Determine heating/cooling loads and air flow requirements.</bpmn:documentation>
+      <bpmn:incoming>flow_start_to_climate</bpmn:incoming>
+      <bpmn:outgoing>flow_climate_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Parallel: Ventilation + Piping + Controls designed concurrently -->
+    <bpmn:parallelGateway id="fork_hvac_tracks">
+      <bpmn:incoming>flow_climate_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_vent</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_pipe</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_controls</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK A: Ventilation system design -->
+    <bpmn:userTask id="design_ventilation" name="Projektera ventilation"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Design ventilation system. Select AHU units, size ducts, specify dampers and diffusers.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_vent</bpmn:incoming>
+      <bpmn:outgoing>flow_vent_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK B: Piping system design -->
+    <bpmn:userTask id="design_piping" name="Projektera rorledningar"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Design piping systems: heating, cooling, domestic water. Samrum module 75.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_pipe</bpmn:incoming>
+      <bpmn:outgoing>flow_pipe_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK C: Controls design -->
+    <bpmn:userTask id="design_controls" name="Styrprojektering"
+                   camunda:candidateGroups="designers_controls"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Design building automation: control strategies, setpoints, alarm limits. Samrum module 84.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_controls</bpmn:incoming>
+      <bpmn:outgoing>flow_controls_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="join_hvac_tracks">
+      <bpmn:incoming>flow_vent_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_pipe_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_controls_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_validate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_hvac_design" name="Validera VVS-projektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_join_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_hvac_design" name="Godkann VVS-projektering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION: Installation                                        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="install_hvac" name="Installera VVS"
+                   camunda:candidateGroups="contractors,hvac_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Install ductwork, piping, AHU units, controllers. Record as-built data.</bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_balance</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION: Balancing                                           -->
+    <!-- Samrum modules: 77 (Injustering ror), 78 (Injustering luft)     -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="balance_systems" name="Injustering VVS"
+                   camunda:candidateGroups="hvac_installers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Balance air and water systems. Record measured values for all balancing valves and dampers.</bpmn:documentation>
+      <bpmn:incoming>flow_install_to_balance</bpmn:incoming>
+      <bpmn:outgoing>flow_balance_to_delivery</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION: Delivery data                                       -->
+    <!-- Samrum modules: 100 (Ventilation leveransdata), 101 (Ror lev.)  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="record_delivery_data" name="Registrera leveransdata"
+                   camunda:candidateGroups="contractors,hvac_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Record delivery data: serial numbers, manufacturer data, commissioning values.</bpmn:documentation>
+      <bpmn:incoming>flow_balance_to_delivery</bpmn:incoming>
+      <bpmn:outgoing>flow_delivery_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_hvac_complete" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_delivery_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="VVS-process klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_climate" sourceRef="start" targetRef="climate_calculation" />
+    <bpmn:sequenceFlow id="flow_climate_to_fork" sourceRef="climate_calculation" targetRef="fork_hvac_tracks" />
+    <bpmn:sequenceFlow id="flow_fork_to_vent" sourceRef="fork_hvac_tracks" targetRef="design_ventilation" />
+    <bpmn:sequenceFlow id="flow_fork_to_pipe" sourceRef="fork_hvac_tracks" targetRef="design_piping" />
+    <bpmn:sequenceFlow id="flow_fork_to_controls" sourceRef="fork_hvac_tracks" targetRef="design_controls" />
+    <bpmn:sequenceFlow id="flow_vent_to_join" sourceRef="design_ventilation" targetRef="join_hvac_tracks" />
+    <bpmn:sequenceFlow id="flow_pipe_to_join" sourceRef="design_piping" targetRef="join_hvac_tracks" />
+    <bpmn:sequenceFlow id="flow_controls_to_join" sourceRef="design_controls" targetRef="join_hvac_tracks" />
+    <bpmn:sequenceFlow id="flow_join_to_validate" sourceRef="join_hvac_tracks" targetRef="validate_hvac_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_hvac_design" targetRef="approve_hvac_design" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_hvac_design" targetRef="install_hvac" />
+    <bpmn:sequenceFlow id="flow_install_to_balance" sourceRef="install_hvac" targetRef="balance_systems" />
+    <bpmn:sequenceFlow id="flow_balance_to_delivery" sourceRef="balance_systems" targetRef="record_delivery_data" />
+    <bpmn:sequenceFlow id="flow_delivery_to_audit" sourceRef="record_delivery_data" targetRef="audit_hvac_complete" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_hvac_complete" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="hvac-diagram">
+    <bpmndi:BPMNPlane id="hvac-plane" bpmnElement="hvac">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="climate_calculation_di" bpmnElement="climate_calculation"><dc:Bounds x="140" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_hvac_tracks_di" bpmnElement="fork_hvac_tracks"><dc:Bounds x="290" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_ventilation_di" bpmnElement="design_ventilation"><dc:Bounds x="400" y="60" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_piping_di" bpmnElement="design_piping"><dc:Bounds x="400" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_controls_di" bpmnElement="design_controls"><dc:Bounds x="400" y="300" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_hvac_tracks_di" bpmnElement="join_hvac_tracks"><dc:Bounds x="560" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1100" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="decommission-phase-definitions"
+                   targetNamespace="http://doorman.local/decommission-phase">
+
+  <!-- ================================================================== -->
+  <!-- DECOMMISSION PHASE (Avveckling)                                     -->
+  <!-- PLCS: AS_REMOVED                                                    -->
+  <!-- Swedish building phase: Avveckling / Rivning                        -->
+  <!--                                                                     -->
+  <!-- Activities:                                                         -->
+  <!--   1. Decommission decision and planning                             -->
+  <!--   2. Tenant relocation                                              -->
+  <!--   3. Environmental survey (hazardous materials)                     -->
+  <!--   4. Demolition permit (rivningslov)                                -->
+  <!--   5. System deactivation and salvage                                -->
+  <!--   6. Demolition / renovation                                        -->
+  <!--   7. Archive data and close lifecycle                               -->
+  <!-- ================================================================== -->
+  <bpmn:process id="decommission-phase" name="Avvecklingsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Avveckling startad">
+      <bpmn:outgoing>flow_start_to_plan</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Decommission Planning                                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="decommission_plan" name="Avvecklingsplan"
+                   camunda:candidateGroups="owners,facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Develop decommission plan:
+        - Scope: full demolition, partial, or major renovation
+        - Timeline and budget
+        - Tenant relocation plan
+        - Environmental remediation requirements
+        - Salvageable components and materials
+        - Regulatory requirements (rivningslov, miljo)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_plan</bpmn:incoming>
+      <bpmn:outgoing>flow_plan_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Parallel: Tenant relocation + Environmental + Permits -->
+    <bpmn:parallelGateway id="fork_decommission">
+      <bpmn:incoming>flow_plan_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_tenant</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_env</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_permit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK A: Tenant Relocation -->
+    <bpmn:userTask id="relocate_tenants" name="Flytta hyresgaster"
+                   camunda:candidateGroups="facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Execute tenant relocation plan. Terminate leases.
+        Deactivate access rights. Final meter readings.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_tenant</bpmn:incoming>
+      <bpmn:outgoing>flow_tenant_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK B: Environmental Survey -->
+    <bpmn:userTask id="environmental_survey" name="Miljoinventering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Environmental survey for hazardous materials:
+        - Asbestos (asbest)
+        - PCB in sealants/paints
+        - Lead pipes/paint
+        - Mercury in switches
+        - Freon in cooling systems
+        Remediation plan for identified hazards.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_env</bpmn:incoming>
+      <bpmn:outgoing>flow_env_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK C: Demolition Permit -->
+    <bpmn:userTask id="demolition_permit" name="Rivningslov"
+                   camunda:candidateGroups="project_managers,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Apply for demolition permit (Rivningslov) from municipality.
+        Required for significant demolition. Include waste management plan.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_permit</bpmn:incoming>
+      <bpmn:outgoing>flow_permit_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="join_decommission">
+      <bpmn:incoming>flow_tenant_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_env_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_permit_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_deactivate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: System Deactivation                                    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="deactivate_systems" name="Avaktivera system"
+                   camunda:candidateGroups="maintenance,technicians,security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Deactivate building systems safely:
+        - Disconnect utilities (power, water, gas, district heating)
+        - Decommission fire alarm and access control
+        - Drain HVAC systems
+        - Secure site for demolition
+        Record final state of all systems in Doorman.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_deactivate</bpmn:incoming>
+      <bpmn:outgoing>flow_deactivate_to_salvage</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Salvage and Recycling                                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="salvage_components" name="Atervinn komponenter"
+                   camunda:candidateGroups="contractors,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Identify and salvage reusable components:
+        - Doors, windows, fixtures worth preserving
+        - HVAC equipment for reuse
+        - Electrical equipment
+        Record salvaged items and disposal method in Doorman.
+        Update lifecycle_phase to 'decommission' for each object.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_deactivate_to_salvage</bpmn:incoming>
+      <bpmn:outgoing>flow_salvage_to_demolish</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 7: Demolition Execution                                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="demolition" name="Rivning/Ombyggnad"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Execute demolition or major renovation:
+        - Follow waste management plan
+        - Environmental remediation as needed
+        - Progress documentation
+        - Final site clearance or structural shell ready for renovation
+      </bpmn:documentation>
+      <bpmn:incoming>flow_salvage_to_demolish</bpmn:incoming>
+      <bpmn:outgoing>flow_demolish_to_archive</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 8: Archive and Close                                      -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="archive_data" name="Arkivera och stang"
+                      camunda:delegateExpression="${archiveDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="action" stringValue="archive_building_lifecycle" />
+        <camunda:field name="retentionYears" stringValue="10" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_demolish_to_archive</bpmn:incoming>
+      <bpmn:outgoing>flow_archive_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="audit_decommission" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_archive_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Avveckling klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_plan" sourceRef="start" targetRef="decommission_plan" />
+    <bpmn:sequenceFlow id="flow_plan_to_fork" sourceRef="decommission_plan" targetRef="fork_decommission" />
+    <bpmn:sequenceFlow id="flow_to_tenant" sourceRef="fork_decommission" targetRef="relocate_tenants" />
+    <bpmn:sequenceFlow id="flow_to_env" sourceRef="fork_decommission" targetRef="environmental_survey" />
+    <bpmn:sequenceFlow id="flow_to_permit" sourceRef="fork_decommission" targetRef="demolition_permit" />
+    <bpmn:sequenceFlow id="flow_tenant_to_join" sourceRef="relocate_tenants" targetRef="join_decommission" />
+    <bpmn:sequenceFlow id="flow_env_to_join" sourceRef="environmental_survey" targetRef="join_decommission" />
+    <bpmn:sequenceFlow id="flow_permit_to_join" sourceRef="demolition_permit" targetRef="join_decommission" />
+    <bpmn:sequenceFlow id="flow_join_to_deactivate" sourceRef="join_decommission" targetRef="deactivate_systems" />
+    <bpmn:sequenceFlow id="flow_deactivate_to_salvage" sourceRef="deactivate_systems" targetRef="salvage_components" />
+    <bpmn:sequenceFlow id="flow_salvage_to_demolish" sourceRef="salvage_components" targetRef="demolition" />
+    <bpmn:sequenceFlow id="flow_demolish_to_archive" sourceRef="demolition" targetRef="archive_data" />
+    <bpmn:sequenceFlow id="flow_archive_to_audit" sourceRef="archive_data" targetRef="audit_decommission" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_decommission" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="decommission-diagram">
+    <bpmndi:BPMNPlane id="decommission-plane" bpmnElement="decommission-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="plan_di" bpmnElement="decommission_plan"><dc:Bounds x="140" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_decommission"><dc:Bounds x="310" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="tenant_di" bpmnElement="relocate_tenants"><dc:Bounds x="420" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="env_di" bpmnElement="environmental_survey"><dc:Bounds x="420" y="200" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="permit_di" bpmnElement="demolition_permit"><dc:Bounds x="420" y="320" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_decommission"><dc:Bounds x="600" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="deactivate_di" bpmnElement="deactivate_systems"><dc:Bounds x="710" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="salvage_di" bpmnElement="salvage_components"><dc:Bounds x="880" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="demolish_di" bpmnElement="demolition"><dc:Bounds x="1050" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="archive_di" bpmnElement="archive_data"><dc:Bounds x="1220" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1450" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

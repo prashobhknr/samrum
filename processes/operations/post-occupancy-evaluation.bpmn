@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="poe-definitions"
+                   targetNamespace="http://doorman.local/operations">
+
+  <bpmn:process id="post-occupancy-evaluation" name="Bruksvärdering (POE)"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Post-Occupancy Evaluation (POE / Bruksvärdering)                     -->
+    <!-- Conducted 6-12 months after handover, then every 3-5 years           -->
+    <!-- Evaluates: space efficiency, comfort, energy performance,            -->
+    <!-- accessibility, user satisfaction                                      -->
+    <!--                                                                       -->
+    <!-- Based on:                                                             -->
+    <!--   - ISO 41001 (Facility Management)                                   -->
+    <!--   - Boverket recommendations                                          -->
+    <!--   - Swedish Green Building Council (SGBC) criteria                     -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_poe" name="POE startad">
+      <bpmn:outgoing>sf_start_to_plan</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Planning                                                     -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_plan_evaluation" name="Planera utvärdering"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Plan the post-occupancy evaluation:
+        - Define scope (whole building or specific zones)
+        - Select evaluation methods (survey, walkthrough, measurement)
+        - Identify stakeholders and occupant groups
+        - Schedule evaluation period
+        - Prepare measurement equipment
+      </bpmn:documentation>
+      <bpmn:incoming>sf_start_to_plan</bpmn:incoming>
+      <bpmn:outgoing>sf_plan_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: Parallel Evaluation Tracks                                   -->
+    <!-- =================================================================== -->
+    <bpmn:parallelGateway id="pg_eval_start" name="Start parallella utvärderingar">
+      <bpmn:incoming>sf_plan_to_fork</bpmn:incoming>
+      <bpmn:outgoing>sf_to_survey</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_walkthrough</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_performance</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_accessibility</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Track 1: Occupant Satisfaction Survey -->
+    <bpmn:userTask id="ut_distribute_survey" name="Distribuera enkät"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Distribute occupant satisfaction survey covering:
+        - Thermal comfort (temperature, draft)
+        - Air quality (stuffiness, odors)
+        - Lighting (daylight, artificial)
+        - Acoustics (noise, speech privacy)
+        - Space adequacy
+        - Wayfinding and signage
+        - Overall satisfaction
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_survey</bpmn:incoming>
+      <bpmn:outgoing>sf_survey_to_collect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_collect_responses" name="Samla in enkätsvar"
+                      camunda:delegateExpression="${surveyCollectionDelegate}">
+      <bpmn:incoming>sf_survey_to_collect</bpmn:incoming>
+      <bpmn:outgoing>sf_collect_to_analyze</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_analyze_survey" name="Analysera enkätresultat"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_collect_to_analyze</bpmn:incoming>
+      <bpmn:outgoing>sf_survey_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Track 2: Physical Walkthrough -->
+    <bpmn:userTask id="ut_conduct_walkthrough" name="Genomför besiktningsvandring"
+                   camunda:candidateGroups="facility_managers,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Physical walkthrough assessment:
+        - Space utilization observation
+        - Wear and tear assessment
+        - Signage and wayfinding check
+        - Safety and emergency equipment
+        - Cleanliness and maintenance condition
+        - Photo documentation of issues
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_walkthrough</bpmn:incoming>
+      <bpmn:outgoing>sf_walkthrough_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Track 3: Technical Performance Measurement -->
+    <bpmn:serviceTask id="st_collect_performance" name="Samla in driftdata"
+                      camunda:delegateExpression="${performanceDataDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="metrics">energy_kwh_sqm,water_consumption,maintenance_costs,occupancy_rate</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_to_performance</bpmn:incoming>
+      <bpmn:outgoing>sf_perf_to_compare</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_compare_design_vs_actual" name="Jämför projektering vs utfall"
+                   camunda:candidateGroups="facility_managers,designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Compare designed performance vs actual:
+        - Energy: designed kWh/m² vs actual (BBR target compliance)
+        - Indoor climate: design spec vs measured values
+        - Maintenance cost: budget vs actual
+        - Space utilization: planned vs actual
+        Identify significant deviations and root causes.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_perf_to_compare</bpmn:incoming>
+      <bpmn:outgoing>sf_performance_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Track 4: Accessibility Audit -->
+    <bpmn:userTask id="ut_accessibility_audit" name="Tillgänglighetsrevision"
+                   camunda:candidateGroups="facility_managers,designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Accessibility audit per BBR 3:1 and HIN 2:
+        - Entrance accessibility (ramp, door opener, threshold)
+        - Corridor widths (min 1300mm, turning 1500mm)
+        - Door widths (min 800mm clear opening)
+        - Door handle height (800-900mm)
+        - Contrast markings on glass doors
+        - Elevator accessibility (Braille, voice, mirror)
+        - Toilet accessibility (grab bars, space, alarm)
+        - Signage (tactile, Braille, contrast)
+        - Parking accessibility
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_accessibility</bpmn:incoming>
+      <bpmn:outgoing>sf_accessibility_to_gw</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_access_issues" name="Tillgänglighetsbrister?">
+      <bpmn:incoming>sf_accessibility_to_gw</bpmn:incoming>
+      <bpmn:outgoing>sf_access_issues_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_access_issues_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_remediate_accessibility" name="Åtgärda tillgänglighetsbrister"
+                   camunda:candidateGroups="facility_managers,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Remediate accessibility deficiencies:
+        - Install automatic door openers
+        - Add contrast markings
+        - Adjust door closers for reduced force
+        - Add tactile guiding strips
+        - Install hearing loops
+        - May trigger renovation mini-project for major works
+      </bpmn:documentation>
+      <bpmn:incoming>sf_access_issues_yes</bpmn:incoming>
+      <bpmn:outgoing>sf_remediate_access_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_access_merge" name="Merge accessibility">
+      <bpmn:incoming>sf_access_issues_no</bpmn:incoming>
+      <bpmn:incoming>sf_remediate_access_done</bpmn:incoming>
+      <bpmn:outgoing>sf_accessibility_done</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Join all evaluation tracks -->
+    <bpmn:parallelGateway id="pg_eval_end" name="Alla utvärderingar klara">
+      <bpmn:incoming>sf_survey_done</bpmn:incoming>
+      <bpmn:incoming>sf_walkthrough_done</bpmn:incoming>
+      <bpmn:incoming>sf_performance_done</bpmn:incoming>
+      <bpmn:incoming>sf_accessibility_done</bpmn:incoming>
+      <bpmn:outgoing>sf_join_to_report</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: Reporting & Action Plan                                      -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_compile_report" name="Sammanställ POE-rapport"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Compile comprehensive POE report including:
+        - Executive summary with key findings
+        - Occupant satisfaction scores
+        - Technical performance comparison
+        - Accessibility compliance status
+        - Prioritized action items
+        - Lessons learned for future projects
+      </bpmn:documentation>
+      <bpmn:incoming>sf_join_to_report</bpmn:incoming>
+      <bpmn:outgoing>sf_report_to_actions</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_create_action_plan" name="Skapa åtgärdsplan"
+                   camunda:candidateGroups="facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Create action plan from POE findings:
+        - Quick wins (immediate, low cost)
+        - Medium-term improvements (budget cycle)
+        - Major renovations (trigger change management)
+        - Lessons for future building projects
+        Assign responsible persons and deadlines.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_report_to_actions</bpmn:incoming>
+      <bpmn:outgoing>sf_actions_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_approve_actions" name="Godkänn åtgärdsplan"
+                   camunda:candidateGroups="owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_actions_to_approve</bpmn:incoming>
+      <bpmn:outgoing>sf_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_audit_poe" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end_poe" name="POE klar">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_plan" sourceRef="start_poe" targetRef="ut_plan_evaluation" />
+    <bpmn:sequenceFlow id="sf_plan_to_fork" sourceRef="ut_plan_evaluation" targetRef="pg_eval_start" />
+
+    <!-- Survey track -->
+    <bpmn:sequenceFlow id="sf_to_survey" sourceRef="pg_eval_start" targetRef="ut_distribute_survey" />
+    <bpmn:sequenceFlow id="sf_survey_to_collect" sourceRef="ut_distribute_survey" targetRef="st_collect_responses" />
+    <bpmn:sequenceFlow id="sf_collect_to_analyze" sourceRef="st_collect_responses" targetRef="ut_analyze_survey" />
+    <bpmn:sequenceFlow id="sf_survey_done" sourceRef="ut_analyze_survey" targetRef="pg_eval_end" />
+
+    <!-- Walkthrough track -->
+    <bpmn:sequenceFlow id="sf_to_walkthrough" sourceRef="pg_eval_start" targetRef="ut_conduct_walkthrough" />
+    <bpmn:sequenceFlow id="sf_walkthrough_done" sourceRef="ut_conduct_walkthrough" targetRef="pg_eval_end" />
+
+    <!-- Performance track -->
+    <bpmn:sequenceFlow id="sf_to_performance" sourceRef="pg_eval_start" targetRef="st_collect_performance" />
+    <bpmn:sequenceFlow id="sf_perf_to_compare" sourceRef="st_collect_performance" targetRef="ut_compare_design_vs_actual" />
+    <bpmn:sequenceFlow id="sf_performance_done" sourceRef="ut_compare_design_vs_actual" targetRef="pg_eval_end" />
+
+    <!-- Accessibility track -->
+    <bpmn:sequenceFlow id="sf_to_accessibility" sourceRef="pg_eval_start" targetRef="ut_accessibility_audit" />
+    <bpmn:sequenceFlow id="sf_accessibility_to_gw" sourceRef="ut_accessibility_audit" targetRef="gw_access_issues" />
+    <bpmn:sequenceFlow id="sf_access_issues_yes" sourceRef="gw_access_issues" targetRef="ut_remediate_accessibility">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${accessibilityIssues == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_access_issues_no" sourceRef="gw_access_issues" targetRef="gw_access_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${accessibilityIssues == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_remediate_access_done" sourceRef="ut_remediate_accessibility" targetRef="gw_access_merge" />
+    <bpmn:sequenceFlow id="sf_accessibility_done" sourceRef="gw_access_merge" targetRef="pg_eval_end" />
+
+    <!-- Join and reporting -->
+    <bpmn:sequenceFlow id="sf_join_to_report" sourceRef="pg_eval_end" targetRef="ut_compile_report" />
+    <bpmn:sequenceFlow id="sf_report_to_actions" sourceRef="ut_compile_report" targetRef="ut_create_action_plan" />
+    <bpmn:sequenceFlow id="sf_actions_to_approve" sourceRef="ut_create_action_plan" targetRef="ut_approve_actions" />
+    <bpmn:sequenceFlow id="sf_approve_to_audit" sourceRef="ut_approve_actions" targetRef="st_audit_poe" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_poe" targetRef="end_poe" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

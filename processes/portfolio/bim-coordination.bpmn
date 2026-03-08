@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="bim-coordination-definitions"
+                   targetNamespace="http://doorman.local/portfolio">
+
+  <bpmn:process id="bim-coordination" name="BIM/IFC Model Coordination"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- START: Triggered by design-phase or production-phase via Call Activity -->
+    <!-- =================================================================== -->
+    <bpmn:startEvent id="start_bim" name="BIM Coordination Start">
+      <bpmn:outgoing>sf_start_to_import</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: IFC MODEL IMPORT                                           -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_import_ifc" name="Import IFC Model"
+                      camunda:delegateExpression="${ifcImportDelegate}">
+      <bpmn:incoming>sf_start_to_import</bpmn:incoming>
+      <bpmn:outgoing>sf_import_to_parse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_parse_ifc" name="Parse IFC Entities to OMS"
+                      camunda:delegateExpression="${ifcParseDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="entityTypes">IfcDoor,IfcSpace,IfcWall,IfcWindow,IfcBuildingStorey</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_import_to_parse</bpmn:incoming>
+      <bpmn:outgoing>sf_parse_to_validate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: MODEL VALIDATION                                           -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_validate_model" name="Validate Model Completeness"
+                      camunda:delegateExpression="${bimValidationDelegate}">
+      <bpmn:incoming>sf_parse_to_validate</bpmn:incoming>
+      <bpmn:outgoing>sf_validate_to_gw_valid</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="gw_model_valid" name="Model Valid?">
+      <bpmn:incoming>sf_validate_to_gw_valid</bpmn:incoming>
+      <bpmn:outgoing>sf_valid_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_valid_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Invalid model path: manual review -->
+    <bpmn:userTask id="ut_review_issues" name="Granska BIM-modellproblem"
+                   camunda:candidateGroups="designers_architect,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_valid_no</bpmn:incoming>
+      <bpmn:outgoing>sf_review_to_gw_fix</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_fix_or_proceed" name="Fix or Accept?">
+      <bpmn:incoming>sf_review_to_gw_fix</bpmn:incoming>
+      <bpmn:outgoing>sf_fix_reupload</bpmn:outgoing>
+      <bpmn:outgoing>sf_fix_accept</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_request_reupload" name="Begär uppdaterad modell"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:incoming>sf_fix_reupload</bpmn:incoming>
+      <bpmn:outgoing>sf_reupload_to_import</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: CLASH DETECTION                                            -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_clash_detection" name="Run Clash Detection"
+                      camunda:delegateExpression="${clashDetectionDelegate}">
+      <bpmn:incoming>sf_valid_yes</bpmn:incoming>
+      <bpmn:incoming>sf_fix_accept</bpmn:incoming>
+      <bpmn:outgoing>sf_clash_to_gw_clashes</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="gw_clashes_found" name="Clashes Found?">
+      <bpmn:incoming>sf_clash_to_gw_clashes</bpmn:incoming>
+      <bpmn:outgoing>sf_clashes_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_clashes_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Clashes found: resolve them -->
+    <bpmn:userTask id="ut_resolve_clashes" name="Lös BIM-kollisioner"
+                   camunda:candidateGroups="designers_architect,designers_structural,designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_clashes_yes</bpmn:incoming>
+      <bpmn:outgoing>sf_resolve_to_gw_resolved</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_clashes_resolved" name="All Resolved?">
+      <bpmn:incoming>sf_resolve_to_gw_resolved</bpmn:incoming>
+      <bpmn:outgoing>sf_resolved_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_resolved_rerun</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 4: ATTRIBUTE SYNC (IFC ↔ OMS)                                 -->
+    <!-- =================================================================== -->
+    <bpmn:parallelGateway id="pg_sync_start" name="Start Attribute Sync">
+      <bpmn:incoming>sf_clashes_no</bpmn:incoming>
+      <bpmn:incoming>sf_resolved_yes</bpmn:incoming>
+      <bpmn:outgoing>sf_sync_doors</bpmn:outgoing>
+      <bpmn:outgoing>sf_sync_rooms</bpmn:outgoing>
+      <bpmn:outgoing>sf_sync_fire</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Sync IfcDoor → OMS Door attributes -->
+    <bpmn:serviceTask id="st_sync_doors" name="Sync Door Attributes"
+                      camunda:delegateExpression="${bimSyncDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="ifcEntity">IfcDoor</camunda:inputParameter>
+          <camunda:inputParameter name="omsObjectTypeId">1</camunda:inputParameter>
+          <camunda:inputParameter name="attributeMapping">width:200,height:205,fire_rating:520</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_sync_doors</bpmn:incoming>
+      <bpmn:outgoing>sf_sync_doors_done</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Sync IfcSpace → OMS Room attributes -->
+    <bpmn:serviceTask id="st_sync_rooms" name="Sync Room Attributes"
+                      camunda:delegateExpression="${bimSyncDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="ifcEntity">IfcSpace</camunda:inputParameter>
+          <camunda:inputParameter name="omsObjectTypeId">9</camunda:inputParameter>
+          <camunda:inputParameter name="attributeMapping">room_name:718,floor:725,area:200</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_sync_rooms</bpmn:incoming>
+      <bpmn:outgoing>sf_sync_rooms_done</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Sync IfcDoor fire properties → OMS Fire attributes -->
+    <bpmn:serviceTask id="st_sync_fire" name="Sync Fire Safety Attributes"
+                      camunda:delegateExpression="${bimSyncDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="ifcEntity">IfcDoor</camunda:inputParameter>
+          <camunda:inputParameter name="omsObjectTypeId">6</camunda:inputParameter>
+          <camunda:inputParameter name="attributeMapping">fire_class:520,access_control:368</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_sync_fire</bpmn:incoming>
+      <bpmn:outgoing>sf_sync_fire_done</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:parallelGateway id="pg_sync_end" name="All Syncs Complete">
+      <bpmn:incoming>sf_sync_doors_done</bpmn:incoming>
+      <bpmn:incoming>sf_sync_rooms_done</bpmn:incoming>
+      <bpmn:incoming>sf_sync_fire_done</bpmn:incoming>
+      <bpmn:outgoing>sf_sync_to_review</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 5: REVIEW AND APPROVE                                         -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_review_sync" name="Granska synkroniseringsresultat"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_sync_to_review</bpmn:incoming>
+      <bpmn:outgoing>sf_review_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_approve_bim" name="Godkänn BIM-uppdatering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_review_to_approve</bpmn:incoming>
+      <bpmn:outgoing>sf_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_audit_bim" name="Write BIM Audit Trail"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- =================================================================== -->
+    <!-- END                                                                  -->
+    <!-- =================================================================== -->
+    <bpmn:endEvent id="end_bim" name="BIM Coordination Complete">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_import" sourceRef="start_bim" targetRef="st_import_ifc" />
+    <bpmn:sequenceFlow id="sf_import_to_parse" sourceRef="st_import_ifc" targetRef="st_parse_ifc" />
+    <bpmn:sequenceFlow id="sf_parse_to_validate" sourceRef="st_parse_ifc" targetRef="st_validate_model" />
+    <bpmn:sequenceFlow id="sf_validate_to_gw_valid" sourceRef="st_validate_model" targetRef="gw_model_valid" />
+    <bpmn:sequenceFlow id="sf_valid_yes" sourceRef="gw_model_valid" targetRef="st_clash_detection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${modelValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_valid_no" sourceRef="gw_model_valid" targetRef="ut_review_issues">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${modelValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_review_to_gw_fix" sourceRef="ut_review_issues" targetRef="gw_fix_or_proceed" />
+    <bpmn:sequenceFlow id="sf_fix_reupload" sourceRef="gw_fix_or_proceed" targetRef="ut_request_reupload">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fixDecision == 'reupload'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_fix_accept" sourceRef="gw_fix_or_proceed" targetRef="st_clash_detection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fixDecision == 'accept'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_reupload_to_import" sourceRef="ut_request_reupload" targetRef="st_import_ifc" />
+    <bpmn:sequenceFlow id="sf_clash_to_gw_clashes" sourceRef="st_clash_detection" targetRef="gw_clashes_found" />
+    <bpmn:sequenceFlow id="sf_clashes_yes" sourceRef="gw_clashes_found" targetRef="ut_resolve_clashes">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${clashCount > 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_clashes_no" sourceRef="gw_clashes_found" targetRef="pg_sync_start">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${clashCount == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_resolve_to_gw_resolved" sourceRef="ut_resolve_clashes" targetRef="gw_clashes_resolved" />
+    <bpmn:sequenceFlow id="sf_resolved_yes" sourceRef="gw_clashes_resolved" targetRef="pg_sync_start">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${clashesResolved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_resolved_rerun" sourceRef="gw_clashes_resolved" targetRef="st_clash_detection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${clashesResolved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_sync_doors" sourceRef="pg_sync_start" targetRef="st_sync_doors" />
+    <bpmn:sequenceFlow id="sf_sync_rooms" sourceRef="pg_sync_start" targetRef="st_sync_rooms" />
+    <bpmn:sequenceFlow id="sf_sync_fire" sourceRef="pg_sync_start" targetRef="st_sync_fire" />
+    <bpmn:sequenceFlow id="sf_sync_doors_done" sourceRef="st_sync_doors" targetRef="pg_sync_end" />
+    <bpmn:sequenceFlow id="sf_sync_rooms_done" sourceRef="st_sync_rooms" targetRef="pg_sync_end" />
+    <bpmn:sequenceFlow id="sf_sync_fire_done" sourceRef="st_sync_fire" targetRef="pg_sync_end" />
+    <bpmn:sequenceFlow id="sf_sync_to_review" sourceRef="pg_sync_end" targetRef="ut_review_sync" />
+    <bpmn:sequenceFlow id="sf_review_to_approve" sourceRef="ut_review_sync" targetRef="ut_approve_bim" />
+    <bpmn:sequenceFlow id="sf_approve_to_audit" sourceRef="ut_approve_bim" targetRef="st_audit_bim" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_bim" targetRef="end_bim" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

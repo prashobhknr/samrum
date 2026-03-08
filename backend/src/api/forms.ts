@@ -53,27 +53,38 @@ export function createFormsRouter(db: Client): Router {
   router.get('/task/:taskId', async (req: Request, res: Response) => {
     try {
       const { taskId } = req.params;
-      const { doorInstanceId, userGroup } = req.query;
+      const { doorInstanceId, userGroup, formKey } = req.query;
 
       // Validate required params
-      if (!doorInstanceId || !userGroup) {
+      if (!userGroup) {
         return res.status(400).json({
-          error: 'Missing required query parameters: doorInstanceId, userGroup'
+          error: 'Missing required query parameter: userGroup'
         });
       }
 
-      // Validate doorInstanceId is a number
-      const doorId = parseInt(String(doorInstanceId), 10);
-      if (isNaN(doorId)) {
+      const instanceId = doorInstanceId ? parseInt(String(doorInstanceId), 10) : undefined;
+
+      // If formKey is provided, use the unified router
+      if (formKey) {
+        const form = await formService.generateFormFromKey(
+          String(formKey),
+          taskId,
+          String(userGroup),
+          instanceId
+        );
+        return res.status(200).json(form);
+      }
+
+      // Legacy path: require doorInstanceId for task-based form generation
+      if (!instanceId || isNaN(instanceId)) {
         return res.status(400).json({
-          error: 'doorInstanceId must be a valid integer'
+          error: 'doorInstanceId is required when formKey is not provided'
         });
       }
 
-      // Generate form
       const form = await formService.generateFormForTask(
         taskId,
-        doorId,
+        instanceId,
         String(userGroup)
       );
 

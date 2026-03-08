@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="transport-definitions"
+                   targetNamespace="http://doorman.local/transport">
+
+  <!-- ================================================================== -->
+  <!-- TRANSPORT / ELEVATOR LIFECYCLE PROCESS                              -->
+  <!-- Samrum module: 88 (3.81 Hissar / HissID)                           -->
+  <!-- Standards: EN 81-20/50 (new installs), EN 81-80 (existing)          -->
+  <!--                                                                     -->
+  <!-- Covers: passenger lifts, goods lifts, platform lifts, escalators    -->
+  <!-- Regulatory: Boverkets foreskrifter (BFS), AFS 2003:6 (work safety)  -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-transport" name="Hiss/Transport - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Hissprocess startad">
+      <bpmn:outgoing>flow_start_to_traffic</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- DESIGN: Traffic analysis -->
+    <bpmn:userTask id="traffic_analysis" name="Trafikanalys"
+                   camunda:candidateGroups="designers_transport"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Elevator traffic analysis:
+        - Peak hour traffic (morning up-peak, lunch, evening)
+        - Population per floor
+        - Number of elevators needed
+        - Speed and capacity per elevator
+        - Waiting time targets (< 30s typical office)
+        - Accessibility requirements (BBR 3:144)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_traffic</bpmn:incoming>
+      <bpmn:outgoing>flow_traffic_to_specify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Elevator specification -->
+    <bpmn:userTask id="specify_elevator" name="Specificera hiss"
+                   camunda:candidateGroups="designers_transport"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Elevator specification:
+        - Type: traction (MRL/MR), hydraulic, platform lift
+        - Capacity (kg/persons), speed (m/s)
+        - Car dimensions, door width (min 900mm accessibility)
+        - Shaft dimensions and pit depth
+        - Machine room requirements (or machine-room-less)
+        - Fire fighter lift requirements (SS-EN 81-72)
+        - Evacuation lift (SS-EN 81-76) if applicable
+        - Control system (group control, destination dispatch)
+        - Finishes (car interior, doors, indicators)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_traffic_to_specify</bpmn:incoming>
+      <bpmn:outgoing>flow_specify_to_structural</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Structural coordination -->
+    <bpmn:userTask id="structural_coordination" name="Samordning stomme"
+                   camunda:candidateGroups="designers_transport,designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Coordinate with structural engineer:
+        - Shaft dimensions and wall thickness
+        - Machine room loads (if applicable)
+        - Pit depth and drainage
+        - Guide rail fixings
+        - Vibration isolation
+      </bpmn:documentation>
+      <bpmn:incoming>flow_specify_to_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_to_fire</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Fire integration -->
+    <bpmn:userTask id="fire_integration" name="Brandintegration hiss"
+                   camunda:candidateGroups="designers_transport,designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Fire safety integration:
+        - Fire recall function (hiss till brandvaktsplan)
+        - Fire fighter lift designation
+        - Shaft ventilation / pressurization
+        - Fire-rated shaft doors
+        - Integration with fire alarm system
+      </bpmn:documentation>
+      <bpmn:incoming>flow_structural_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_transport" name="Validera hissprojektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_fire_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_transport" name="Godkann hissprojektering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Installation -->
+    <bpmn:userTask id="install_elevator" name="Installera hiss"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Elevator installation (typically by manufacturer's team):
+        - Guide rails, machine, controller
+        - Car assembly, counterweight
+        - Doors (landing and car)
+        - Wiring, safety devices
+        - Typically 8-16 weeks per elevator
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_test</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Commissioning and testing -->
+    <bpmn:userTask id="test_elevator" name="Driftprovning hiss"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Commissioning tests:
+        - Safety device testing (overspeed, slack rope, door locks)
+        - Speed and leveling accuracy
+        - Emergency communication
+        - Fire recall function
+        - Accessibility features (audio, braille, timing)
+        Result: test protocol for mandatory inspection.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_install_to_test</bpmn:incoming>
+      <bpmn:outgoing>flow_test_to_inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Mandatory inspection (accredited body) -->
+    <bpmn:userTask id="mandatory_inspection" name="Installationsbesiktning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Mandatory installation inspection by accredited inspection body
+        (ackrediterat kontrollorgan, e.g., Kiwa, RISE).
+        Required before elevator may be used.
+        Per AFS 2003:6 and Boverkets foreskrifter.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_test_to_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_inspect_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_transport" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_inspect_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Hissprocess klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_traffic" sourceRef="start" targetRef="traffic_analysis" />
+    <bpmn:sequenceFlow id="flow_traffic_to_specify" sourceRef="traffic_analysis" targetRef="specify_elevator" />
+    <bpmn:sequenceFlow id="flow_specify_to_structural" sourceRef="specify_elevator" targetRef="structural_coordination" />
+    <bpmn:sequenceFlow id="flow_structural_to_fire" sourceRef="structural_coordination" targetRef="fire_integration" />
+    <bpmn:sequenceFlow id="flow_fire_to_validate" sourceRef="fire_integration" targetRef="validate_transport" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_transport" targetRef="approve_transport" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_transport" targetRef="install_elevator" />
+    <bpmn:sequenceFlow id="flow_install_to_test" sourceRef="install_elevator" targetRef="test_elevator" />
+    <bpmn:sequenceFlow id="flow_test_to_inspect" sourceRef="test_elevator" targetRef="mandatory_inspection" />
+    <bpmn:sequenceFlow id="flow_inspect_to_audit" sourceRef="mandatory_inspection" targetRef="audit_transport" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_transport" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="transport-diagram">
+    <bpmndi:BPMNPlane id="transport-plane" bpmnElement="design-transport">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="traffic_di" bpmnElement="traffic_analysis"><dc:Bounds x="140" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="specify_di" bpmnElement="specify_elevator"><dc:Bounds x="310" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="structural_di" bpmnElement="structural_coordination"><dc:Bounds x="480" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_di" bpmnElement="fire_integration"><dc:Bounds x="650" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="install_di" bpmnElement="install_elevator"><dc:Bounds x="140" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="test_di" bpmnElement="test_elevator"><dc:Bounds x="310" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect_di" bpmnElement="mandatory_inspection"><dc:Bounds x="480" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="700" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

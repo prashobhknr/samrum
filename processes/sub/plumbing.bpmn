@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="plumbing-definitions"
+                   targetNamespace="http://doorman.local/plumbing">
+
+  <!-- ================================================================== -->
+  <!-- PLUMBING / SANITARY LIFECYCLE PROCESS                               -->
+  <!-- Samrum types: Avloppssystem, VA                                     -->
+  <!-- Standards: BBR 6:6 (water), BBR 6:4 (drainage), SS-EN 12056        -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-plumbing" name="Sanitet/Avlopp - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="VA-process startad">
+      <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Parallel: Domestic water + Drainage designed concurrently -->
+    <bpmn:parallelGateway id="fork_plumbing">
+      <bpmn:incoming>flow_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_water</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_drainage</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK A: Domestic Water Supply -->
+    <bpmn:userTask id="design_water_supply" name="Projektera tappvatten"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Design domestic water supply:
+        - Cold and hot water distribution
+        - Pipe sizing (flow velocity, pressure drop)
+        - Hot water generation (heat exchanger, tank)
+        - Legionella prevention (min 60C HW, circulation)
+        - Water meter placement
+        - Backflow prevention
+        - Fire hose reels (if required)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_water</bpmn:incoming>
+      <bpmn:outgoing>flow_water_to_fixtures</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="specify_fixtures" name="Specificera sanitetsarmatur"
+                   camunda:candidateGroups="designers_hvac,designers_architect"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Specify sanitary fixtures:
+        - WC (standard, accessible, waterless)
+        - Washbasins (standard, accessible)
+        - Showers (standard, accessible, floor drain)
+        - Kitchen sinks and dishwashers
+        - Water-saving features (flow limiters, sensor taps)
+        Coordinate with architect for accessible bathroom layout.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_water_to_fixtures</bpmn:incoming>
+      <bpmn:outgoing>flow_fixtures_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK B: Drainage -->
+    <bpmn:userTask id="design_drainage" name="Projektera avlopp"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Design drainage system:
+        - Soil and waste pipes sizing (SS-EN 12056)
+        - Vent pipe system
+        - Floor drains and gullies
+        - Grease trap (for kitchens)
+        - Connection to municipal sewer
+        - Stormwater drainage (roof, ground)
+        - Pump station if below sewer level
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_drainage</bpmn:incoming>
+      <bpmn:outgoing>flow_drainage_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="join_plumbing">
+      <bpmn:incoming>flow_fixtures_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_drainage_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_validate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_plumbing" name="Validera VA-projektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_join_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_plumbing" name="Godkann VA-projektering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Installation -->
+    <bpmn:userTask id="install_plumbing" name="VA-installation"
+                   camunda:candidateGroups="contractors,hvac_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Install plumbing systems:
+        - Underground drainage (before slab pour)
+        - Riser pipes in shafts
+        - Floor-level distribution
+        - Fixture installation
+        - Water heater and circulation pump
+        Record as-built pipe routes and connections.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_test</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Pressure and leak test -->
+    <bpmn:userTask id="test_plumbing" name="Provtryckning och tathetsprov"
+                   camunda:candidateGroups="hvac_installers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Testing:
+        - Pressure test water supply (10 bar, 2 hours)
+        - Leak test drainage (water fill, visual inspection)
+        - Flow test at fixtures
+        - Hot water temperature verification (>= 50C at tap, >= 60C at heater)
+        - Legionella sample (if renovation)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_install_to_test</bpmn:incoming>
+      <bpmn:outgoing>flow_test_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_plumbing" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_test_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="VA-process klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_fork" sourceRef="start" targetRef="fork_plumbing" />
+    <bpmn:sequenceFlow id="flow_to_water" sourceRef="fork_plumbing" targetRef="design_water_supply" />
+    <bpmn:sequenceFlow id="flow_to_drainage" sourceRef="fork_plumbing" targetRef="design_drainage" />
+    <bpmn:sequenceFlow id="flow_water_to_fixtures" sourceRef="design_water_supply" targetRef="specify_fixtures" />
+    <bpmn:sequenceFlow id="flow_fixtures_to_join" sourceRef="specify_fixtures" targetRef="join_plumbing" />
+    <bpmn:sequenceFlow id="flow_drainage_to_join" sourceRef="design_drainage" targetRef="join_plumbing" />
+    <bpmn:sequenceFlow id="flow_join_to_validate" sourceRef="join_plumbing" targetRef="validate_plumbing" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_plumbing" targetRef="approve_plumbing" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_plumbing" targetRef="install_plumbing" />
+    <bpmn:sequenceFlow id="flow_install_to_test" sourceRef="install_plumbing" targetRef="test_plumbing" />
+    <bpmn:sequenceFlow id="flow_test_to_audit" sourceRef="test_plumbing" targetRef="audit_plumbing" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_plumbing" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="plumbing-diagram">
+    <bpmndi:BPMNPlane id="plumbing-plane" bpmnElement="design-plumbing">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="172" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_plumbing"><dc:Bounds x="140" y="165" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="water_di" bpmnElement="design_water_supply"><dc:Bounds x="250" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fixtures_di" bpmnElement="specify_fixtures"><dc:Bounds x="420" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="drainage_di" bpmnElement="design_drainage"><dc:Bounds x="250" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_plumbing"><dc:Bounds x="590" y="165" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="install_di" bpmnElement="install_plumbing"><dc:Bounds x="250" y="380" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="test_di" bpmnElement="test_plumbing"><dc:Bounds x="420" y="380" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="700" y="402" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

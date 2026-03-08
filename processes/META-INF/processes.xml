@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Camunda 7 Deployment Descriptor
+  Doorman Building Lifecycle Process Suite
+
+  Deploy this with all BPMN files to the Camunda engine.
+  Each process is individually deployable but the full suite requires
+  all files to resolve Call Activity references.
+
+  Deployment order matters for signal/message definitions:
+  1. master-building-lifecycle.bpmn (defines shared signals/messages/errors)
+  2. Phase processes (phases/*.bpmn)
+  3. Discipline subprocesses (sub/*.bpmn)
+  4. Operational processes (operations/*.bpmn)
+  5. Emergency + Renovation (emergency/*.bpmn, renovation/*.bpmn)
+-->
+<process-application
+  xmlns="http://www.camunda.org/schema/1.0/ProcessApplication"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <process-archive name="doorman-building-lifecycle">
+    <properties>
+      <property name="isDeleteUponUndeploy">false</property>
+      <property name="isScanForProcessDefinitions">true</property>
+      <property name="resourceRootPath">classpath:processes/</property>
+    </properties>
+  </process-archive>
+
+</process-application>

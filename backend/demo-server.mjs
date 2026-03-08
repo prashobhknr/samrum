@@ -2193,6 +2193,358 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Portfolio Management ─────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // GET /api/portfolio/buildings
+    if (pathname === '/api/portfolio/buildings' && req.method === 'GET') {
+      const { lifecycle_phase, geographic_zone, is_active } = parsedUrl.query;
+      let query = `
+        SELECT bp.*, oi.object_type_id
+        FROM building_portfolio bp
+        JOIN object_instances oi ON oi.id = bp.building_instance_id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (lifecycle_phase) { params.push(String(lifecycle_phase)); query += ` AND bp.lifecycle_phase = $${params.length}`; }
+      if (geographic_zone) { params.push(String(geographic_zone)); query += ` AND bp.geographic_zone = $${params.length}`; }
+      if (is_active !== undefined) { params.push(is_active === 'true'); query += ` AND bp.is_active = $${params.length}`; }
+      query += ' ORDER BY bp.portfolio_name';
+      const result = await client.query(query, params);
+      res.writeHead(200);
+      res.end(JSON.stringify({ buildings: result.rows, count: result.rows.length }));
+      return;
+    }
+
+    // GET /api/portfolio/buildings/:id
+    const portfolioBuildingMatch = pathname.match(/^\/api\/portfolio\/buildings\/(\d+)$/);
+    if (portfolioBuildingMatch && req.method === 'GET') {
+      const id = portfolioBuildingMatch[1];
+      const result = await client.query(
+        `SELECT bp.*, oi.object_type_id FROM building_portfolio bp
+         JOIN object_instances oi ON oi.id = bp.building_instance_id WHERE bp.id = $1`, [id]
+      );
+      if (result.rows.length === 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'Building not found' })); return; }
+      res.writeHead(200);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // POST /api/portfolio/buildings
+    if (pathname === '/api/portfolio/buildings' && req.method === 'POST') {
+      const body = await readBody();
+      const { portfolio_name, building_address, building_type, building_instance_id, geographic_zone, total_area_sqm, floor_count } = body;
+      if (!portfolio_name || !building_instance_id) {
+        res.writeHead(400); res.end(JSON.stringify({ error: 'Missing required: portfolio_name, building_instance_id' })); return;
+      }
+      const result = await client.query(
+        `INSERT INTO building_portfolio (building_instance_id, portfolio_name, building_address, building_type, geographic_zone, total_area_sqm, floor_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [building_instance_id, portfolio_name, building_address || null, building_type || 'residential', geographic_zone || null, total_area_sqm || null, floor_count || null]
+      );
+      res.writeHead(201);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // PUT /api/portfolio/buildings/:id
+    if (portfolioBuildingMatch && req.method === 'PUT') {
+      const id = portfolioBuildingMatch[1];
+      const body = await readBody();
+      const updates = []; const params = [];
+      if (body.lifecycle_phase !== undefined) { params.push(body.lifecycle_phase); updates.push(`lifecycle_phase = $${params.length}`); }
+      if (body.is_active !== undefined) { params.push(body.is_active); updates.push(`is_active = $${params.length}`); }
+      if (body.master_process_instance_id !== undefined) { params.push(body.master_process_instance_id); updates.push(`master_process_instance_id = $${params.length}`); }
+      if (updates.length === 0) { res.writeHead(400); res.end(JSON.stringify({ error: 'No fields to update' })); return; }
+      updates.push('updated_at = NOW()');
+      params.push(id);
+      const result = await client.query(`UPDATE building_portfolio SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+      if (result.rows.length === 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'Building not found' })); return; }
+      res.writeHead(200);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // GET /api/portfolio/campaigns
+    if (pathname === '/api/portfolio/campaigns' && req.method === 'GET') {
+      const { status, campaign_type } = parsedUrl.query;
+      let query = 'SELECT * FROM portfolio_campaigns WHERE 1=1';
+      const params = [];
+      if (status) { params.push(String(status)); query += ` AND status = $${params.length}`; }
+      if (campaign_type) { params.push(String(campaign_type)); query += ` AND campaign_type = $${params.length}`; }
+      query += ' ORDER BY created_at DESC';
+      const result = await client.query(query, params);
+      res.writeHead(200);
+      res.end(JSON.stringify({ campaigns: result.rows, count: result.rows.length }));
+      return;
+    }
+
+    // POST /api/portfolio/campaigns
+    if (pathname === '/api/portfolio/campaigns' && req.method === 'POST') {
+      const body = await readBody();
+      const { campaign_name, campaign_type, target_building_ids, planned_start, planned_end, created_by, notes } = body;
+      if (!campaign_name || !campaign_type || !target_building_ids) {
+        res.writeHead(400); res.end(JSON.stringify({ error: 'Missing required: campaign_name, campaign_type, target_building_ids' })); return;
+      }
+      const result = await client.query(
+        `INSERT INTO portfolio_campaigns (campaign_name, campaign_type, target_building_ids, planned_start, planned_end, created_by, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [campaign_name, campaign_type, target_building_ids, planned_start || null, planned_end || null, created_by || null, notes || null]
+      );
+      res.writeHead(201);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // GET /api/portfolio/dashboard
+    if (pathname === '/api/portfolio/dashboard' && req.method === 'GET') {
+      const [totalBuildings, phaseDistribution, typeDistribution, activeCampaigns, totalArea] = await Promise.all([
+        client.query('SELECT COUNT(*) as count FROM building_portfolio WHERE is_active = true'),
+        client.query('SELECT lifecycle_phase, COUNT(*) as count FROM building_portfolio WHERE is_active = true GROUP BY lifecycle_phase ORDER BY count DESC'),
+        client.query('SELECT building_type, COUNT(*) as count FROM building_portfolio WHERE is_active = true GROUP BY building_type ORDER BY count DESC'),
+        client.query("SELECT COUNT(*) as count FROM portfolio_campaigns WHERE status = 'in_progress'"),
+        client.query('SELECT COALESCE(SUM(total_area_sqm), 0) as total_sqm FROM building_portfolio WHERE is_active = true')
+      ]);
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        total_buildings: parseInt(totalBuildings.rows[0].count),
+        total_area_sqm: parseFloat(totalArea.rows[0].total_sqm),
+        active_campaigns: parseInt(activeCampaigns.rows[0].count),
+        phase_distribution: phaseDistribution.rows,
+        type_distribution: typeDistribution.rows,
+        generated_at: new Date().toISOString()
+      }));
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── BIM/IFC Integration ──────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // GET /api/bim/models
+    if (pathname === '/api/bim/models' && req.method === 'GET') {
+      const { building_instance_id, status } = parsedUrl.query;
+      let query = `SELECT bm.*, bp.portfolio_name as building_name FROM bim_models bm
+        LEFT JOIN building_portfolio bp ON bp.building_instance_id = bm.building_instance_id WHERE 1=1`;
+      const params = [];
+      if (building_instance_id) { params.push(parseInt(String(building_instance_id), 10)); query += ` AND bm.building_instance_id = $${params.length}`; }
+      if (status) { params.push(String(status)); query += ` AND bm.status = $${params.length}`; }
+      query += ' ORDER BY bm.upload_date DESC';
+      const result = await client.query(query, params);
+      res.writeHead(200);
+      res.end(JSON.stringify({ models: result.rows, count: result.rows.length }));
+      return;
+    }
+
+    // POST /api/bim/models
+    if (pathname === '/api/bim/models' && req.method === 'POST') {
+      const body = await readBody();
+      const { building_instance_id, model_name, ifc_schema, file_path, file_size_bytes, authoring_tool, uploaded_by } = body;
+      if (!building_instance_id || !model_name) {
+        res.writeHead(400); res.end(JSON.stringify({ error: 'Missing required: building_instance_id, model_name' })); return;
+      }
+      const vr = await client.query('SELECT COALESCE(MAX(version), 0) + 1 as nv FROM bim_models WHERE building_instance_id = $1', [building_instance_id]);
+      const result = await client.query(
+        `INSERT INTO bim_models (building_instance_id, model_name, ifc_schema, version, file_path, file_size_bytes, authoring_tool, uploaded_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [building_instance_id, model_name, ifc_schema || 'IFC4', vr.rows[0].nv, file_path || null, file_size_bytes || null, authoring_tool || null, uploaded_by || null]
+      );
+      res.writeHead(201);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // GET /api/bim/models/:id
+    const bimModelMatch = pathname.match(/^\/api\/bim\/models\/(\d+)$/);
+    if (bimModelMatch && req.method === 'GET') {
+      const id = bimModelMatch[1];
+      const [model, entityCount, clashCount] = await Promise.all([
+        client.query('SELECT * FROM bim_models WHERE id = $1', [id]),
+        client.query('SELECT COUNT(*) as count FROM bim_entity_mappings WHERE bim_model_id = $1', [id]),
+        client.query('SELECT status, COUNT(*) as count FROM bim_clash_results WHERE bim_model_id = $1 GROUP BY status', [id])
+      ]);
+      if (model.rows.length === 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'Model not found' })); return; }
+      res.writeHead(200);
+      res.end(JSON.stringify({ ...model.rows[0], entity_count: parseInt(entityCount.rows[0].count), clash_summary: clashCount.rows }));
+      return;
+    }
+
+    // PUT /api/bim/models/:id/status
+    const bimStatusMatch = pathname.match(/^\/api\/bim\/models\/(\d+)\/status$/);
+    if (bimStatusMatch && req.method === 'PUT') {
+      const id = bimStatusMatch[1];
+      const body = await readBody();
+      if (!body.status) { res.writeHead(400); res.end(JSON.stringify({ error: 'Missing required: status' })); return; }
+      const updates = ['status = $1']; const params = [body.status];
+      if (body.parsed_entity_count !== undefined) { params.push(body.parsed_entity_count); updates.push(`parsed_entity_count = $${params.length}`); }
+      if (body.validation_issues !== undefined) { params.push(JSON.stringify(body.validation_issues)); updates.push(`validation_issues = $${params.length}`); }
+      if (body.process_instance_id !== undefined) { params.push(body.process_instance_id); updates.push(`process_instance_id = $${params.length}`); }
+      params.push(id);
+      const result = await client.query(`UPDATE bim_models SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+      if (result.rows.length === 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'Model not found' })); return; }
+      res.writeHead(200);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // GET /api/bim/models/:id/entities
+    const bimEntitiesMatch = pathname.match(/^\/api\/bim\/models\/(\d+)\/entities$/);
+    if (bimEntitiesMatch && req.method === 'GET') {
+      const id = bimEntitiesMatch[1];
+      const { ifc_entity_type, sync_status } = parsedUrl.query;
+      let query = `SELECT bem.*, oi.object_type_id as oms_type_id FROM bim_entity_mappings bem
+        LEFT JOIN object_instances oi ON oi.id = bem.oms_object_instance_id WHERE bem.bim_model_id = $1`;
+      const params = [id];
+      if (ifc_entity_type) { params.push(String(ifc_entity_type)); query += ` AND bem.ifc_entity_type = $${params.length}`; }
+      if (sync_status) { params.push(String(sync_status)); query += ` AND bem.sync_status = $${params.length}`; }
+      query += ' ORDER BY bem.ifc_entity_type, bem.ifc_name';
+      const result = await client.query(query, params);
+      res.writeHead(200);
+      res.end(JSON.stringify({ entities: result.rows, count: result.rows.length }));
+      return;
+    }
+
+    // GET /api/bim/models/:id/clashes
+    const bimClashesMatch = pathname.match(/^\/api\/bim\/models\/(\d+)\/clashes$/);
+    if (bimClashesMatch && req.method === 'GET') {
+      const id = bimClashesMatch[1];
+      const { status, severity } = parsedUrl.query;
+      let query = 'SELECT * FROM bim_clash_results WHERE bim_model_id = $1';
+      const params = [id];
+      if (status) { params.push(String(status)); query += ` AND status = $${params.length}`; }
+      if (severity) { params.push(String(severity)); query += ` AND severity = $${params.length}`; }
+      query += ' ORDER BY severity DESC, created_at DESC';
+      const result = await client.query(query, params);
+      res.writeHead(200);
+      res.end(JSON.stringify({ clashes: result.rows, count: result.rows.length }));
+      return;
+    }
+
+    // POST /api/bim/models/:id/clashes — bulk insert
+    if (bimClashesMatch && req.method === 'POST') {
+      const id = bimClashesMatch[1];
+      const body = await readBody();
+      if (!Array.isArray(body.clashes) || body.clashes.length === 0) {
+        res.writeHead(400); res.end(JSON.stringify({ error: 'clashes must be a non-empty array' })); return;
+      }
+      await client.query('BEGIN');
+      try {
+        let inserted = 0;
+        for (const c of body.clashes) {
+          await client.query(
+            `INSERT INTO bim_clash_results (bim_model_id, clash_type, severity, entity_a_global_id, entity_a_type,
+              entity_b_global_id, entity_b_type, description, location_x, location_y, location_z)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [id, c.clash_type, c.severity || 'warning', c.entity_a_global_id, c.entity_a_type || null,
+             c.entity_b_global_id, c.entity_b_type || null, c.description || null,
+             c.location_x || null, c.location_y || null, c.location_z || null]
+          );
+          inserted++;
+        }
+        await client.query('COMMIT');
+        res.writeHead(201);
+        res.end(JSON.stringify({ inserted }));
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      }
+      return;
+    }
+
+    // PUT /api/bim/clashes/:id — resolve/accept/ignore
+    const bimClashUpdateMatch = pathname.match(/^\/api\/bim\/clashes\/(\d+)$/);
+    if (bimClashUpdateMatch && req.method === 'PUT') {
+      const id = bimClashUpdateMatch[1];
+      const body = await readBody();
+      if (!body.status) { res.writeHead(400); res.end(JSON.stringify({ error: 'Missing required: status' })); return; }
+      const result = await client.query(
+        `UPDATE bim_clash_results SET status = $1, resolved_by = $2,
+         resolved_at = CASE WHEN $1 IN ('resolved','accepted') THEN NOW() ELSE NULL END
+         WHERE id = $3 RETURNING *`,
+        [body.status, body.resolved_by || null, id]
+      );
+      if (result.rows.length === 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'Clash not found' })); return; }
+      res.writeHead(200);
+      res.end(JSON.stringify(result.rows[0]));
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Delegate Execution (Camunda external task worker endpoint) ───────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // GET /api/delegates — list all registered delegates
+    if (pathname === '/api/delegates' && req.method === 'GET') {
+      // Hardcoded registry (mirrors src/delegates/index.ts — 50 delegates)
+      const delegates = [
+        // P0 Core
+        'projectInitDelegate', 'lifecycleTransitionDelegate', 'auditWriteDelegate',
+        // P1 Validation & operations
+        'validationDelegate', 'doorValidationDelegate', 'designValidationDelegate',
+        'notificationDelegate', 'accessProvisionDelegate', 'aimPopulationDelegate',
+        'maintenanceQueryDelegate', 'bimSyncDelegate',
+        // P1 Portfolio
+        'buildingInstanceDelegate', 'processSpawnDelegate',
+        // P2 Phase-specific
+        'escalationDelegate', 'reportCompileDelegate', 'tenderPublishDelegate',
+        'bidRegistrationDelegate', 'contractorOnboardDelegate', 'warrantyActivationDelegate',
+        'maintenanceDateDelegate', 'inspectionQueryDelegate', 'energyDataCollectionDelegate',
+        // P2 BIM
+        'ifcImportDelegate', 'ifcParseDelegate', 'bimValidationDelegate', 'clashDetectionDelegate',
+        // P2 Portfolio
+        'bulkMaintenanceDelegate', 'portfolioReportDelegate', 'portfolioBenchmarkDelegate',
+        // P2 Climate & sustainability
+        'climateDataCollectionDelegate', 'climateAnalysisDelegate', 'climateReportDelegate',
+        'ghgCalculationDelegate', 'waterDataCollectionDelegate', 'esgReportDelegate',
+        // P2 Budget, insurance, renovation
+        'costAnalysisDelegate', 'budgetUpdateDelegate', 'insuranceSubmitDelegate',
+        'projectInitiationDelegate', 'doormanAttributeUpdateDelegate',
+        'renovationAuditDelegate', 'renovationScopeValidatorDelegate',
+        // P2 CPM scheduling
+        'cpmScheduleDelegate', 'resourceMonitorDelegate', 'delayDetectionDelegate',
+        // P2 POE
+        'surveyCollectionDelegate', 'performanceDataDelegate',
+        // P2 Document
+        'documentRegistrationDelegate',
+        // P3
+        'archiveDelegate', 'auditLogDelegate',
+      ];
+      res.writeHead(200);
+      res.end(JSON.stringify({ delegates, count: delegates.length }));
+      return;
+    }
+
+    // POST /api/delegates/:name/execute — execute a delegate (for testing / Camunda REST connector)
+    const delegateExecMatch = pathname.match(/^\/api\/delegates\/([a-zA-Z]+)\/execute$/);
+    if (delegateExecMatch && req.method === 'POST') {
+      const delegateName = delegateExecMatch[1];
+      const body = await readBody();
+
+      // Minimal stub execution — logs the call and returns success
+      // Full implementation lives in src/delegates/*.ts (TypeScript)
+      console.log(`[DELEGATE] Executing ${delegateName} with variables:`, JSON.stringify(body.variables || {}).substring(0, 200));
+
+      await client.query(
+        `INSERT INTO audit_log (object_instance_id, user_id, action, new_value, changed_at)
+         VALUES ($1, 'camunda', $2, $3, NOW())`,
+        [
+          body.variables?.buildingId || body.variables?.projectId || 0,
+          `DELEGATE:${delegateName}`,
+          JSON.stringify({ processInstanceId: body.processInstanceId, activityId: body.activityId })
+        ]
+      );
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        success: true,
+        delegate: delegateName,
+        executedAt: new Date().toISOString(),
+        note: 'Stub execution — full logic in src/delegates/*.ts'
+      }));
+      return;
+    }
+
     // 404
     res.writeHead(404);
     res.end(JSON.stringify({
@@ -2205,7 +2557,16 @@ const server = http.createServer(async (req, res) => {
         'GET /api/objects/instances',
         'GET /api/objects/instances/{id}',
         'GET /api/objects/attributes',
-        'GET /api/stats'
+        'GET /api/stats',
+        'GET /api/portfolio/buildings',
+        'GET /api/portfolio/dashboard',
+        'GET /api/portfolio/campaigns',
+        'GET /api/bim/models',
+        'GET /api/bim/models/{id}',
+        'GET /api/bim/models/{id}/entities',
+        'GET /api/bim/models/{id}/clashes',
+        'GET /api/delegates',
+        'POST /api/delegates/{name}/execute'
       ]
     }));
 

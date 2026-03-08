@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="design-phase-definitions"
+                   targetNamespace="http://doorman.local/design-phase">
+
+  <!-- SIGNAL DEFINITIONS (consumed from master process) -->
+  <bpmn:signal id="sig_design_freeze" name="sig_design_freeze" />
+
+  <!-- MESSAGE DEFINITIONS (inter-discipline coordination) -->
+  <bpmn:message id="msg_arch_baseline_complete" name="msg_arch_baseline_complete" />
+  <bpmn:message id="msg_fire_strategy_complete" name="msg_fire_strategy_complete" />
+  <bpmn:message id="msg_structural_grid_complete" name="msg_structural_grid_complete" />
+
+  <!-- ================================================================== -->
+  <!-- DESIGN PHASE (Projektering)                                         -->
+  <!-- PLCS: AS_DESIGNED                                                   -->
+  <!-- Swedish building phase: Projektering                                -->
+  <!--                                                                     -->
+  <!-- Architecture (v2 — phased discipline execution):                    -->
+  <!--   1. System design (Systemhandling) — coarse design                 -->
+  <!--   2. Phase A: Architecture + Structural + Fire (baseline producers) -->
+  <!--   3. Phase B: Remaining disciplines (consume baseline data)         -->
+  <!--   4. Cross-discipline coordination (Samordning)                     -->
+  <!--   5. Design review, design freeze signal, and approval              -->
+  <!--                                                                     -->
+  <!-- Real-world dependency chain:                                        -->
+  <!--   Architecture → room layout → Fire Safety (compartments)           -->
+  <!--   Architecture → door locations → Door Process                      -->
+  <!--   Fire Safety → fire class → Door Process, HVAC (dampers)           -->
+  <!--   Structural → shaft dims → Transport, HVAC                         -->
+  <!--   Door Process → door inventory → Access Control                    -->
+  <!--   Access Control → reader locations → Electrical (power)            -->
+  <!--                                                                     -->
+  <!-- All discipline subprocesses called as Call Activities               -->
+  <!-- linking to processes/sub/*.bpmn                                     -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-phase" name="Projekteringsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Projektering startad">
+      <bpmn:outgoing>flow_start_to_system</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: System Design (Systemhandling)                         -->
+    <!-- Coarse design establishing main systems before detailed work    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="system_design" name="Systemhandling"
+                   camunda:candidateGroups="project_managers,designers_architect"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        System design (Systemhandling): Establish main building systems,
+        structural grid, shaft locations, main distribution routes,
+        fire strategy, and system boundaries between disciplines.
+        This is the design basis for all detailed discipline work.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_system</bpmn:incoming>
+      <bpmn:outgoing>flow_system_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2A: PHASE A — Baseline Producers (Architecture, Structural, Fire) -->
+    <!-- These disciplines produce data consumed by all others:          -->
+    <!--   Architecture: room layout, door locations, facade             -->
+    <!--   Structural: structural grid, shaft dimensions, penetrations   -->
+    <!--   Fire Safety: fire compartments, fire class per door, dampers  -->
+    <!-- ============================================================== -->
+    <bpmn:parallelGateway id="fork_phase_a" name="Fas A: Grundlaggande discipliner">
+      <bpmn:incoming>flow_system_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_arch</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_fire</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- DISCIPLINE 1: Architecture (baseline producer) -->
+    <bpmn:callActivity id="ca_design_arch" name="Arkitektur"
+                       calledElement="design-architecture">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="archDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_arch</bpmn:incoming>
+      <bpmn:outgoing>flow_arch_to_joinA</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 2: Structural (baseline producer) -->
+    <bpmn:callActivity id="ca_design_structural" name="Konstruktion"
+                       calledElement="design-structural">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="structuralDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_to_joinA</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 3: Fire Safety (baseline producer) -->
+    <bpmn:callActivity id="ca_design_fire" name="Brandskydd"
+                       calledElement="fire-safety">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="fireDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_joinA</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Join Phase A baseline producers -->
+    <bpmn:parallelGateway id="join_phase_a" name="Fas A klar — underlag klart">
+      <bpmn:incoming>flow_arch_to_joinA</bpmn:incoming>
+      <bpmn:incoming>flow_structural_to_joinA</bpmn:incoming>
+      <bpmn:incoming>flow_fire_to_joinA</bpmn:incoming>
+      <bpmn:outgoing>flow_joinA_to_baseline_review</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Baseline review: verify architecture/structural/fire data is consistent -->
+    <bpmn:userTask id="baseline_review" name="Granskningsmoete Fas A"
+                   camunda:candidateGroups="project_managers,designers_architect,designers_structural,designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Cross-discipline baseline review meeting:
+        - Architecture room layout matches structural grid
+        - Fire compartment boundaries align with architecture
+        - Shaft locations coordinated between structural and HVAC
+        - Door locations and fire class assignments verified
+        - Boundary list (gransdragningslista) between disciplines approved
+        All baseline data must be frozen before Phase B disciplines start.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_joinA_to_baseline_review</bpmn:incoming>
+      <bpmn:outgoing>flow_baseline_to_forkB</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2B: PHASE B — Consumer Disciplines (use baseline data)    -->
+    <!-- These disciplines consume Architecture/Structural/Fire outputs: -->
+    <!--   Door: needs room layout + fire class                          -->
+    <!--   Access: needs door inventory                                  -->
+    <!--   Electrical: needs room layout + fire alarm + access readers    -->
+    <!--   HVAC: needs room dims + fire damper locations + shafts         -->
+    <!--   Sprinkler: needs hazard class + water supply coordination      -->
+    <!--   Transport: needs shaft dims + fire designation                 -->
+    <!--   Plumbing: needs shaft locations                               -->
+    <!-- ============================================================== -->
+    <bpmn:parallelGateway id="fork_phase_b" name="Fas B: Installationsdiscipliner">
+      <bpmn:incoming>flow_baseline_to_forkB</bpmn:incoming>
+      <bpmn:outgoing>flow_to_door</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_elec</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_hvac</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_sprinkler</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_transport</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_plumbing</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- DISCIPLINE 4: Door/Passage (consumes arch room layout + fire class) -->
+    <bpmn:callActivity id="ca_design_door" name="Dorr/Passage"
+                       calledElement="design-door-process">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="doorDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_door</bpmn:incoming>
+      <bpmn:outgoing>flow_door_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 5: Access Control (consumes door inventory) -->
+    <bpmn:callActivity id="ca_design_access" name="Passagekontroll"
+                       calledElement="access-control">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="accessDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 6: Electrical (consumes arch + fire + access) -->
+    <bpmn:callActivity id="ca_design_elec" name="El"
+                       calledElement="electrical">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="elecDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_elec_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 7: HVAC (consumes arch + structural + fire) -->
+    <bpmn:callActivity id="ca_design_hvac" name="VVS"
+                       calledElement="hvac">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="hvacDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_hvac</bpmn:incoming>
+      <bpmn:outgoing>flow_hvac_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 8: Sprinkler (consumes fire + HVAC water supply) -->
+    <bpmn:callActivity id="ca_design_sprinkler" name="Sprinkler"
+                       calledElement="design-sprinkler">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="sprinklerDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_sprinkler</bpmn:incoming>
+      <bpmn:outgoing>flow_sprinkler_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 9: Transport (consumes structural shaft dims + fire) -->
+    <bpmn:callActivity id="ca_design_transport" name="Hiss/Transport"
+                       calledElement="design-transport">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="transportDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_transport</bpmn:incoming>
+      <bpmn:outgoing>flow_transport_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 10: Plumbing / Sanitary (consumes structural shafts) -->
+    <bpmn:callActivity id="ca_design_plumbing" name="Sanitet/Avlopp"
+                       calledElement="design-plumbing">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineApproved" target="plumbingDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_plumbing</bpmn:incoming>
+      <bpmn:outgoing>flow_plumbing_to_joinB</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Join Phase B consumer disciplines -->
+    <bpmn:parallelGateway id="join_phase_b" name="Alla discipliner klara">
+      <bpmn:incoming>flow_door_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_access_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_elec_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_hvac_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_sprinkler_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_transport_to_joinB</bpmn:incoming>
+      <bpmn:incoming>flow_plumbing_to_joinB</bpmn:incoming>
+      <bpmn:outgoing>flow_joinB_to_coordination</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2C: BIM/IFC Coordination (optional, if BIM enabled)       -->
+    <!-- ============================================================== -->
+    <bpmn:exclusiveGateway id="gw_bim_enabled" name="BIM aktiverat?">
+      <bpmn:incoming>flow_joinB_to_coordination</bpmn:incoming>
+      <bpmn:outgoing>flow_bim_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_bim_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:callActivity id="ca_bim_coordination" name="BIM-samordning"
+                       calledElement="bim-coordination">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_bim_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_bim_to_coordination</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:exclusiveGateway id="gw_bim_merge" name="BIM merge">
+      <bpmn:incoming>flow_bim_to_coordination</bpmn:incoming>
+      <bpmn:incoming>flow_bim_no</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_coordination</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: Cross-Discipline Coordination                          -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="design_coordination" name="Samordning projektering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify all discipline designs are coordinated:
+        - No spatial conflicts (BIM clash detection)
+        - Fire ratings consistent across disciplines
+        - System integration points documented
+        - Boundary lists (gransdragningslistor) complete
+        - All cross-references resolved
+      </bpmn:documentation>
+      <bpmn:incoming>flow_merge_to_coordination</bpmn:incoming>
+      <bpmn:outgoing>flow_coordination_to_energy</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 4: Energy Calculation (Energiberakning)                   -->
+    <!-- Required by BBR for building permit                             -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="energy_calculation" name="Energiberakning"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Perform energy calculation per BBR requirements.
+        Verify building meets energy class targets.
+        Input to climate declaration (Klimatdeklaration).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_coordination_to_energy</bpmn:incoming>
+      <bpmn:outgoing>flow_energy_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: Design Validation                                      -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="validate_design" name="Validera projektering"
+                      camunda:delegateExpression="${designValidationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="validationType" stringValue="design_completeness" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_energy_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_gate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="gate_validation" name="Validering godkand?">
+      <bpmn:incoming>flow_validate_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_valid_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_valid_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_valid_no" sourceRef="gate_validation" targetRef="design_coordination">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationPassed == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Design Review and Approval                             -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="approve_design" name="Godkann projektering"
+                   camunda:candidateGroups="project_managers,owners,approvers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Final design review:
+        - All disciplines complete and coordinated
+        - Energy requirements met
+        - Budget within estimate (+/- 10%)
+        - Building permit conditions addressed
+        Decision: Approve (proceed to Procurement), Reject (rework).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_valid_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Design Freeze Signal: broadcast to all listeners that design is frozen -->
+    <bpmn:intermediateThrowEvent id="throw_design_freeze" name="Projekteringsstopp (Design Freeze)">
+      <bpmn:signalEventDefinition signalRef="sig_design_freeze" />
+      <bpmn:incoming>flow_approve_to_freeze</bpmn:incoming>
+      <bpmn:outgoing>flow_freeze_to_audit</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+
+    <bpmn:serviceTask id="audit_design" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_freeze_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Projektering klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ALL FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_system" sourceRef="start" targetRef="system_design" />
+    <bpmn:sequenceFlow id="flow_system_to_fork" sourceRef="system_design" targetRef="fork_phase_a" />
+
+    <!-- Phase A flows (baseline producers) -->
+    <bpmn:sequenceFlow id="flow_to_arch" sourceRef="fork_phase_a" targetRef="ca_design_arch" />
+    <bpmn:sequenceFlow id="flow_to_structural" sourceRef="fork_phase_a" targetRef="ca_design_structural" />
+    <bpmn:sequenceFlow id="flow_to_fire" sourceRef="fork_phase_a" targetRef="ca_design_fire" />
+    <bpmn:sequenceFlow id="flow_arch_to_joinA" sourceRef="ca_design_arch" targetRef="join_phase_a" />
+    <bpmn:sequenceFlow id="flow_structural_to_joinA" sourceRef="ca_design_structural" targetRef="join_phase_a" />
+    <bpmn:sequenceFlow id="flow_fire_to_joinA" sourceRef="ca_design_fire" targetRef="join_phase_a" />
+    <bpmn:sequenceFlow id="flow_joinA_to_baseline_review" sourceRef="join_phase_a" targetRef="baseline_review" />
+    <bpmn:sequenceFlow id="flow_baseline_to_forkB" sourceRef="baseline_review" targetRef="fork_phase_b" />
+
+    <!-- Phase B flows (consumer disciplines) -->
+    <bpmn:sequenceFlow id="flow_to_door" sourceRef="fork_phase_b" targetRef="ca_design_door" />
+    <bpmn:sequenceFlow id="flow_to_access" sourceRef="fork_phase_b" targetRef="ca_design_access" />
+    <bpmn:sequenceFlow id="flow_to_elec" sourceRef="fork_phase_b" targetRef="ca_design_elec" />
+    <bpmn:sequenceFlow id="flow_to_hvac" sourceRef="fork_phase_b" targetRef="ca_design_hvac" />
+    <bpmn:sequenceFlow id="flow_to_sprinkler" sourceRef="fork_phase_b" targetRef="ca_design_sprinkler" />
+    <bpmn:sequenceFlow id="flow_to_transport" sourceRef="fork_phase_b" targetRef="ca_design_transport" />
+    <bpmn:sequenceFlow id="flow_to_plumbing" sourceRef="fork_phase_b" targetRef="ca_design_plumbing" />
+    <bpmn:sequenceFlow id="flow_door_to_joinB" sourceRef="ca_design_door" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_access_to_joinB" sourceRef="ca_design_access" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_elec_to_joinB" sourceRef="ca_design_elec" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_hvac_to_joinB" sourceRef="ca_design_hvac" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_sprinkler_to_joinB" sourceRef="ca_design_sprinkler" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_transport_to_joinB" sourceRef="ca_design_transport" targetRef="join_phase_b" />
+    <bpmn:sequenceFlow id="flow_plumbing_to_joinB" sourceRef="ca_design_plumbing" targetRef="join_phase_b" />
+
+    <!-- Post-discipline flows: BIM gateway + coordination -->
+    <bpmn:sequenceFlow id="flow_joinB_to_coordination" sourceRef="join_phase_b" targetRef="gw_bim_enabled" />
+    <bpmn:sequenceFlow id="flow_bim_yes" sourceRef="gw_bim_enabled" targetRef="ca_bim_coordination">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${bimEnabled == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_bim_no" sourceRef="gw_bim_enabled" targetRef="gw_bim_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${bimEnabled == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_bim_to_coordination" sourceRef="ca_bim_coordination" targetRef="gw_bim_merge" />
+    <bpmn:sequenceFlow id="flow_merge_to_coordination" sourceRef="gw_bim_merge" targetRef="design_coordination" />
+    <bpmn:sequenceFlow id="flow_coordination_to_energy" sourceRef="design_coordination" targetRef="energy_calculation" />
+    <bpmn:sequenceFlow id="flow_energy_to_validate" sourceRef="energy_calculation" targetRef="validate_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_gate" sourceRef="validate_design" targetRef="gate_validation" />
+    <bpmn:sequenceFlow id="flow_valid_yes" sourceRef="gate_validation" targetRef="approve_design">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationPassed == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_approve_to_freeze" sourceRef="approve_design" targetRef="throw_design_freeze" />
+    <bpmn:sequenceFlow id="flow_freeze_to_audit" sourceRef="throw_design_freeze" targetRef="audit_design" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_design" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="design-diagram">
+    <bpmndi:BPMNPlane id="design-plane" bpmnElement="design-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="system_di" bpmnElement="system_design"><dc:Bounds x="140" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Phase A: Baseline producers -->
+      <bpmndi:BPMNShape id="forkA_di" bpmnElement="fork_phase_a"><dc:Bounds x="310" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="arch_di" bpmnElement="ca_design_arch"><dc:Bounds x="410" y="210" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="structural_di" bpmnElement="ca_design_structural"><dc:Bounds x="410" y="290" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_di" bpmnElement="ca_design_fire"><dc:Bounds x="410" y="370" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="joinA_di" bpmnElement="join_phase_a"><dc:Bounds x="580" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="baseline_di" bpmnElement="baseline_review"><dc:Bounds x="680" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Phase B: Consumer disciplines -->
+      <bpmndi:BPMNShape id="forkB_di" bpmnElement="fork_phase_b"><dc:Bounds x="850" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="door_di" bpmnElement="ca_design_door"><dc:Bounds x="950" y="50" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="ca_design_access"><dc:Bounds x="950" y="130" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="elec_di" bpmnElement="ca_design_elec"><dc:Bounds x="950" y="210" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hvac_di" bpmnElement="ca_design_hvac"><dc:Bounds x="950" y="290" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sprinkler_di" bpmnElement="ca_design_sprinkler"><dc:Bounds x="950" y="370" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="transport_di" bpmnElement="ca_design_transport"><dc:Bounds x="950" y="450" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="plumbing_di" bpmnElement="ca_design_plumbing"><dc:Bounds x="950" y="530" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="joinB_di" bpmnElement="join_phase_b"><dc:Bounds x="1120" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+
+      <!-- Post-discipline: coordination, validation, freeze, approval -->
+      <bpmndi:BPMNShape id="coordination_di" bpmnElement="design_coordination"><dc:Bounds x="1220" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="energy_di" bpmnElement="energy_calculation"><dc:Bounds x="1390" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_di" bpmnElement="validate_design"><dc:Bounds x="1560" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_di" bpmnElement="gate_validation" isMarkerVisible="true"><dc:Bounds x="1730" y="295" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_design"><dc:Bounds x="1830" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="freeze_di" bpmnElement="throw_design_freeze"><dc:Bounds x="1990" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="audit_di" bpmnElement="audit_design"><dc:Bounds x="2070" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="2240" y="302" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

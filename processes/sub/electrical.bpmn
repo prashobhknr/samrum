@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="electrical-definitions"
+                   targetNamespace="http://doorman.local/electrical">
+
+  <!-- ================================================================== -->
+  <!-- ELECTRICAL LIFECYCLE PROCESS                                        -->
+  <!-- Sources: El belysning.bpm + Elkraft.bpm (Bizagi)                    -->
+  <!-- Covers electrical design, panel specification, lighting,            -->
+  <!-- installation, and commissioning                                     -->
+  <!-- ================================================================== -->
+  <bpmn:process id="electrical" name="El - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Elprocess startad">
+      <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Parallel: Power distribution + Lighting designed concurrently -->
+    <bpmn:parallelGateway id="fork_elec_tracks">
+      <bpmn:incoming>flow_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_power</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_lighting</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- TRACK A: Power Distribution (Elkraft)                           -->
+    <!-- Samrum modules: 90 (Elcentraler), 110 (El)                      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="design_power_distribution" name="Projektera elkraft"
+                   camunda:candidateGroups="designers_electrical"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Design power distribution: main switchboard, sub-panels, cable sizing, protection devices.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_power</bpmn:incoming>
+      <bpmn:outgoing>flow_power_to_panels</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="specify_panels" name="Specificera elcentraler"
+                   camunda:candidateGroups="designers_electrical"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Detail electrical panels: circuit allocation, breaker sizing, metering points (Elmätarbeteckning).</bpmn:documentation>
+      <bpmn:incoming>flow_power_to_panels</bpmn:incoming>
+      <bpmn:outgoing>flow_panels_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK B: Lighting (El belysning)                                -->
+    <!-- Samrum module: 76 (Beskrivning El)                              -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="design_lighting" name="Projektera belysning"
+                   camunda:candidateGroups="designers_electrical"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Design lighting: fixture selection, lux calculations, emergency lighting, control system.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_lighting</bpmn:incoming>
+      <bpmn:outgoing>flow_lighting_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join -->
+    <bpmn:parallelGateway id="join_elec_tracks">
+      <bpmn:incoming>flow_panels_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_lighting_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_telecom</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Telecom/weak current integration -->
+    <bpmn:userTask id="telecom_integration" name="Gemensamma tele-styr funktioner"
+                   camunda:candidateGroups="designers_electrical,designers_controls"
+                   camunda:formKey="doorman:103:16">
+      <bpmn:documentation>Coordinate telecom, controls, and fire alarm cable routing. Samrum module 103.</bpmn:documentation>
+      <bpmn:incoming>flow_join_to_telecom</bpmn:incoming>
+      <bpmn:outgoing>flow_telecom_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_electrical_design" name="Validera elprojektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_telecom_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_electrical_design" name="Godkann elprojektering"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Install -->
+    <bpmn:userTask id="install_electrical" name="Elinstallation"
+                   camunda:candidateGroups="contractors,electricians"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Install cables, panels, fixtures, switches. Record as-built data.</bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_test</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Test and verify -->
+    <bpmn:userTask id="test_electrical" name="Provning el"
+                   camunda:candidateGroups="electricians,contractors"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Insulation testing, earth fault verification, functional test of all circuits.</bpmn:documentation>
+      <bpmn:incoming>flow_install_to_test</bpmn:incoming>
+      <bpmn:outgoing>flow_test_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_electrical_complete" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_test_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Elprocess klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_fork" sourceRef="start" targetRef="fork_elec_tracks" />
+    <bpmn:sequenceFlow id="flow_fork_to_power" sourceRef="fork_elec_tracks" targetRef="design_power_distribution" />
+    <bpmn:sequenceFlow id="flow_fork_to_lighting" sourceRef="fork_elec_tracks" targetRef="design_lighting" />
+    <bpmn:sequenceFlow id="flow_power_to_panels" sourceRef="design_power_distribution" targetRef="specify_panels" />
+    <bpmn:sequenceFlow id="flow_panels_to_join" sourceRef="specify_panels" targetRef="join_elec_tracks" />
+    <bpmn:sequenceFlow id="flow_lighting_to_join" sourceRef="design_lighting" targetRef="join_elec_tracks" />
+    <bpmn:sequenceFlow id="flow_join_to_telecom" sourceRef="join_elec_tracks" targetRef="telecom_integration" />
+    <bpmn:sequenceFlow id="flow_telecom_to_validate" sourceRef="telecom_integration" targetRef="validate_electrical_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_electrical_design" targetRef="approve_electrical_design" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_electrical_design" targetRef="install_electrical" />
+    <bpmn:sequenceFlow id="flow_install_to_test" sourceRef="install_electrical" targetRef="test_electrical" />
+    <bpmn:sequenceFlow id="flow_test_to_audit" sourceRef="test_electrical" targetRef="audit_electrical_complete" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_electrical_complete" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="electrical-diagram">
+    <bpmndi:BPMNPlane id="electrical-plane" bpmnElement="electrical">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_elec_tracks_di" bpmnElement="fork_elec_tracks"><dc:Bounds x="140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_power_distribution_di" bpmnElement="design_power_distribution"><dc:Bounds x="250" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="specify_panels_di" bpmnElement="specify_panels"><dc:Bounds x="400" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_lighting_di" bpmnElement="design_lighting"><dc:Bounds x="250" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_elec_tracks_di" bpmnElement="join_elec_tracks"><dc:Bounds x="560" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1100" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

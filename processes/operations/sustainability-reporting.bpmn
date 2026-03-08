@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="sustainability-definitions"
+                   targetNamespace="http://doorman.local/operations">
+
+  <bpmn:process id="sustainability-reporting" name="Hållbarhetsrapportering"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Sustainability / ESG Reporting Process                                -->
+    <!-- Annual cycle aligned with:                                            -->
+    <!--   - EU Taxonomy Regulation (2020/852)                                 -->
+    <!--   - CSRD (Corporate Sustainability Reporting Directive)                -->
+    <!--   - Klimatdeklaration (Swedish Climate Declaration Act 2022)           -->
+    <!--   - Miljöbyggnad / SGBC certifications                                -->
+    <!--   - GHG Protocol scopes 1-3                                           -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_esg" name="Hållbarhetscykel startad">
+      <bpmn:outgoing>sf_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Parallel Data Collection                                     -->
+    <!-- =================================================================== -->
+    <bpmn:parallelGateway id="pg_collect_start" name="Parallell datainsamling">
+      <bpmn:incoming>sf_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>sf_to_energy</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_water</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_waste</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_social</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Track 1: Energy & Carbon (Scope 1-2) -->
+    <bpmn:serviceTask id="st_collect_energy" name="Samla in energidata"
+                      camunda:delegateExpression="${energyDataCollectionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="metrics">electricity_kwh,district_heating_kwh,cooling_kwh,solar_generation_kwh</camunda:inputParameter>
+          <camunda:inputParameter name="period">annual</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_to_energy</bpmn:incoming>
+      <bpmn:outgoing>sf_energy_to_ghg</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_calculate_ghg" name="Beräkna GHG-utsläpp"
+                      camunda:delegateExpression="${ghgCalculationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="scopes">scope1,scope2</camunda:inputParameter>
+          <camunda:inputParameter name="emissionFactors">SE_2025</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_energy_to_ghg</bpmn:incoming>
+      <bpmn:outgoing>sf_energy_done</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Track 2: Water Consumption -->
+    <bpmn:serviceTask id="st_collect_water" name="Samla in vattendata"
+                      camunda:delegateExpression="${waterDataCollectionDelegate}">
+      <bpmn:incoming>sf_to_water</bpmn:incoming>
+      <bpmn:outgoing>sf_water_done</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Track 3: Waste Management -->
+    <bpmn:userTask id="ut_waste_report" name="Rapportera avfallshantering"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Annual waste management report:
+        - Total waste generated (tonnes)
+        - Recycling rate (%)
+        - Hazardous waste (kg)
+        - Construction waste (if renovation occurred)
+        - Waste sorting compliance
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_waste</bpmn:incoming>
+      <bpmn:outgoing>sf_waste_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Track 4: Social & Governance -->
+    <bpmn:userTask id="ut_social_assessment" name="Social bedömning"
+                   camunda:candidateGroups="facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Social and governance assessment:
+        - Occupant health and wellbeing metrics
+        - Accessibility compliance status
+        - Indoor air quality (from IAQ monitoring)
+        - Community impact
+        - Tenant satisfaction (from POE)
+        - Safety incidents count
+        - Supplier sustainability screening
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_social</bpmn:incoming>
+      <bpmn:outgoing>sf_social_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join all data collection tracks -->
+    <bpmn:parallelGateway id="pg_collect_end" name="All data collected">
+      <bpmn:incoming>sf_energy_done</bpmn:incoming>
+      <bpmn:incoming>sf_water_done</bpmn:incoming>
+      <bpmn:incoming>sf_waste_done</bpmn:incoming>
+      <bpmn:incoming>sf_social_done</bpmn:incoming>
+      <bpmn:outgoing>sf_join_to_taxonomy</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: EU Taxonomy Assessment                                       -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_taxonomy_assessment" name="EU-taxonomibedömning"
+                   camunda:candidateGroups="facility_managers,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        EU Taxonomy Regulation assessment:
+        - Substantial contribution to climate change mitigation
+        - Do No Significant Harm (DNSH) check
+        - Minimum safeguards compliance
+        - Alignment percentage for Taxonomy-eligible activities
+        - Primary energy demand vs. NZEB threshold
+      </bpmn:documentation>
+      <bpmn:incoming>sf_join_to_taxonomy</bpmn:incoming>
+      <bpmn:outgoing>sf_taxonomy_to_certification</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: Certification Check                                          -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_certification_review" name="Granska certifieringsstatus"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Review building certification status:
+        - Miljöbyggnad level (Bronze/Silver/Gold)
+        - BREEAM-SE score
+        - GreenBuilding certification
+        - Energy performance certificate (energideklaration)
+        - Identify actions to maintain or upgrade certification
+      </bpmn:documentation>
+      <bpmn:incoming>sf_taxonomy_to_certification</bpmn:incoming>
+      <bpmn:outgoing>sf_cert_to_compile</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 4: Report Compilation & Approval                                -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_compile_report" name="Sammanställ ESG-rapport"
+                      camunda:delegateExpression="${esgReportDelegate}">
+      <bpmn:incoming>sf_cert_to_compile</bpmn:incoming>
+      <bpmn:outgoing>sf_compile_to_review</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_review_report" name="Granska hållbarhetsrapport"
+                   camunda:candidateGroups="owners,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_compile_to_review</bpmn:incoming>
+      <bpmn:outgoing>sf_review_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_approve_report" name="Godkänn och publicera"
+                   camunda:candidateGroups="owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_review_to_approve</bpmn:incoming>
+      <bpmn:outgoing>sf_approve_to_actions</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 5: Improvement Actions                                          -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_improvement_plan" name="Skapa förbättringsplan"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Create sustainability improvement plan:
+        - Energy efficiency measures (LED, insulation, heat recovery)
+        - Renewable energy opportunities (solar, geothermal)
+        - Water conservation measures
+        - Waste reduction targets
+        - Green procurement commitments
+        - Carbon offset strategy (if needed)
+        Set targets for next reporting period.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_approve_to_actions</bpmn:incoming>
+      <bpmn:outgoing>sf_actions_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_audit_esg" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_actions_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end_esg" name="Hållbarhetscykel klar">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_fork" sourceRef="start_esg" targetRef="pg_collect_start" />
+    <bpmn:sequenceFlow id="sf_to_energy" sourceRef="pg_collect_start" targetRef="st_collect_energy" />
+    <bpmn:sequenceFlow id="sf_to_water" sourceRef="pg_collect_start" targetRef="st_collect_water" />
+    <bpmn:sequenceFlow id="sf_to_waste" sourceRef="pg_collect_start" targetRef="ut_waste_report" />
+    <bpmn:sequenceFlow id="sf_to_social" sourceRef="pg_collect_start" targetRef="ut_social_assessment" />
+    <bpmn:sequenceFlow id="sf_energy_to_ghg" sourceRef="st_collect_energy" targetRef="st_calculate_ghg" />
+    <bpmn:sequenceFlow id="sf_energy_done" sourceRef="st_calculate_ghg" targetRef="pg_collect_end" />
+    <bpmn:sequenceFlow id="sf_water_done" sourceRef="st_collect_water" targetRef="pg_collect_end" />
+    <bpmn:sequenceFlow id="sf_waste_done" sourceRef="ut_waste_report" targetRef="pg_collect_end" />
+    <bpmn:sequenceFlow id="sf_social_done" sourceRef="ut_social_assessment" targetRef="pg_collect_end" />
+    <bpmn:sequenceFlow id="sf_join_to_taxonomy" sourceRef="pg_collect_end" targetRef="ut_taxonomy_assessment" />
+    <bpmn:sequenceFlow id="sf_taxonomy_to_certification" sourceRef="ut_taxonomy_assessment" targetRef="ut_certification_review" />
+    <bpmn:sequenceFlow id="sf_cert_to_compile" sourceRef="ut_certification_review" targetRef="st_compile_report" />
+    <bpmn:sequenceFlow id="sf_compile_to_review" sourceRef="st_compile_report" targetRef="ut_review_report" />
+    <bpmn:sequenceFlow id="sf_review_to_approve" sourceRef="ut_review_report" targetRef="ut_approve_report" />
+    <bpmn:sequenceFlow id="sf_approve_to_actions" sourceRef="ut_approve_report" targetRef="ut_improvement_plan" />
+    <bpmn:sequenceFlow id="sf_actions_to_audit" sourceRef="ut_improvement_plan" targetRef="st_audit_esg" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_esg" targetRef="end_esg" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

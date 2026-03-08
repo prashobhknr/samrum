@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="maintenance-definitions"
+                   targetNamespace="http://doorman.local/maintenance">
+
+  <!-- ================================================================== -->
+  <!-- GENERALIZED MAINTENANCE CYCLE                                       -->
+  <!-- Extends: door-maintenance.bpmn (existing)                           -->
+  <!-- Generalized for any object type: doors, HVAC, electrical, etc.      -->
+  <!-- Uses timer start for recurring scheduled maintenance                -->
+  <!-- ================================================================== -->
+  <bpmn:process id="maintenance-cycle" name="Underhallscykel - Generaliserad" isExecutable="true">
+
+    <!-- Timer start: recurring maintenance trigger -->
+    <bpmn:startEvent id="start" name="Underhall schemalagd">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle>R/P30D</bpmn:timeCycle>  <!-- Every 30 days, configurable -->
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Also support manual/message start -->
+    <bpmn:startEvent id="start_manual" name="Manuell felanmalan">
+      <bpmn:outgoing>flow_manual_to_identify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Identify objects due for maintenance -->
+    <bpmn:serviceTask id="identify_due_objects" name="Identifiera underhallsobjekt"
+                      camunda:delegateExpression="${maintenanceQueryDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="objectTypeId" expression="${objectTypeId}" />
+        <camunda:field name="maintenanceAttributeId" expression="${maintenanceIntervalAttributeId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_start_to_identify</bpmn:incoming>
+      <bpmn:incoming>flow_manual_to_identify</bpmn:incoming>
+      <bpmn:outgoing>flow_identify_to_gate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Any objects due? -->
+    <bpmn:exclusiveGateway id="gate_objects_found" name="Objekt att underhalla?">
+      <bpmn:incoming>flow_identify_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_objects_found</bpmn:outgoing>
+      <bpmn:outgoing>flow_no_objects</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_no_objects" sourceRef="gate_objects_found" targetRef="end_no_work">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${objectCount == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:endEvent id="end_no_work" name="Inga objekt att underhalla">
+      <bpmn:incoming>flow_no_objects</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="flow_objects_found" sourceRef="gate_objects_found" targetRef="assign_technician">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${objectCount > 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Assign technician -->
+    <bpmn:userTask id="assign_technician" name="Tilldela tekniker"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Review maintenance work order. Assign technician and schedule visit.</bpmn:documentation>
+      <bpmn:incoming>flow_objects_found</bpmn:incoming>
+      <bpmn:outgoing>flow_assign_to_inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Inspect object -->
+    <bpmn:userTask id="inspect_object" name="Inspektera objekt"
+                   camunda:candidateGroups="maintenance,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Inspect object condition. Record findings. Take measurements (value_qualifier=MEASURED).</bpmn:documentation>
+      <bpmn:incoming>flow_assign_to_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_inspect_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Repair needed? -->
+    <bpmn:exclusiveGateway id="gate_repair_needed" name="Reparation behovs?">
+      <bpmn:incoming>flow_inspect_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_repair_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_repair_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_repair_yes" sourceRef="gate_repair_needed" targetRef="perform_repair">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${repairNeeded == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_repair_no" sourceRef="gate_repair_needed" targetRef="update_maintenance_date">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${repairNeeded == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Perform repair -->
+    <bpmn:userTask id="perform_repair" name="Utfor reparation"
+                   camunda:candidateGroups="maintenance,technicians,locksmiths,electricians,hvac_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Perform necessary repairs. Record parts used, work hours, and updated measurements.</bpmn:documentation>
+      <bpmn:incoming>flow_repair_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_repair_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Verify repair -->
+    <bpmn:userTask id="verify_repair" name="Verifiera reparation"
+                   camunda:candidateGroups="facility_managers,supervisors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Verify repair quality. Approve work order closure.</bpmn:documentation>
+      <bpmn:incoming>flow_repair_to_verify</bpmn:incoming>
+      <bpmn:outgoing>flow_verify_to_update</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Update maintenance date -->
+    <bpmn:serviceTask id="update_maintenance_date" name="Uppdatera underhallsdatum"
+                      camunda:delegateExpression="${maintenanceDateDelegate}">
+      <bpmn:incoming>flow_repair_no</bpmn:incoming>
+      <bpmn:incoming>flow_verify_to_update</bpmn:incoming>
+      <bpmn:outgoing>flow_update_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Audit -->
+    <bpmn:serviceTask id="audit_maintenance" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_update_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Underhall klart">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_identify" sourceRef="start" targetRef="identify_due_objects" />
+    <bpmn:sequenceFlow id="flow_manual_to_identify" sourceRef="start_manual" targetRef="identify_due_objects" />
+    <bpmn:sequenceFlow id="flow_identify_to_gate" sourceRef="identify_due_objects" targetRef="gate_objects_found" />
+    <bpmn:sequenceFlow id="flow_assign_to_inspect" sourceRef="assign_technician" targetRef="inspect_object" />
+    <bpmn:sequenceFlow id="flow_inspect_to_gate" sourceRef="inspect_object" targetRef="gate_repair_needed" />
+    <bpmn:sequenceFlow id="flow_repair_to_verify" sourceRef="perform_repair" targetRef="verify_repair" />
+    <bpmn:sequenceFlow id="flow_verify_to_update" sourceRef="verify_repair" targetRef="update_maintenance_date" />
+    <bpmn:sequenceFlow id="flow_update_to_audit" sourceRef="update_maintenance_date" targetRef="audit_maintenance" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_maintenance" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="maintenance-diagram">
+    <bpmndi:BPMNPlane id="maintenance-plane" bpmnElement="maintenance-cycle">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="start_manual_di" bpmnElement="start_manual"><dc:Bounds x="50" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="identify_due_objects_di" bpmnElement="identify_due_objects"><dc:Bounds x="150" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_objects_found_di" bpmnElement="gate_objects_found" isMarkerVisible="true"><dc:Bounds x="310" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="assign_technician_di" bpmnElement="assign_technician"><dc:Bounds x="420" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect_object_di" bpmnElement="inspect_object"><dc:Bounds x="580" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_repair_needed_di" bpmnElement="gate_repair_needed" isMarkerVisible="true"><dc:Bounds x="740" y="155" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="perform_repair_di" bpmnElement="perform_repair"><dc:Bounds x="850" y="60" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="verify_repair_di" bpmnElement="verify_repair"><dc:Bounds x="1010" y="60" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="update_maintenance_date_di" bpmnElement="update_maintenance_date"><dc:Bounds x="850" y="220" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1150" y="240" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_no_work_di" bpmnElement="end_no_work"><dc:Bounds x="420" y="280" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

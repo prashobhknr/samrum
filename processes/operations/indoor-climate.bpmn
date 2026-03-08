@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="indoor-climate-definitions"
+                   targetNamespace="http://doorman.local/operations">
+
+  <bpmn:process id="operations-indoor-climate" name="Inomhusklimat och luftkvalitet"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Indoor Climate & Air Quality Monitoring                              -->
+    <!-- Covers: temperature, humidity, CO2, radon, PM2.5                     -->
+    <!-- Swedish standards: Arbetsmiljöverket AFS 2020:1, BBR 6:2             -->
+    <!-- Triggered from operations-phase as continuous monitoring cycle        -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_climate" name="Klimatövervakning startad">
+      <bpmn:outgoing>sf_start_to_collect</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Data Collection (automatic, sensor-based)                   -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_collect_data" name="Samla in sensordata"
+                      camunda:delegateExpression="${climateDataCollectionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="sensors">temperature,humidity,co2,radon,pm25</camunda:inputParameter>
+          <camunda:inputParameter name="periodDays">30</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_start_to_collect</bpmn:incoming>
+      <bpmn:incoming>sf_next_cycle</bpmn:incoming>
+      <bpmn:outgoing>sf_collect_to_analyze</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_analyze_data" name="Analysera klimatdata"
+                      camunda:delegateExpression="${climateAnalysisDelegate}">
+      <bpmn:incoming>sf_collect_to_analyze</bpmn:incoming>
+      <bpmn:outgoing>sf_analyze_to_gw</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: Threshold Evaluation                                        -->
+    <!-- =================================================================== -->
+    <bpmn:exclusiveGateway id="gw_threshold" name="Gränsvärden överskridna?">
+      <bpmn:incoming>sf_analyze_to_gw</bpmn:incoming>
+      <bpmn:outgoing>sf_critical_alert</bpmn:outgoing>
+      <bpmn:outgoing>sf_warning_alert</bpmn:outgoing>
+      <bpmn:outgoing>sf_normal</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- CRITICAL: Health hazard (radon > 200 Bq/m³, CO2 > 1500 ppm) -->
+    <bpmn:userTask id="ut_critical_response" name="Akut klimatåtgärd"
+                   camunda:candidateGroups="facility_managers,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Critical indoor climate alert:
+        - Radon above 200 Bq/m³ (Swedish limit per Strålsäkerhetsmyndigheten)
+        - CO2 above 1500 ppm (AFS 2020:1)
+        - Temperature outside 18-26°C range
+        - PM2.5 above 25 µg/m³ (WHO guideline)
+        Immediate action required. May need to evacuate affected areas.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_critical_alert</bpmn:incoming>
+      <bpmn:outgoing>sf_critical_to_notify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_notify_critical" name="Skicka kritisk notifiering"
+                      camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="severity">critical</camunda:inputParameter>
+          <camunda:inputParameter name="recipients">facility_managers,owners,maintenance</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_critical_to_notify</bpmn:incoming>
+      <bpmn:outgoing>sf_notify_to_remediate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_remediate_climate" name="Genomför klimatåtgärd"
+                   camunda:candidateGroups="maintenance,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Remediation actions:
+        - Adjust HVAC settings
+        - Increase ventilation rate
+        - Install radon mitigation (radonbrunn, radonsug)
+        - Replace air filters
+        - Seal building envelope gaps
+      </bpmn:documentation>
+      <bpmn:incoming>sf_notify_to_remediate</bpmn:incoming>
+      <bpmn:outgoing>sf_remediate_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_verify_remediation" name="Verifiera åtgärd"
+                      camunda:delegateExpression="${climateDataCollectionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="sensors">temperature,humidity,co2,radon,pm25</camunda:inputParameter>
+          <camunda:inputParameter name="periodDays">7</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_remediate_to_verify</bpmn:incoming>
+      <bpmn:outgoing>sf_verify_to_gw_ok</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="gw_remediation_ok" name="Åtgärd OK?">
+      <bpmn:incoming>sf_verify_to_gw_ok</bpmn:incoming>
+      <bpmn:outgoing>sf_ok_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_ok_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- WARNING: Comfort issue (CO2 > 1000 ppm, temp drift) -->
+    <bpmn:userTask id="ut_warning_review" name="Granska klimatvarning"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Warning-level climate event:
+        - CO2 between 1000-1500 ppm
+        - Temperature 16-18°C or 26-28°C
+        - Humidity below 20% or above 60%
+        Review trend data and decide if preventive action needed.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_warning_alert</bpmn:incoming>
+      <bpmn:outgoing>sf_warning_to_gw_action</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_action_needed" name="Åtgärd behövs?">
+      <bpmn:incoming>sf_warning_to_gw_action</bpmn:incoming>
+      <bpmn:outgoing>sf_action_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_action_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_preventive_action" name="Förebyggande klimatåtgärd"
+                   camunda:candidateGroups="maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_action_yes</bpmn:incoming>
+      <bpmn:outgoing>sf_preventive_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: Reporting & Next Cycle                                      -->
+    <!-- =================================================================== -->
+    <bpmn:exclusiveGateway id="gw_cycle_merge" name="Merge paths">
+      <bpmn:incoming>sf_normal</bpmn:incoming>
+      <bpmn:incoming>sf_ok_yes</bpmn:incoming>
+      <bpmn:incoming>sf_action_no</bpmn:incoming>
+      <bpmn:incoming>sf_preventive_to_merge</bpmn:incoming>
+      <bpmn:outgoing>sf_merge_to_report</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="st_generate_report" name="Generera klimatrapport"
+                      camunda:delegateExpression="${climateReportDelegate}">
+      <bpmn:incoming>sf_merge_to_report</bpmn:incoming>
+      <bpmn:outgoing>sf_report_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_audit_climate" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_report_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_timer</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Wait 30 days for next monitoring cycle -->
+    <bpmn:intermediateCatchEvent id="timer_next_cycle" name="Nästa cykel (30 dagar)">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:incoming>sf_audit_to_timer</bpmn:incoming>
+      <bpmn:outgoing>sf_next_cycle</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Escalation: remediation failed, re-enter critical path -->
+    <!-- (sf_ok_no loops back to remediate) -->
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_collect" sourceRef="start_climate" targetRef="st_collect_data" />
+    <bpmn:sequenceFlow id="sf_collect_to_analyze" sourceRef="st_collect_data" targetRef="st_analyze_data" />
+    <bpmn:sequenceFlow id="sf_analyze_to_gw" sourceRef="st_analyze_data" targetRef="gw_threshold" />
+
+    <!-- Critical path -->
+    <bpmn:sequenceFlow id="sf_critical_alert" sourceRef="gw_threshold" targetRef="ut_critical_response">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alertLevel == 'critical'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_critical_to_notify" sourceRef="ut_critical_response" targetRef="st_notify_critical" />
+    <bpmn:sequenceFlow id="sf_notify_to_remediate" sourceRef="st_notify_critical" targetRef="ut_remediate_climate" />
+    <bpmn:sequenceFlow id="sf_remediate_to_verify" sourceRef="ut_remediate_climate" targetRef="st_verify_remediation" />
+    <bpmn:sequenceFlow id="sf_verify_to_gw_ok" sourceRef="st_verify_remediation" targetRef="gw_remediation_ok" />
+    <bpmn:sequenceFlow id="sf_ok_yes" sourceRef="gw_remediation_ok" targetRef="gw_cycle_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${remediationSuccess == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_ok_no" sourceRef="gw_remediation_ok" targetRef="ut_remediate_climate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${remediationSuccess == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Warning path -->
+    <bpmn:sequenceFlow id="sf_warning_alert" sourceRef="gw_threshold" targetRef="ut_warning_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alertLevel == 'warning'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_warning_to_gw_action" sourceRef="ut_warning_review" targetRef="gw_action_needed" />
+    <bpmn:sequenceFlow id="sf_action_yes" sourceRef="gw_action_needed" targetRef="ut_preventive_action">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${actionNeeded == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_action_no" sourceRef="gw_action_needed" targetRef="gw_cycle_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${actionNeeded == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_preventive_to_merge" sourceRef="ut_preventive_action" targetRef="gw_cycle_merge" />
+
+    <!-- Normal path -->
+    <bpmn:sequenceFlow id="sf_normal" sourceRef="gw_threshold" targetRef="gw_cycle_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alertLevel == 'normal'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Reporting & cycle -->
+    <bpmn:sequenceFlow id="sf_merge_to_report" sourceRef="gw_cycle_merge" targetRef="st_generate_report" />
+    <bpmn:sequenceFlow id="sf_report_to_audit" sourceRef="st_generate_report" targetRef="st_audit_climate" />
+    <bpmn:sequenceFlow id="sf_audit_to_timer" sourceRef="st_audit_climate" targetRef="timer_next_cycle" />
+    <bpmn:sequenceFlow id="sf_next_cycle" sourceRef="timer_next_cycle" targetRef="st_collect_data" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

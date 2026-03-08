@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="insurance-claim-definitions"
+                   targetNamespace="http://doorman.local/operations">
+
+  <bpmn:message id="msg_insurance_trigger" name="msg_insurance_trigger" />
+
+  <bpmn:process id="insurance-claim" name="Försäkringsärende"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Insurance Claim Process                                               -->
+    <!-- Triggered by incident-response when damage exceeds threshold,         -->
+    <!-- or manually for property damage, liability, or business interruption   -->
+    <!--                                                                       -->
+    <!-- Claim types:                                                          -->
+    <!--   - Property damage (brandskada, vattenskada, inbrott)                -->
+    <!--   - Liability (ansvarsskada)                                          -->
+    <!--   - Business interruption (avbrott)                                   -->
+    <!--   - Construction all-risk (CAR) during production                     -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_claim" name="Skadeärende startat">
+      <bpmn:messageEventDefinition messageRef="msg_insurance_trigger" />
+      <bpmn:outgoing>sf_start_to_register</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Claim Registration                                           -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_register_claim" name="Registrera skadeärende"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Register insurance claim:
+        - Claim type (property, liability, business interruption, CAR)
+        - Date and time of incident
+        - Location (building, floor, room)
+        - Description of damage
+        - Estimated damage amount
+        - Photos and initial documentation
+        - Police report number (if applicable)
+        - Insurance policy number
+      </bpmn:documentation>
+      <bpmn:incoming>sf_start_to_register</bpmn:incoming>
+      <bpmn:outgoing>sf_register_to_notify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_notify_insurer" name="Meddela försäkringsbolag"
+                      camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="recipients">insurance_company</camunda:inputParameter>
+          <camunda:inputParameter name="template">insurance_claim_notification</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_register_to_notify</bpmn:incoming>
+      <bpmn:outgoing>sf_notify_to_document</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: Documentation & Assessment                                   -->
+    <!-- =================================================================== -->
+    <bpmn:parallelGateway id="pg_doc_start" name="Start dokumentation">
+      <bpmn:incoming>sf_notify_to_document</bpmn:incoming>
+      <bpmn:outgoing>sf_to_photo_doc</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_damage_assess</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:userTask id="ut_photo_documentation" name="Fotodokumentation"
+                   camunda:candidateGroups="facility_managers,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Comprehensive photo documentation:
+        - Overview photos from all angles
+        - Detail photos of damage
+        - Photos of surrounding/undamaged areas (baseline)
+        - Video walkthrough if extensive damage
+        - Serial numbers of damaged equipment
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_photo_doc</bpmn:incoming>
+      <bpmn:outgoing>sf_photo_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_damage_assessment" name="Skadebedömning"
+                   camunda:candidateGroups="facility_managers,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Professional damage assessment:
+        - Structural integrity check
+        - Affected systems inventory (HVAC, electrical, access control)
+        - Affected object instances in Doorman
+        - Estimated repair cost (material + labor)
+        - Estimated repair timeline
+        - Temporary measures needed
+      </bpmn:documentation>
+      <bpmn:incoming>sf_to_damage_assess</bpmn:incoming>
+      <bpmn:outgoing>sf_assess_done</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="pg_doc_end" name="Dokumentation klar">
+      <bpmn:incoming>sf_photo_done</bpmn:incoming>
+      <bpmn:incoming>sf_assess_done</bpmn:incoming>
+      <bpmn:outgoing>sf_doc_to_submit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: Claim Submission                                             -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_prepare_submission" name="Förbered skadeanmälan"
+                   camunda:candidateGroups="facility_managers,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare formal insurance claim submission:
+        - Completed claim form
+        - Photo documentation package
+        - Damage assessment report
+        - Repair cost estimates (min 2 quotes)
+        - Police report (if theft/vandalism)
+        - Previous inspection reports
+        - Maintenance history for affected items
+      </bpmn:documentation>
+      <bpmn:incoming>sf_doc_to_submit</bpmn:incoming>
+      <bpmn:outgoing>sf_submit_to_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_internal_review" name="Intern granskning"
+                   camunda:candidateGroups="owners,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_submit_to_review</bpmn:incoming>
+      <bpmn:outgoing>sf_review_to_send</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_submit_claim" name="Skicka skadeanmälan"
+                      camunda:delegateExpression="${insuranceSubmitDelegate}">
+      <bpmn:incoming>sf_review_to_send</bpmn:incoming>
+      <bpmn:outgoing>sf_send_to_wait</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 4: Adjuster & Settlement                                        -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_adjuster_visit" name="Skadereglerare besök"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Insurance adjuster site visit:
+        - Provide access to damaged areas
+        - Present documentation
+        - Answer questions about incident and maintenance history
+        - Discuss repair vs. replacement options
+      </bpmn:documentation>
+      <bpmn:incoming>sf_send_to_wait</bpmn:incoming>
+      <bpmn:outgoing>sf_adjuster_to_settle</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_review_settlement" name="Granska regleringsbeslut"
+                   camunda:candidateGroups="owners,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Review insurance settlement offer:
+        - Accepted amount vs. claimed amount
+        - Deductible applied
+        - Depreciation adjustments
+        - Accept, negotiate, or appeal
+      </bpmn:documentation>
+      <bpmn:incoming>sf_adjuster_to_settle</bpmn:incoming>
+      <bpmn:outgoing>sf_settle_to_gw</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_settlement" name="Acceptera reglering?">
+      <bpmn:incoming>sf_settle_to_gw</bpmn:incoming>
+      <bpmn:outgoing>sf_accept</bpmn:outgoing>
+      <bpmn:outgoing>sf_negotiate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_negotiate" name="Förhandla reglering"
+                   camunda:candidateGroups="owners,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_negotiate</bpmn:incoming>
+      <bpmn:outgoing>sf_negotiate_to_settle</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 5: Repair & Close                                               -->
+    <!-- =================================================================== -->
+    <bpmn:exclusiveGateway id="gw_accept_merge" name="Merge">
+      <bpmn:incoming>sf_accept</bpmn:incoming>
+      <bpmn:incoming>sf_negotiate_to_settle</bpmn:incoming>
+      <bpmn:outgoing>sf_merge_to_repair</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_coordinate_repair" name="Samordna reparation"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Coordinate repair work:
+        - Engage contractors
+        - Schedule repair activities
+        - May trigger renovation mini-project for major damage
+        - Track repair progress
+        - Update Doorman attribute values for repaired objects
+      </bpmn:documentation>
+      <bpmn:incoming>sf_merge_to_repair</bpmn:incoming>
+      <bpmn:outgoing>sf_repair_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_verify_repair" name="Verifiera reparation"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_repair_to_verify</bpmn:incoming>
+      <bpmn:outgoing>sf_verify_to_close</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_close_claim" name="Avsluta ärende"
+                   camunda:candidateGroups="finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Close insurance claim:
+        - Verify payment received
+        - Reconcile with repair costs
+        - Update financial records
+        - Archive all documentation
+        - Record lessons learned
+      </bpmn:documentation>
+      <bpmn:incoming>sf_verify_to_close</bpmn:incoming>
+      <bpmn:outgoing>sf_close_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_audit_claim" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_close_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end_claim" name="Ärende avslutat">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_register" sourceRef="start_claim" targetRef="ut_register_claim" />
+    <bpmn:sequenceFlow id="sf_register_to_notify" sourceRef="ut_register_claim" targetRef="st_notify_insurer" />
+    <bpmn:sequenceFlow id="sf_notify_to_document" sourceRef="st_notify_insurer" targetRef="pg_doc_start" />
+    <bpmn:sequenceFlow id="sf_to_photo_doc" sourceRef="pg_doc_start" targetRef="ut_photo_documentation" />
+    <bpmn:sequenceFlow id="sf_to_damage_assess" sourceRef="pg_doc_start" targetRef="ut_damage_assessment" />
+    <bpmn:sequenceFlow id="sf_photo_done" sourceRef="ut_photo_documentation" targetRef="pg_doc_end" />
+    <bpmn:sequenceFlow id="sf_assess_done" sourceRef="ut_damage_assessment" targetRef="pg_doc_end" />
+    <bpmn:sequenceFlow id="sf_doc_to_submit" sourceRef="pg_doc_end" targetRef="ut_prepare_submission" />
+    <bpmn:sequenceFlow id="sf_submit_to_review" sourceRef="ut_prepare_submission" targetRef="ut_internal_review" />
+    <bpmn:sequenceFlow id="sf_review_to_send" sourceRef="ut_internal_review" targetRef="st_submit_claim" />
+    <bpmn:sequenceFlow id="sf_send_to_wait" sourceRef="st_submit_claim" targetRef="ut_adjuster_visit" />
+    <bpmn:sequenceFlow id="sf_adjuster_to_settle" sourceRef="ut_adjuster_visit" targetRef="ut_review_settlement" />
+    <bpmn:sequenceFlow id="sf_settle_to_gw" sourceRef="ut_review_settlement" targetRef="gw_settlement" />
+    <bpmn:sequenceFlow id="sf_accept" sourceRef="gw_settlement" targetRef="gw_accept_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${settlementAccepted == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_negotiate" sourceRef="gw_settlement" targetRef="ut_negotiate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${settlementAccepted == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_negotiate_to_settle" sourceRef="ut_negotiate" targetRef="gw_accept_merge" />
+    <bpmn:sequenceFlow id="sf_merge_to_repair" sourceRef="gw_accept_merge" targetRef="ut_coordinate_repair" />
+    <bpmn:sequenceFlow id="sf_repair_to_verify" sourceRef="ut_coordinate_repair" targetRef="ut_verify_repair" />
+    <bpmn:sequenceFlow id="sf_verify_to_close" sourceRef="ut_verify_repair" targetRef="ut_close_claim" />
+    <bpmn:sequenceFlow id="sf_close_to_audit" sourceRef="ut_close_claim" targetRef="st_audit_claim" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_claim" targetRef="end_claim" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

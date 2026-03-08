@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="master-building-lifecycle-definitions"
+                   targetNamespace="http://doorman.local/master-building-lifecycle"
+                   exporter="Doorman Architect"
+                   exporterVersion="2.0.0">
+
+  <!-- ================================================================== -->
+  <!-- ERROR DEFINITIONS                                                   -->
+  <!-- ================================================================== -->
+  <bpmn:error id="err_critical_failure" name="Critical Failure" errorCode="CRITICAL_FAILURE" />
+  <bpmn:error id="err_validation_failed" name="Validation Failed" errorCode="VALIDATION_FAILED" />
+  <bpmn:error id="err_budget_exceeded" name="Budget Exceeded" errorCode="BUDGET_EXCEEDED" />
+
+  <!-- ================================================================== -->
+  <!-- MESSAGE DEFINITIONS                                                 -->
+  <!-- ================================================================== -->
+  <bpmn:message id="msg_project_initiated" name="msg_project_initiated" />
+  <bpmn:message id="msg_emergency_stop" name="msg_emergency_stop" />
+  <bpmn:message id="msg_phase_skip_approved" name="msg_phase_skip_approved" />
+
+  <!-- ================================================================== -->
+  <!-- SIGNAL DEFINITIONS (cross-process coordination)                     -->
+  <!-- ================================================================== -->
+  <bpmn:signal id="sig_design_freeze" name="sig_design_freeze" />
+  <bpmn:signal id="sig_construction_start" name="sig_construction_start" />
+
+  <!-- ================================================================== -->
+  <!-- MASTER BUILDING LIFECYCLE PROCESS                                   -->
+  <!-- 8 phases matching Swedish building standards + PLCS lifecycle       -->
+  <!-- Utredning -> Forstudie -> Projektering -> Upphandling ->            -->
+  <!-- Produktion -> Overlamning -> Forvaltning -> Avveckling              -->
+  <!-- ================================================================== -->
+  <bpmn:process id="master-building-lifecycle" name="Master Building Lifecycle" isExecutable="true">
+
+    <!-- START: Message start event -->
+    <bpmn:startEvent id="start_project" name="Projekt initierat">
+      <bpmn:messageEventDefinition messageRef="msg_project_initiated" />
+      <bpmn:outgoing>flow_start_to_init</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- INITIALIZATION: Set lifecycle phase and validate inputs         -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="init_project" name="Initiera projekt"
+                      camunda:delegateExpression="${projectInitDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="investigation" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_start_to_init</bpmn:incoming>
+      <bpmn:outgoing>flow_init_to_phase1</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 1: INVESTIGATION (Utredning)                              -->
+    <!-- PLCS: AS_REQUIRED — Space program, feasibility, risk analysis   -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase1_investigation" name="Fas 1: Utredning"
+                       calledElement="investigation-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="investigationApproved" target="investigationApproved" />
+        <camunda:out source="spaceProgramId" target="spaceProgramId" />
+        <camunda:out source="riskAssessmentId" target="riskAssessmentId" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_init_to_phase1</bpmn:incoming>
+      <bpmn:incoming>flow_gate1_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase1_to_gate1</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase1" attachedToRef="phase1_investigation" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P90D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer1_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase1" name="Eskalera utredning"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="phaseName" stringValue="investigation" />
+        <camunda:field name="escalationLevel" stringValue="1" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_timer1_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- GATE 1: Investigation approved? -->
+    <bpmn:exclusiveGateway id="gate1_investigation" name="Utredning godkand?">
+      <bpmn:incoming>flow_phase1_to_gate1</bpmn:incoming>
+      <bpmn:outgoing>flow_gate1_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate1_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Lifecycle transition service task -->
+    <bpmn:serviceTask id="set_phase_pre_study" name="Satt fas: Forstudie"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="pre_study" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate1_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase2_to_phase2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 2: PRE-STUDY (Forstudie)                                  -->
+    <!-- PLCS: AS_REQUIRED — Concept design, cost estimates, scope       -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase2_prestudy" name="Fas 2: Forstudie"
+                       calledElement="pre-study-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="spaceProgramId" target="spaceProgramId" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="preStudyApproved" target="preStudyApproved" />
+        <camunda:out source="budgetEstimate" target="budgetEstimate" />
+        <camunda:out source="projectScope" target="projectScope" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase2_to_phase2</bpmn:incoming>
+      <bpmn:incoming>flow_gate2_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase2_to_gate2</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase2" attachedToRef="phase2_prestudy" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P120D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer2_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase2" name="Eskalera forstudie"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="phaseName" stringValue="pre_study" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_timer2_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- GATE 2: Pre-study approved? -->
+    <bpmn:exclusiveGateway id="gate2_prestudy" name="Forstudie godkand?">
+      <bpmn:incoming>flow_phase2_to_gate2</bpmn:incoming>
+      <bpmn:outgoing>flow_gate2_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate2_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_design" name="Satt fas: Projektering"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="design" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate2_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase3_to_phase3</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 3: DESIGN (Projektering)                                  -->
+    <!-- PLCS: AS_DESIGNED — Detailed multi-discipline design            -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase3_design" name="Fas 3: Projektering"
+                       calledElement="design-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="spaceProgramId" target="spaceProgramId" />
+        <camunda:in source="budgetEstimate" target="budgetEstimate" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="designApproved" target="designApproved" />
+        <camunda:out source="designCompletionDate" target="designCompletionDate" />
+        <camunda:out source="totalEstimatedCost" target="totalEstimatedCost" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase3_to_phase3</bpmn:incoming>
+      <bpmn:incoming>flow_gate3_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase3_to_gate3</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase3" attachedToRef="phase3_design" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P270D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer3_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase3" name="Eskalera projektering"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:incoming>flow_timer3_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- GATE 3: Design approved? -->
+    <bpmn:exclusiveGateway id="gate3_design" name="Projektering godkand?">
+      <bpmn:incoming>flow_phase3_to_gate3</bpmn:incoming>
+      <bpmn:outgoing>flow_gate3_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate3_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_procurement" name="Satt fas: Upphandling"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="procurement" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate3_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase4_to_phase4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 4: PROCUREMENT (Upphandling)                              -->
+    <!-- PLCS: AS_DESIGNED — Tendering, contracts, supplier selection     -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase4_procurement" name="Fas 4: Upphandling"
+                       calledElement="procurement-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="totalEstimatedCost" target="totalEstimatedCost" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="procurementApproved" target="procurementApproved" />
+        <camunda:out source="contractIds" target="contractIds" />
+        <camunda:out source="awardedContractorIds" target="awardedContractorIds" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase4_to_phase4</bpmn:incoming>
+      <bpmn:incoming>flow_gate4_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase4_to_gate4</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase4" attachedToRef="phase4_procurement" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P120D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer4_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase4" name="Eskalera upphandling"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:incoming>flow_timer4_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- GATE 4: Procurement approved? -->
+    <bpmn:exclusiveGateway id="gate4_procurement" name="Upphandling godkand?">
+      <bpmn:incoming>flow_phase4_to_gate4</bpmn:incoming>
+      <bpmn:outgoing>flow_gate4_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate4_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_production" name="Satt fas: Produktion"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="production" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate4_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase5_to_phase5</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 5: PRODUCTION (Produktion)                                -->
+    <!-- PLCS: AS_PLANNED / AS_REALIZED — Build, install, commission     -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase5_production" name="Fas 5: Produktion"
+                       calledElement="production-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="contractIds" target="contractIds" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="productionApproved" target="productionApproved" />
+        <camunda:out source="commissioningDate" target="commissioningDate" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase5_to_phase5</bpmn:incoming>
+      <bpmn:incoming>flow_gate5_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase5_to_gate5</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase5" attachedToRef="phase5_production" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P730D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer5_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase5" name="Eskalera produktion"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:incoming>flow_timer5_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary on production -->
+    <bpmn:boundaryEvent id="error_production" attachedToRef="phase5_production">
+      <bpmn:errorEventDefinition errorRef="err_critical_failure" />
+      <bpmn:outgoing>flow_error_to_incident</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:userTask id="handle_incident" name="Hantera incident"
+                   camunda:candidateGroups="project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_error_to_incident</bpmn:incoming>
+      <bpmn:outgoing>flow_incident_resolved</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- GATE 5: Production approved? -->
+    <bpmn:exclusiveGateway id="gate5_production" name="Produktion godkand?">
+      <bpmn:incoming>flow_phase5_to_gate5</bpmn:incoming>
+      <bpmn:outgoing>flow_gate5_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate5_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_handover" name="Satt fas: Overlamning"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="handover" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate5_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase6_to_phase6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 6: HANDOVER (Overlamning)                                 -->
+    <!-- PLCS: AS_REALIZED -> AS_IS — PIM to AIM transfer                -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase6_handover" name="Fas 6: Overlamning"
+                       calledElement="handover-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="handoverApproved" target="handoverApproved" />
+        <camunda:out source="aimValidated" target="aimValidated" />
+        <camunda:out source="warrantyStartDate" target="warrantyStartDate" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase6_to_phase6</bpmn:incoming>
+      <bpmn:incoming>flow_gate6_reject</bpmn:incoming>
+      <bpmn:outgoing>flow_phase6_to_gate6</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:boundaryEvent id="timer_phase6" attachedToRef="phase6_handover" cancelActivity="false">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P90D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timer6_escalation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="escalate_phase6" name="Eskalera overlamning"
+                      camunda:delegateExpression="${escalationDelegate}">
+      <bpmn:incoming>flow_timer6_escalation</bpmn:incoming>
+    </bpmn:serviceTask>
+
+    <!-- GATE 6: Handover approved? -->
+    <bpmn:exclusiveGateway id="gate6_handover" name="Overlamning godkand?">
+      <bpmn:incoming>flow_phase6_to_gate6</bpmn:incoming>
+      <bpmn:outgoing>flow_gate6_approve</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate6_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_operations" name="Satt fas: Forvaltning"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="operations" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate6_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase7_to_phase7</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 7: OPERATIONS (Forvaltning)                               -->
+    <!-- PLCS: AS_IS — Maintenance, drift, recurring processes           -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase7_operations" name="Fas 7: Forvaltning"
+                       calledElement="operations-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:in source="warrantyStartDate" target="warrantyStartDate" />
+        <camunda:out source="decommissionRequested" target="decommissionRequested" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase7_to_phase7</bpmn:incoming>
+      <bpmn:outgoing>flow_phase7_to_gate7</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- GATE 7: Decommission decision -->
+    <bpmn:exclusiveGateway id="gate7_decommission" name="Avveckling?">
+      <bpmn:incoming>flow_phase7_to_gate7</bpmn:incoming>
+      <bpmn:outgoing>flow_gate7_decommission</bpmn:outgoing>
+      <bpmn:outgoing>flow_gate7_continue</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="set_phase_decommission" name="Satt fas: Avveckling"
+                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="targetPhase" stringValue="decommission" />
+        <camunda:field name="buildingId" expression="${buildingId}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gate7_decommission</bpmn:incoming>
+      <bpmn:outgoing>flow_set_phase8_to_phase8</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE 8: DECOMMISSION (Avveckling)                              -->
+    <!-- PLCS: AS_REMOVED — Demolition, disposal, archive                -->
+    <!-- ============================================================== -->
+    <bpmn:callActivity id="phase8_decommission" name="Fas 8: Avveckling"
+                       calledElement="decommission-phase">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="ownerGroupId" target="ownerGroupId" />
+        <camunda:out source="decommissionComplete" target="decommissionComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_set_phase8_to_phase8</bpmn:incoming>
+      <bpmn:outgoing>flow_phase8_to_end</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- END EVENT -->
+    <bpmn:endEvent id="end_lifecycle" name="Livscykel avslutad">
+      <bpmn:incoming>flow_phase8_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Continue operations (loop back) -->
+    <bpmn:endEvent id="end_continue_ops" name="Forvaltning fortsatter">
+      <bpmn:incoming>flow_gate7_continue</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================== -->
+    <!-- SEQUENCE FLOWS                                                  -->
+    <!-- ============================================================== -->
+    <bpmn:sequenceFlow id="flow_start_to_init" sourceRef="start_project" targetRef="init_project" />
+    <bpmn:sequenceFlow id="flow_init_to_phase1" sourceRef="init_project" targetRef="phase1_investigation" />
+
+    <!-- Phase 1 flows -->
+    <bpmn:sequenceFlow id="flow_phase1_to_gate1" sourceRef="phase1_investigation" targetRef="gate1_investigation" />
+    <bpmn:sequenceFlow id="flow_gate1_approve" sourceRef="gate1_investigation" targetRef="set_phase_pre_study">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${investigationApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate1_reject" sourceRef="gate1_investigation" targetRef="phase1_investigation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${investigationApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 2 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase2_to_phase2" sourceRef="set_phase_pre_study" targetRef="phase2_prestudy" />
+    <bpmn:sequenceFlow id="flow_phase2_to_gate2" sourceRef="phase2_prestudy" targetRef="gate2_prestudy" />
+    <bpmn:sequenceFlow id="flow_gate2_approve" sourceRef="gate2_prestudy" targetRef="set_phase_design">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${preStudyApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate2_reject" sourceRef="gate2_prestudy" targetRef="phase2_prestudy">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${preStudyApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 3 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase3_to_phase3" sourceRef="set_phase_design" targetRef="phase3_design" />
+    <bpmn:sequenceFlow id="flow_phase3_to_gate3" sourceRef="phase3_design" targetRef="gate3_design" />
+    <bpmn:sequenceFlow id="flow_gate3_approve" sourceRef="gate3_design" targetRef="set_phase_procurement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${designApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate3_reject" sourceRef="gate3_design" targetRef="phase3_design">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${designApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 4 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase4_to_phase4" sourceRef="set_phase_procurement" targetRef="phase4_procurement" />
+    <bpmn:sequenceFlow id="flow_phase4_to_gate4" sourceRef="phase4_procurement" targetRef="gate4_procurement" />
+    <bpmn:sequenceFlow id="flow_gate4_approve" sourceRef="gate4_procurement" targetRef="set_phase_production">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${procurementApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate4_reject" sourceRef="gate4_procurement" targetRef="phase4_procurement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${procurementApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 5 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase5_to_phase5" sourceRef="set_phase_production" targetRef="phase5_production" />
+    <bpmn:sequenceFlow id="flow_phase5_to_gate5" sourceRef="phase5_production" targetRef="gate5_production" />
+    <bpmn:sequenceFlow id="flow_gate5_approve" sourceRef="gate5_production" targetRef="set_phase_handover">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${productionApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate5_reject" sourceRef="gate5_production" targetRef="phase5_production">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${productionApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 6 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase6_to_phase6" sourceRef="set_phase_handover" targetRef="phase6_handover" />
+    <bpmn:sequenceFlow id="flow_phase6_to_gate6" sourceRef="phase6_handover" targetRef="gate6_handover" />
+    <bpmn:sequenceFlow id="flow_gate6_approve" sourceRef="gate6_handover" targetRef="set_phase_operations">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${handoverApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate6_reject" sourceRef="gate6_handover" targetRef="phase6_handover">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${handoverApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 7 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase7_to_phase7" sourceRef="set_phase_operations" targetRef="phase7_operations" />
+    <bpmn:sequenceFlow id="flow_phase7_to_gate7" sourceRef="phase7_operations" targetRef="gate7_decommission" />
+    <bpmn:sequenceFlow id="flow_gate7_decommission" sourceRef="gate7_decommission" targetRef="set_phase_decommission">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decommissionRequested == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_gate7_continue" sourceRef="gate7_decommission" targetRef="end_continue_ops">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${decommissionRequested == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Phase 8 flows -->
+    <bpmn:sequenceFlow id="flow_set_phase8_to_phase8" sourceRef="set_phase_decommission" targetRef="phase8_decommission" />
+    <bpmn:sequenceFlow id="flow_phase8_to_end" sourceRef="phase8_decommission" targetRef="end_lifecycle" />
+
+    <!-- Timer escalation flows -->
+    <bpmn:sequenceFlow id="flow_timer1_escalation" sourceRef="timer_phase1" targetRef="escalate_phase1" />
+    <bpmn:sequenceFlow id="flow_timer2_escalation" sourceRef="timer_phase2" targetRef="escalate_phase2" />
+    <bpmn:sequenceFlow id="flow_timer3_escalation" sourceRef="timer_phase3" targetRef="escalate_phase3" />
+    <bpmn:sequenceFlow id="flow_timer4_escalation" sourceRef="timer_phase4" targetRef="escalate_phase4" />
+    <bpmn:sequenceFlow id="flow_timer5_escalation" sourceRef="timer_phase5" targetRef="escalate_phase5" />
+    <bpmn:sequenceFlow id="flow_timer6_escalation" sourceRef="timer_phase6" targetRef="escalate_phase6" />
+
+    <!-- Error flows -->
+    <bpmn:sequenceFlow id="flow_error_to_incident" sourceRef="error_production" targetRef="handle_incident" />
+
+  </bpmn:process>
+
+  <!-- ================================================================== -->
+  <!-- DIAGRAM LAYOUT                                                      -->
+  <!-- ================================================================== -->
+  <bpmndi:BPMNDiagram id="master-diagram">
+    <bpmndi:BPMNPlane id="master-plane" bpmnElement="master-building-lifecycle">
+
+      <!-- Row 1: Main flow -->
+      <bpmndi:BPMNShape id="start_project_di" bpmnElement="start_project">
+        <dc:Bounds x="30" y="202" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="init_project_di" bpmnElement="init_project">
+        <dc:Bounds x="100" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Phase 1 -->
+      <bpmndi:BPMNShape id="phase1_investigation_di" bpmnElement="phase1_investigation">
+        <dc:Bounds x="240" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate1_investigation_di" bpmnElement="gate1_investigation" isMarkerVisible="true">
+        <dc:Bounds x="395" y="195" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_pre_study_di" bpmnElement="set_phase_pre_study">
+        <dc:Bounds x="470" y="180" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Phase 2 -->
+      <bpmndi:BPMNShape id="phase2_prestudy_di" bpmnElement="phase2_prestudy">
+        <dc:Bounds x="580" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate2_prestudy_di" bpmnElement="gate2_prestudy" isMarkerVisible="true">
+        <dc:Bounds x="735" y="195" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_design_di" bpmnElement="set_phase_design">
+        <dc:Bounds x="810" y="180" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Phase 3 -->
+      <bpmndi:BPMNShape id="phase3_design_di" bpmnElement="phase3_design">
+        <dc:Bounds x="920" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate3_design_di" bpmnElement="gate3_design" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="195" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_procurement_di" bpmnElement="set_phase_procurement">
+        <dc:Bounds x="1150" y="180" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Phase 4 -->
+      <bpmndi:BPMNShape id="phase4_procurement_di" bpmnElement="phase4_procurement">
+        <dc:Bounds x="1260" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate4_procurement_di" bpmnElement="gate4_procurement" isMarkerVisible="true">
+        <dc:Bounds x="1415" y="195" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_production_di" bpmnElement="set_phase_production">
+        <dc:Bounds x="1490" y="180" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Row 2: Phases 5-8 -->
+      <bpmndi:BPMNShape id="phase5_production_di" bpmnElement="phase5_production">
+        <dc:Bounds x="240" y="380" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate5_production_di" bpmnElement="gate5_production" isMarkerVisible="true">
+        <dc:Bounds x="395" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_handover_di" bpmnElement="set_phase_handover">
+        <dc:Bounds x="470" y="380" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="phase6_handover_di" bpmnElement="phase6_handover">
+        <dc:Bounds x="580" y="380" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate6_handover_di" bpmnElement="gate6_handover" isMarkerVisible="true">
+        <dc:Bounds x="735" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_operations_di" bpmnElement="set_phase_operations">
+        <dc:Bounds x="810" y="380" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="phase7_operations_di" bpmnElement="phase7_operations">
+        <dc:Bounds x="920" y="380" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate7_decommission_di" bpmnElement="gate7_decommission" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="set_phase_decommission_di" bpmnElement="set_phase_decommission">
+        <dc:Bounds x="1150" y="380" width="80" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="phase8_decommission_di" bpmnElement="phase8_decommission">
+        <dc:Bounds x="1260" y="380" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_lifecycle_di" bpmnElement="end_lifecycle">
+        <dc:Bounds x="1422" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_continue_ops_di" bpmnElement="end_continue_ops">
+        <dc:Bounds x="1082" y="482" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

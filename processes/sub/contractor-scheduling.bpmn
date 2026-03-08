@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="contractor-scheduling-definitions"
+                   targetNamespace="http://doorman.local/sub">
+
+  <bpmn:process id="contractor-scheduling" name="Entreprenörsplanering"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Contractor Scheduling & CPM Integration                              -->
+    <!-- Called from production-phase to manage contractor work order          -->
+    <!-- sequencing, resource allocation, and progress tracking.              -->
+    <!--                                                                       -->
+    <!-- Supports AB 04 / ABT 06 contract structures:                         -->
+    <!--   - General contractor (totalentreprenad)                             -->
+    <!--   - Separate contractors (delad entreprenad)                          -->
+    <!--   - Subcontractor chains                                              -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_scheduling" name="Planering startad">
+      <bpmn:outgoing>sf_start_to_create</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Create Work Breakdown Structure                             -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_create_wbs" name="Skapa arbetsstruktur (WBS)"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Create work breakdown structure:
+        - Define work packages per discipline
+        - Assign contractors to work packages
+        - Set dependencies between packages
+        - Estimate durations
+      </bpmn:documentation>
+      <bpmn:incoming>sf_start_to_create</bpmn:incoming>
+      <bpmn:outgoing>sf_create_to_schedule</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_generate_schedule" name="Generera tidsplan (CPM)"
+                      camunda:delegateExpression="${cpmScheduleDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="algorithm">criticalPath</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_create_to_schedule</bpmn:incoming>
+      <bpmn:outgoing>sf_schedule_to_review</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_review_schedule" name="Granska tidsplan"
+                   camunda:candidateGroups="project_managers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_schedule_to_review</bpmn:incoming>
+      <bpmn:outgoing>sf_review_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_approve_schedule" name="Godkänn tidsplan"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_review_to_approve</bpmn:incoming>
+      <bpmn:outgoing>sf_approve_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 2: Parallel Execution Tracking                                 -->
+    <!-- Weekly cycle: progress reporting + schedule update                    -->
+    <!-- =================================================================== -->
+    <bpmn:parallelGateway id="pg_tracking_start" name="Start parallell uppföljning">
+      <bpmn:incoming>sf_approve_to_fork</bpmn:incoming>
+      <bpmn:outgoing>sf_to_weekly_cycle</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_resource_mgmt</bpmn:outgoing>
+      <bpmn:outgoing>sf_to_risk_monitor</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Track 1: Weekly Progress Reporting -->
+    <bpmn:subProcess id="sp_weekly_cycle" name="Veckovis uppföljning">
+      <bpmn:incoming>sf_to_weekly_cycle</bpmn:incoming>
+      <bpmn:outgoing>sf_weekly_done</bpmn:outgoing>
+
+      <bpmn:startEvent id="weekly_start">
+        <bpmn:outgoing>sf_ws_to_timer</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:intermediateCatchEvent id="weekly_timer" name="Vänta 7 dagar">
+        <bpmn:timerEventDefinition>
+          <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P7D</bpmn:timeCycle>
+        </bpmn:timerEventDefinition>
+        <bpmn:incoming>sf_ws_to_timer</bpmn:incoming>
+        <bpmn:incoming>sf_continue_weekly</bpmn:incoming>
+        <bpmn:outgoing>sf_timer_to_report</bpmn:outgoing>
+      </bpmn:intermediateCatchEvent>
+
+      <bpmn:userTask id="ut_progress_report" name="Rapportera framdrift"
+                     camunda:candidateGroups="contractors"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>
+          Weekly contractor progress report:
+          - Percentage complete per work package
+          - Issues / delays encountered
+          - Resource utilization
+          - Weather delays (if applicable)
+        </bpmn:documentation>
+        <bpmn:incoming>sf_timer_to_report</bpmn:incoming>
+        <bpmn:outgoing>sf_report_to_update</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:serviceTask id="st_update_schedule" name="Uppdatera tidsplan"
+                        camunda:delegateExpression="${cpmScheduleDelegate}">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="algorithm">rebaseline</camunda:inputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>sf_report_to_update</bpmn:incoming>
+        <bpmn:outgoing>sf_update_to_review</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:userTask id="ut_weekly_review" name="Veckomöte framdrift"
+                     camunda:candidateGroups="project_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:incoming>sf_update_to_review</bpmn:incoming>
+        <bpmn:outgoing>sf_weekly_review_to_gw</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:exclusiveGateway id="gw_work_complete" name="Allt klart?">
+        <bpmn:incoming>sf_weekly_review_to_gw</bpmn:incoming>
+        <bpmn:outgoing>sf_continue_weekly</bpmn:outgoing>
+        <bpmn:outgoing>sf_work_done</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:endEvent id="weekly_end">
+        <bpmn:incoming>sf_work_done</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="sf_ws_to_timer" sourceRef="weekly_start" targetRef="weekly_timer" />
+      <bpmn:sequenceFlow id="sf_timer_to_report" sourceRef="weekly_timer" targetRef="ut_progress_report" />
+      <bpmn:sequenceFlow id="sf_report_to_update" sourceRef="ut_progress_report" targetRef="st_update_schedule" />
+      <bpmn:sequenceFlow id="sf_update_to_review" sourceRef="st_update_schedule" targetRef="ut_weekly_review" />
+      <bpmn:sequenceFlow id="sf_weekly_review_to_gw" sourceRef="ut_weekly_review" targetRef="gw_work_complete" />
+      <bpmn:sequenceFlow id="sf_continue_weekly" sourceRef="gw_work_complete" targetRef="weekly_timer">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${allWorkComplete == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="sf_work_done" sourceRef="gw_work_complete" targetRef="weekly_end">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${allWorkComplete == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+    </bpmn:subProcess>
+
+    <!-- Track 2: Resource Management -->
+    <bpmn:subProcess id="sp_resource_mgmt" name="Resurshantering">
+      <bpmn:incoming>sf_to_resource_mgmt</bpmn:incoming>
+      <bpmn:outgoing>sf_resource_done</bpmn:outgoing>
+
+      <bpmn:startEvent id="resource_start">
+        <bpmn:outgoing>sf_rs_to_monitor</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="st_monitor_resources" name="Övervaka resursbeläggning"
+                        camunda:delegateExpression="${resourceMonitorDelegate}">
+        <bpmn:incoming>sf_rs_to_monitor</bpmn:incoming>
+        <bpmn:incoming>sf_resource_continue</bpmn:incoming>
+        <bpmn:outgoing>sf_monitor_to_gw</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:exclusiveGateway id="gw_resource_conflict" name="Resurskonflikt?">
+        <bpmn:incoming>sf_monitor_to_gw</bpmn:incoming>
+        <bpmn:outgoing>sf_conflict_yes</bpmn:outgoing>
+        <bpmn:outgoing>sf_conflict_no</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:userTask id="ut_resolve_resource" name="Lös resurskonflikt"
+                     camunda:candidateGroups="project_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:incoming>sf_conflict_yes</bpmn:incoming>
+        <bpmn:outgoing>sf_resource_continue</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="resource_end">
+        <bpmn:incoming>sf_conflict_no</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="sf_rs_to_monitor" sourceRef="resource_start" targetRef="st_monitor_resources" />
+      <bpmn:sequenceFlow id="sf_monitor_to_gw" sourceRef="st_monitor_resources" targetRef="gw_resource_conflict" />
+      <bpmn:sequenceFlow id="sf_conflict_yes" sourceRef="gw_resource_conflict" targetRef="ut_resolve_resource">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resourceConflict == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="sf_conflict_no" sourceRef="gw_resource_conflict" targetRef="resource_end">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resourceConflict == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="sf_resource_continue" sourceRef="ut_resolve_resource" targetRef="st_monitor_resources" />
+    </bpmn:subProcess>
+
+    <!-- Track 3: Risk & Delay Monitoring -->
+    <bpmn:subProcess id="sp_risk_monitor" name="Risk- och förseningsbevakning">
+      <bpmn:incoming>sf_to_risk_monitor</bpmn:incoming>
+      <bpmn:outgoing>sf_risk_done</bpmn:outgoing>
+
+      <bpmn:startEvent id="risk_start">
+        <bpmn:outgoing>sf_risk_to_check</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="st_check_delays" name="Kontrollera förseningar"
+                        camunda:delegateExpression="${delayDetectionDelegate}">
+        <bpmn:incoming>sf_risk_to_check</bpmn:incoming>
+        <bpmn:incoming>sf_risk_continue</bpmn:incoming>
+        <bpmn:outgoing>sf_check_to_gw</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:exclusiveGateway id="gw_critical_delay" name="Kritisk försening?">
+        <bpmn:incoming>sf_check_to_gw</bpmn:incoming>
+        <bpmn:outgoing>sf_delay_yes</bpmn:outgoing>
+        <bpmn:outgoing>sf_delay_no</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:userTask id="ut_delay_mitigation" name="Förseningsåtgärder"
+                     camunda:candidateGroups="project_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>
+          Critical path delay mitigation:
+          - Crashing: add resources to critical activities
+          - Fast-tracking: overlap sequential activities
+          - Scope reduction: remove non-critical items
+          - Contractor acceleration agreement (ÄTA per AB 04)
+        </bpmn:documentation>
+        <bpmn:incoming>sf_delay_yes</bpmn:incoming>
+        <bpmn:outgoing>sf_risk_continue</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="risk_end">
+        <bpmn:incoming>sf_delay_no</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="sf_risk_to_check" sourceRef="risk_start" targetRef="st_check_delays" />
+      <bpmn:sequenceFlow id="sf_check_to_gw" sourceRef="st_check_delays" targetRef="gw_critical_delay" />
+      <bpmn:sequenceFlow id="sf_delay_yes" sourceRef="gw_critical_delay" targetRef="ut_delay_mitigation">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${criticalDelay == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="sf_delay_no" sourceRef="gw_critical_delay" targetRef="risk_end">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${criticalDelay == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="sf_risk_continue" sourceRef="ut_delay_mitigation" targetRef="st_check_delays" />
+    </bpmn:subProcess>
+
+    <!-- Join all parallel tracks -->
+    <bpmn:parallelGateway id="pg_tracking_end" name="All tracking complete">
+      <bpmn:incoming>sf_weekly_done</bpmn:incoming>
+      <bpmn:incoming>sf_resource_done</bpmn:incoming>
+      <bpmn:incoming>sf_risk_done</bpmn:incoming>
+      <bpmn:outgoing>sf_tracking_to_final</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: Final Contractor Closeout                                   -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_final_accounting" name="Slutavräkning entreprenör"
+                   camunda:candidateGroups="project_managers,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Final contractor accounting per AB 04 chapter 6:
+        - Verify all ÄTA (changes/additions) are documented
+        - Final cost reconciliation
+        - Performance evaluation
+        - Warranty period activation
+      </bpmn:documentation>
+      <bpmn:incoming>sf_tracking_to_final</bpmn:incoming>
+      <bpmn:outgoing>sf_final_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_audit_scheduling" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_final_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end_scheduling" name="Planering klar">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_create" sourceRef="start_scheduling" targetRef="ut_create_wbs" />
+    <bpmn:sequenceFlow id="sf_create_to_schedule" sourceRef="ut_create_wbs" targetRef="st_generate_schedule" />
+    <bpmn:sequenceFlow id="sf_schedule_to_review" sourceRef="st_generate_schedule" targetRef="ut_review_schedule" />
+    <bpmn:sequenceFlow id="sf_review_to_approve" sourceRef="ut_review_schedule" targetRef="ut_approve_schedule" />
+    <bpmn:sequenceFlow id="sf_approve_to_fork" sourceRef="ut_approve_schedule" targetRef="pg_tracking_start" />
+    <bpmn:sequenceFlow id="sf_to_weekly_cycle" sourceRef="pg_tracking_start" targetRef="sp_weekly_cycle" />
+    <bpmn:sequenceFlow id="sf_to_resource_mgmt" sourceRef="pg_tracking_start" targetRef="sp_resource_mgmt" />
+    <bpmn:sequenceFlow id="sf_to_risk_monitor" sourceRef="pg_tracking_start" targetRef="sp_risk_monitor" />
+    <bpmn:sequenceFlow id="sf_weekly_done" sourceRef="sp_weekly_cycle" targetRef="pg_tracking_end" />
+    <bpmn:sequenceFlow id="sf_resource_done" sourceRef="sp_resource_mgmt" targetRef="pg_tracking_end" />
+    <bpmn:sequenceFlow id="sf_risk_done" sourceRef="sp_risk_monitor" targetRef="pg_tracking_end" />
+    <bpmn:sequenceFlow id="sf_tracking_to_final" sourceRef="pg_tracking_end" targetRef="ut_final_accounting" />
+    <bpmn:sequenceFlow id="sf_final_to_audit" sourceRef="ut_final_accounting" targetRef="st_audit_scheduling" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_scheduling" targetRef="end_scheduling" />
+
+  </bpmn:process>
+
+</bpmn:definitions>

@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="investigation-phase-definitions"
+                   targetNamespace="http://doorman.local/investigation-phase">
+
+  <!-- ================================================================== -->
+  <!-- INVESTIGATION PHASE (Utredning)                                     -->
+  <!-- PLCS: AS_REQUIRED                                                   -->
+  <!-- Swedish building phase: Utredning                                   -->
+  <!--                                                                     -->
+  <!-- Activities:                                                         -->
+  <!--   1. Stakeholder needs gathering                                    -->
+  <!--   2. Space program (Lokalprogram) development                       -->
+  <!--   3. Risk analysis and environmental assessment                     -->
+  <!--   4. Regulatory pre-check (building permit feasibility)             -->
+  <!--   5. Phase gate approval                                            -->
+  <!--                                                                     -->
+  <!-- Samrum modules: 94 (Programprocessen), 69, 71, 92                   -->
+  <!-- ================================================================== -->
+  <bpmn:process id="investigation-phase" name="Utredningsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Utredning startad">
+      <bpmn:outgoing>flow_start_to_stakeholder</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Stakeholder Needs Gathering                            -->
+    <!-- Collect requirements from occupants, owner, FM                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="gather_stakeholder_needs" name="Samla intressenters behov"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Identify all stakeholders. Collect functional requirements from occupants,
+        technical requirements from FM, and strategic requirements from owner.
+        Document in requirement specification (Kravspecifikation).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_stakeholder</bpmn:incoming>
+      <bpmn:outgoing>flow_stakeholder_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Parallel: Space program + Risk analysis + Regulatory check -->
+    <bpmn:parallelGateway id="fork_investigation" name="Parallella utredningar">
+      <bpmn:incoming>flow_stakeholder_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_space</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_risk</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_regulatory</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- TRACK A: Space Program (Lokalprogram)                          -->
+    <!-- Samrum module: 94 (1.00 Programprocessen)                      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="develop_space_program" name="Utveckla lokalprogram"
+                   camunda:candidateGroups="project_managers,designers_architect"
+                   camunda:formKey="doorman:47:9">
+      <bpmn:documentation>
+        Develop space program (Lokalprogram): room types, areas, adjacencies,
+        special requirements (clean rooms, server rooms, etc.).
+        Input: stakeholder needs. Output: spatial requirements document.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_space</bpmn:incoming>
+      <bpmn:outgoing>flow_space_to_occupant</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="occupant_review_space" name="Nyttjarens granskning"
+                   camunda:candidateGroups="occupants,facility_managers"
+                   camunda:formKey="doorman:47:9">
+      <bpmn:documentation>
+        Occupants and FM review space program. Verify that all functional
+        needs are captured. Flag missing requirements or conflicts.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_space_to_occupant</bpmn:incoming>
+      <bpmn:outgoing>flow_occupant_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK B: Risk Analysis                                         -->
+    <!-- Environmental, structural, geotechnical risks                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="risk_analysis" name="Riskanalys"
+                   camunda:candidateGroups="project_managers,designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Perform risk analysis: environmental risks, structural conditions,
+        geotechnical survey, asbestos/hazardous materials survey (for renovation).
+        Output: Risk matrix with mitigation strategies.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_risk_to_env</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="environmental_assessment" name="Miljobedomning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Environmental impact assessment. Energy targets, sustainability goals,
+        BREEAM/Miljobyggnad certification targets. Climate declaration requirements.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_risk_to_env</bpmn:incoming>
+      <bpmn:outgoing>flow_env_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK C: Regulatory Pre-check                                  -->
+    <!-- Building permit feasibility, zoning, accessibility              -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="regulatory_precheck" name="Myndighetsforkontroll"
+                   camunda:candidateGroups="project_managers,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Pre-check with municipality: zoning (detaljplan) compliance,
+        building permit (bygglov) feasibility, accessibility requirements (BBR),
+        heritage protection (K-marking), environmental permits.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_regulatory</bpmn:incoming>
+      <bpmn:outgoing>flow_regulatory_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join parallel tracks -->
+    <bpmn:parallelGateway id="join_investigation">
+      <bpmn:incoming>flow_occupant_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_env_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_regulatory_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_budget</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: Budget Estimate                                        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="budget_estimate" name="Budgetuppskattning"
+                   camunda:candidateGroups="project_managers,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Develop rough cost estimate (+/- 30%) based on space program,
+        risk analysis findings, and regulatory requirements.
+        Include: construction, consultant fees, permits, contingency.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_budget</bpmn:incoming>
+      <bpmn:outgoing>flow_budget_to_compile</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Compile Investigation Report                           -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="compile_investigation" name="Sammanstall utredningsrapport"
+                      camunda:delegateExpression="${reportCompileDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="reportType" stringValue="investigation" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_budget_to_compile</bpmn:incoming>
+      <bpmn:outgoing>flow_compile_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE GATE: Owner approval                                     -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="approve_investigation" name="Godkann utredning"
+                   camunda:candidateGroups="owners,approvers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Property owner reviews investigation report:
+        - Space program meets strategic objectives
+        - Budget estimate is acceptable
+        - Risks are manageable
+        - Regulatory path is clear
+        Decision: Approve (proceed to Pre-study) or Reject (rework).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_compile_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_investigation" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Utredning klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_stakeholder" sourceRef="start" targetRef="gather_stakeholder_needs" />
+    <bpmn:sequenceFlow id="flow_stakeholder_to_fork" sourceRef="gather_stakeholder_needs" targetRef="fork_investigation" />
+    <bpmn:sequenceFlow id="flow_fork_to_space" sourceRef="fork_investigation" targetRef="develop_space_program" />
+    <bpmn:sequenceFlow id="flow_fork_to_risk" sourceRef="fork_investigation" targetRef="risk_analysis" />
+    <bpmn:sequenceFlow id="flow_fork_to_regulatory" sourceRef="fork_investigation" targetRef="regulatory_precheck" />
+    <bpmn:sequenceFlow id="flow_space_to_occupant" sourceRef="develop_space_program" targetRef="occupant_review_space" />
+    <bpmn:sequenceFlow id="flow_occupant_to_join" sourceRef="occupant_review_space" targetRef="join_investigation" />
+    <bpmn:sequenceFlow id="flow_risk_to_env" sourceRef="risk_analysis" targetRef="environmental_assessment" />
+    <bpmn:sequenceFlow id="flow_env_to_join" sourceRef="environmental_assessment" targetRef="join_investigation" />
+    <bpmn:sequenceFlow id="flow_regulatory_to_join" sourceRef="regulatory_precheck" targetRef="join_investigation" />
+    <bpmn:sequenceFlow id="flow_join_to_budget" sourceRef="join_investigation" targetRef="budget_estimate" />
+    <bpmn:sequenceFlow id="flow_budget_to_compile" sourceRef="budget_estimate" targetRef="compile_investigation" />
+    <bpmn:sequenceFlow id="flow_compile_to_approve" sourceRef="compile_investigation" targetRef="approve_investigation" />
+    <bpmn:sequenceFlow id="flow_approve_to_audit" sourceRef="approve_investigation" targetRef="audit_investigation" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_investigation" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="investigation-diagram">
+    <bpmndi:BPMNPlane id="investigation-plane" bpmnElement="investigation-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gather_di" bpmnElement="gather_stakeholder_needs"><dc:Bounds x="140" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_investigation"><dc:Bounds x="310" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="space_di" bpmnElement="develop_space_program"><dc:Bounds x="420" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="occupant_di" bpmnElement="occupant_review_space"><dc:Bounds x="590" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="risk_di" bpmnElement="risk_analysis"><dc:Bounds x="420" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="env_di" bpmnElement="environmental_assessment"><dc:Bounds x="590" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="reg_di" bpmnElement="regulatory_precheck"><dc:Bounds x="420" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_investigation"><dc:Bounds x="760" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="budget_di" bpmnElement="budget_estimate"><dc:Bounds x="860" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="compile_di" bpmnElement="compile_investigation"><dc:Bounds x="1030" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_investigation"><dc:Bounds x="1200" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1450" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

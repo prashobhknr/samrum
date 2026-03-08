@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="handover-phase-definitions"
+                   targetNamespace="http://doorman.local/handover-phase">
+
+  <!-- ================================================================== -->
+  <!-- HANDOVER PHASE (Overlamning)                                        -->
+  <!-- PLCS: AS_REALIZED -> AS_IS                                          -->
+  <!-- Swedish building phase: Overlamning                                 -->
+  <!-- ISO 19650: PIM -> AIM transfer                                      -->
+  <!--                                                                     -->
+  <!-- Critical transition: project team hands to operations team          -->
+  <!--                                                                     -->
+  <!-- Activities:                                                         -->
+  <!--   1. Documentation completeness validation                          -->
+  <!--   2. AIM (Asset Information Model) population                       -->
+  <!--   3. FM team training                                               -->
+  <!--   4. Occupant move-in preparation                                   -->
+  <!--   5. Warranty period activation                                     -->
+  <!--   6. FM acceptance                                                  -->
+  <!-- ================================================================== -->
+  <bpmn:process id="handover-phase" name="Overlamningsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Overlamning startad">
+      <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Parallel: Documentation + Training + Move-in prep -->
+    <bpmn:parallelGateway id="fork_handover">
+      <bpmn:incoming>flow_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_docs</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_training</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_movein</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- TRACK A: Documentation and AIM Transfer                        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="validate_documentation" name="Validera dokumentation"
+                   camunda:candidateGroups="project_managers,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Validate completeness of as-built documentation:
+        - All relationshandlingar received
+        - DU-instruktioner (operation/maintenance manuals) complete
+        - Certificates and test protocols archived
+        - BIM model updated to as-built
+        - Fire safety documentation (brandskyddsdokumentation) complete
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_docs</bpmn:incoming>
+      <bpmn:outgoing>flow_docs_to_aim</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="populate_aim" name="Populera AIM"
+                      camunda:delegateExpression="${aimPopulationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="action" stringValue="transfer_pim_to_aim" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_docs_to_aim</bpmn:incoming>
+      <bpmn:outgoing>flow_aim_to_validate_aim</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="validate_aim" name="Validera AIM-data"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        FM validates AIM data quality:
+        - All object instances have required operational attributes
+        - Serial numbers and model data correct
+        - Maintenance schedules populated
+        - Spatial references (room assignments) correct
+        - value_qualifier changed from TARGET/CALCULATED to MEASURED
+      </bpmn:documentation>
+      <bpmn:incoming>flow_aim_to_validate_aim</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_aim_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK B: FM Team Training                                      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="fm_training" name="Utbildning driftpersonal"
+                   camunda:candidateGroups="contractors,maintenance,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Contractor provides training to FM/operations team:
+        - System-by-system walkthrough
+        - Normal operation procedures
+        - Emergency procedures
+        - Maintenance procedures
+        - Building Management System (BMS) training
+        Training records documented.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_training</bpmn:incoming>
+      <bpmn:outgoing>flow_training_to_keys</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="handover_keys_access" name="Overlamna nycklar och behorighet"
+                   camunda:candidateGroups="security_admin,facility_managers"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Transfer keys and access rights:
+        - Physical keys handed over (key receipt signed)
+        - Access control master credentials transferred
+        - System admin passwords transferred
+        - Key groups (Nyckelgrupper) documented and assigned
+        - Contractor access revoked or reduced
+      </bpmn:documentation>
+      <bpmn:incoming>flow_training_to_keys</bpmn:incoming>
+      <bpmn:outgoing>flow_keys_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK C: Move-in Preparation                                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="movein_preparation" name="Forbered inflyttning"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare for occupant move-in:
+        - Final cleaning
+        - Furniture and equipment installation
+        - Signage and wayfinding
+        - Tenant communication plan
+        - Move-in schedule per floor/zone
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_movein</bpmn:incoming>
+      <bpmn:outgoing>flow_movein_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join handover tracks -->
+    <bpmn:parallelGateway id="join_handover">
+      <bpmn:incoming>flow_validate_aim_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_keys_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_movein_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_warranty</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP: Activate Warranty Period                                 -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="activate_warranty" name="Aktivera garantitid"
+                      camunda:delegateExpression="${warrantyActivationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="warrantyDurationYears" stringValue="5" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_join_to_warranty</bpmn:incoming>
+      <bpmn:outgoing>flow_warranty_to_accept</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE GATE: FM Acceptance                                      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="fm_acceptance" name="FM-godkannande"
+                   camunda:candidateGroups="facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Facility management formal acceptance:
+        - AIM data quality verified
+        - Training completed satisfactorily
+        - Keys and access transferred
+        - Maintenance contracts in place
+        - Building ready for occupancy
+        Decision: Accept (proceed to Operations) or Reject (remediate gaps).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_warranty_to_accept</bpmn:incoming>
+      <bpmn:outgoing>flow_accept_to_slutbesked</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP: Obtain Slutbesked (Final Approval from Municipality)     -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="obtain_slutbesked" name="Erhall slutbesked"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Apply for Slutbesked from municipality (Byggnadsnamnden).
+        Required before building may be used.
+        Requires: control plan verified, inspection results, energy declaration.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_accept_to_slutbesked</bpmn:incoming>
+      <bpmn:outgoing>flow_slutbesked_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_handover" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_slutbesked_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Overlamning klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_fork" sourceRef="start" targetRef="fork_handover" />
+    <bpmn:sequenceFlow id="flow_to_docs" sourceRef="fork_handover" targetRef="validate_documentation" />
+    <bpmn:sequenceFlow id="flow_to_training" sourceRef="fork_handover" targetRef="fm_training" />
+    <bpmn:sequenceFlow id="flow_to_movein" sourceRef="fork_handover" targetRef="movein_preparation" />
+    <bpmn:sequenceFlow id="flow_docs_to_aim" sourceRef="validate_documentation" targetRef="populate_aim" />
+    <bpmn:sequenceFlow id="flow_aim_to_validate_aim" sourceRef="populate_aim" targetRef="validate_aim" />
+    <bpmn:sequenceFlow id="flow_validate_aim_to_join" sourceRef="validate_aim" targetRef="join_handover" />
+    <bpmn:sequenceFlow id="flow_training_to_keys" sourceRef="fm_training" targetRef="handover_keys_access" />
+    <bpmn:sequenceFlow id="flow_keys_to_join" sourceRef="handover_keys_access" targetRef="join_handover" />
+    <bpmn:sequenceFlow id="flow_movein_to_join" sourceRef="movein_preparation" targetRef="join_handover" />
+    <bpmn:sequenceFlow id="flow_join_to_warranty" sourceRef="join_handover" targetRef="activate_warranty" />
+    <bpmn:sequenceFlow id="flow_warranty_to_accept" sourceRef="activate_warranty" targetRef="fm_acceptance" />
+    <bpmn:sequenceFlow id="flow_accept_to_slutbesked" sourceRef="fm_acceptance" targetRef="obtain_slutbesked" />
+    <bpmn:sequenceFlow id="flow_slutbesked_to_audit" sourceRef="obtain_slutbesked" targetRef="audit_handover" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_handover" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="handover-diagram">
+    <bpmndi:BPMNPlane id="handover-plane" bpmnElement="handover-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_handover"><dc:Bounds x="140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_docs_di" bpmnElement="validate_documentation"><dc:Bounds x="250" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="aim_di" bpmnElement="populate_aim"><dc:Bounds x="420" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_aim_di" bpmnElement="validate_aim"><dc:Bounds x="590" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="training_di" bpmnElement="fm_training"><dc:Bounds x="250" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="keys_di" bpmnElement="handover_keys_access"><dc:Bounds x="420" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="movein_di" bpmnElement="movein_preparation"><dc:Bounds x="250" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_handover"><dc:Bounds x="760" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="warranty_di" bpmnElement="activate_warranty"><dc:Bounds x="860" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="accept_di" bpmnElement="fm_acceptance"><dc:Bounds x="1030" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="slutbesked_di" bpmnElement="obtain_slutbesked"><dc:Bounds x="1200" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1430" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

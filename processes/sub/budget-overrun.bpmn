@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="budget-overrun-definitions"
+                   targetNamespace="http://doorman.local/sub">
+
+  <bpmn:process id="budget-overrun-handling" name="Budgetöverskridning och ÄTA-hantering"
+                isExecutable="true"
+                camunda:historyTimeToLive="365">
+
+    <!-- =================================================================== -->
+    <!-- Budget Overrun & ÄTA (Ändrings- och Tilläggsarbeten) Handling         -->
+    <!-- Swedish construction contract law: AB 04 chapter 2 (ÄTA)             -->
+    <!--                                                                       -->
+    <!-- Triggered when:                                                       -->
+    <!--   1. Cost monitoring detects budget deviation > threshold              -->
+    <!--   2. Contractor requests ÄTA (change order)                           -->
+    <!--   3. Unforeseen site conditions discovered                            -->
+    <!--                                                                       -->
+    <!-- Three severity levels:                                                -->
+    <!--   Minor: < 5% of contract value → PM decision                         -->
+    <!--   Moderate: 5-15% → PM + owner decision                               -->
+    <!--   Major: > 15% → full re-scoping exercise                             -->
+    <!-- =================================================================== -->
+
+    <bpmn:startEvent id="start_budget" name="Budgetavvikelse upptäckt">
+      <bpmn:outgoing>sf_start_to_assess</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 1: Assessment                                                   -->
+    <!-- =================================================================== -->
+    <bpmn:serviceTask id="st_cost_analysis" name="Kostnadsanalys"
+                      camunda:delegateExpression="${costAnalysisDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="thresholds">minor:5,moderate:15,major:25</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_start_to_assess</bpmn:incoming>
+      <bpmn:outgoing>sf_assess_to_classify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ut_classify_deviation" name="Klassificera avvikelse"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Classify the budget deviation:
+        - Source: ÄTA from contractor, design change, unforeseen conditions, price escalation
+        - Severity: minor (&lt;5%), moderate (5-15%), major (&gt;15%)
+        - Affected disciplines
+        - Impact on schedule
+        Review cost analysis report and validate deviation amount.
+      </bpmn:documentation>
+      <bpmn:incoming>sf_assess_to_classify</bpmn:incoming>
+      <bpmn:outgoing>sf_classify_to_gw</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_severity" name="Avvikelsens storlek?">
+      <bpmn:incoming>sf_classify_to_gw</bpmn:incoming>
+      <bpmn:outgoing>sf_minor</bpmn:outgoing>
+      <bpmn:outgoing>sf_moderate</bpmn:outgoing>
+      <bpmn:outgoing>sf_major</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- =================================================================== -->
+    <!-- PATH A: Minor deviation (< 5%) — PM handles                          -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_minor_decision" name="PM-beslut (mindre avvikelse)"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Minor budget deviation (&lt;5% of contract value):
+        - PM authorized to approve within contingency
+        - Document ÄTA per AB 04 §2.4
+        - Update project cost forecast
+        - No owner approval required
+      </bpmn:documentation>
+      <bpmn:incoming>sf_minor</bpmn:incoming>
+      <bpmn:outgoing>sf_minor_to_ata</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PATH B: Moderate deviation (5-15%) — PM + Owner                       -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_prepare_impact" name="Utred konsekvenser"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Moderate deviation impact analysis:
+        - Revised total project cost
+        - Schedule impact (delay days)
+        - Options for scope reduction to offset
+        - Risk assessment of proceeding vs. re-scoping
+      </bpmn:documentation>
+      <bpmn:incoming>sf_moderate</bpmn:incoming>
+      <bpmn:outgoing>sf_impact_to_owner</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_owner_decision" name="Ägarbeslut"
+                   camunda:candidateGroups="owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Owner decision on moderate budget deviation:
+        - Approve: proceed with increased budget
+        - Reduce scope: identify items to defer/remove
+        - Reject: contractor bears cost (if ÄTA not justified)
+      </bpmn:documentation>
+      <bpmn:incoming>sf_impact_to_owner</bpmn:incoming>
+      <bpmn:outgoing>sf_owner_to_gw_decision</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_owner_decision" name="Ägarbeslut?">
+      <bpmn:incoming>sf_owner_to_gw_decision</bpmn:incoming>
+      <bpmn:outgoing>sf_owner_approve</bpmn:outgoing>
+      <bpmn:outgoing>sf_owner_reduce</bpmn:outgoing>
+      <bpmn:outgoing>sf_owner_reject</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_scope_reduction" name="Genomför omfångsreduktion"
+                   camunda:candidateGroups="project_managers,designers_architect"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Scope reduction exercise:
+        - Identify non-critical items that can be deferred
+        - Value engineering alternatives
+        - Negotiate with contractors for cost savings
+        - Update project scope documents
+      </bpmn:documentation>
+      <bpmn:incoming>sf_owner_reduce</bpmn:incoming>
+      <bpmn:outgoing>sf_reduce_to_ata</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PATH C: Major deviation (> 15%) — Full re-scoping                     -->
+    <!-- =================================================================== -->
+    <bpmn:userTask id="ut_emergency_review" name="Krisgenomgång"
+                   camunda:candidateGroups="project_managers,owners,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Major budget deviation (&gt;15%):
+        - Emergency project review meeting
+        - Root cause analysis
+        - Options: continue, pause, restructure, terminate
+        - Legal review of contract obligations
+        - Insurance claim assessment
+      </bpmn:documentation>
+      <bpmn:incoming>sf_major</bpmn:incoming>
+      <bpmn:outgoing>sf_emergency_to_gw</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_continue_project" name="Fortsätt projekt?">
+      <bpmn:incoming>sf_emergency_to_gw</bpmn:incoming>
+      <bpmn:outgoing>sf_continue_yes</bpmn:outgoing>
+      <bpmn:outgoing>sf_continue_pause</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_restructure" name="Omstrukturera projekt"
+                   camunda:candidateGroups="project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Project restructuring:
+        - New budget ceiling from owner
+        - Revised scope and phasing
+        - Potential contract renegotiation
+        - Updated schedule baseline
+        - New risk contingency allocation
+      </bpmn:documentation>
+      <bpmn:incoming>sf_continue_yes</bpmn:incoming>
+      <bpmn:outgoing>sf_restructure_to_ata</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="ut_pause_project" name="Pausa projekt"
+                   camunda:candidateGroups="project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Project pause per AB 04 §8:
+        - Notify all contractors
+        - Secure site and materials
+        - Document current status
+        - Define conditions for restart
+        - Handle contractor standstill costs
+      </bpmn:documentation>
+      <bpmn:incoming>sf_continue_pause</bpmn:incoming>
+      <bpmn:outgoing>sf_pause_to_end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- =================================================================== -->
+    <!-- PHASE 3: ÄTA Documentation & Update                                  -->
+    <!-- =================================================================== -->
+    <bpmn:exclusiveGateway id="gw_ata_merge" name="Merge ÄTA paths">
+      <bpmn:incoming>sf_minor_to_ata</bpmn:incoming>
+      <bpmn:incoming>sf_owner_approve</bpmn:incoming>
+      <bpmn:incoming>sf_reduce_to_ata</bpmn:incoming>
+      <bpmn:incoming>sf_restructure_to_ata</bpmn:incoming>
+      <bpmn:outgoing>sf_merge_to_document</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="ut_document_ata" name="Dokumentera ÄTA"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Document ÄTA per AB 04 §2:
+        - ÄTA number and description
+        - Cost breakdown (material, labor, equipment)
+        - Schedule impact
+        - Contractor signature
+        - Owner/PM approval signature
+        - Attach supporting documentation
+      </bpmn:documentation>
+      <bpmn:incoming>sf_merge_to_document</bpmn:incoming>
+      <bpmn:outgoing>sf_document_to_update</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="st_update_budget" name="Uppdatera projektbudget"
+                      camunda:delegateExpression="${budgetUpdateDelegate}">
+      <bpmn:incoming>sf_document_to_update</bpmn:incoming>
+      <bpmn:outgoing>sf_update_to_notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_notify_stakeholders" name="Notifiera intressenter"
+                      camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="recipients">project_managers,owners,finance</camunda:inputParameter>
+          <camunda:inputParameter name="template">budget_update</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>sf_update_to_notify</bpmn:incoming>
+      <bpmn:outgoing>sf_notify_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="st_audit_budget" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>sf_notify_to_audit</bpmn:incoming>
+      <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Rejected ÄTA path -->
+    <bpmn:userTask id="ut_notify_rejection" name="Meddela avslag"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>sf_owner_reject</bpmn:incoming>
+      <bpmn:outgoing>sf_reject_to_end</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gw_end_merge" name="Merge end paths">
+      <bpmn:incoming>sf_audit_to_end</bpmn:incoming>
+      <bpmn:incoming>sf_reject_to_end</bpmn:incoming>
+      <bpmn:incoming>sf_pause_to_end</bpmn:incoming>
+      <bpmn:outgoing>sf_to_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="end_budget" name="Budgethantering klar">
+      <bpmn:incoming>sf_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- =================================================================== -->
+    <!-- SEQUENCE FLOWS                                                       -->
+    <!-- =================================================================== -->
+    <bpmn:sequenceFlow id="sf_start_to_assess" sourceRef="start_budget" targetRef="st_cost_analysis" />
+    <bpmn:sequenceFlow id="sf_assess_to_classify" sourceRef="st_cost_analysis" targetRef="ut_classify_deviation" />
+    <bpmn:sequenceFlow id="sf_classify_to_gw" sourceRef="ut_classify_deviation" targetRef="gw_severity" />
+
+    <!-- Minor path -->
+    <bpmn:sequenceFlow id="sf_minor" sourceRef="gw_severity" targetRef="ut_minor_decision">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${deviationLevel == 'minor'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_minor_to_ata" sourceRef="ut_minor_decision" targetRef="gw_ata_merge" />
+
+    <!-- Moderate path -->
+    <bpmn:sequenceFlow id="sf_moderate" sourceRef="gw_severity" targetRef="ut_prepare_impact">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${deviationLevel == 'moderate'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_impact_to_owner" sourceRef="ut_prepare_impact" targetRef="ut_owner_decision" />
+    <bpmn:sequenceFlow id="sf_owner_to_gw_decision" sourceRef="ut_owner_decision" targetRef="gw_owner_decision" />
+    <bpmn:sequenceFlow id="sf_owner_approve" sourceRef="gw_owner_decision" targetRef="gw_ata_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'approve'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_owner_reduce" sourceRef="gw_owner_decision" targetRef="ut_scope_reduction">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'reduce'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_owner_reject" sourceRef="gw_owner_decision" targetRef="ut_notify_rejection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'reject'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_reduce_to_ata" sourceRef="ut_scope_reduction" targetRef="gw_ata_merge" />
+
+    <!-- Major path -->
+    <bpmn:sequenceFlow id="sf_major" sourceRef="gw_severity" targetRef="ut_emergency_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${deviationLevel == 'major'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_emergency_to_gw" sourceRef="ut_emergency_review" targetRef="gw_continue_project" />
+    <bpmn:sequenceFlow id="sf_continue_yes" sourceRef="gw_continue_project" targetRef="ut_restructure">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${continueProject == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_continue_pause" sourceRef="gw_continue_project" targetRef="ut_pause_project">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${continueProject == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="sf_restructure_to_ata" sourceRef="ut_restructure" targetRef="gw_ata_merge" />
+
+    <!-- ÄTA documentation -->
+    <bpmn:sequenceFlow id="sf_merge_to_document" sourceRef="gw_ata_merge" targetRef="ut_document_ata" />
+    <bpmn:sequenceFlow id="sf_document_to_update" sourceRef="ut_document_ata" targetRef="st_update_budget" />
+    <bpmn:sequenceFlow id="sf_update_to_notify" sourceRef="st_update_budget" targetRef="st_notify_stakeholders" />
+    <bpmn:sequenceFlow id="sf_notify_to_audit" sourceRef="st_notify_stakeholders" targetRef="st_audit_budget" />
+    <bpmn:sequenceFlow id="sf_audit_to_end" sourceRef="st_audit_budget" targetRef="gw_end_merge" />
+    <bpmn:sequenceFlow id="sf_reject_to_end" sourceRef="ut_notify_rejection" targetRef="gw_end_merge" />
+    <bpmn:sequenceFlow id="sf_pause_to_end" sourceRef="ut_pause_project" targetRef="gw_end_merge" />
+    <bpmn:sequenceFlow id="sf_to_end" sourceRef="gw_end_merge" targetRef="end_budget" />
+
+  </bpmn:process>
+
+</bpmn:definitions>
