@@ -56,8 +56,7 @@ docker-compose.override.yml
 *.bak
 frontend/.next/
 .pids/
-camunda-bpm-run/*
-!camunda-bpm-run/configuration/
-camunda-bpm-run/configuration/*
-!camunda-bpm-run/configuration/default.yml
-camunda-bpm-run-*.zip
+
+# Next.js build output (never commit this)
+frontend/.next/
+.pids/
