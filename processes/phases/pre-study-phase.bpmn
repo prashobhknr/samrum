@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="pre-study-phase-definitions"
+                   targetNamespace="http://doorman.local/pre-study-phase">
+
+  <!-- ================================================================== -->
+  <!-- PRE-STUDY PHASE (Forstudie)                                         -->
+  <!-- PLCS: AS_REQUIRED                                                   -->
+  <!-- Swedish building phase: Forstudie                                   -->
+  <!--                                                                     -->
+  <!-- Activities:                                                         -->
+  <!--   1. Concept design alternatives                                    -->
+  <!--   2. Technical feasibility per discipline                           -->
+  <!--   3. Preliminary cost estimation (+/- 15%)                          -->
+  <!--   4. Building permit preparation                                    -->
+  <!--   5. Project scope definition and timeline                          -->
+  <!--   6. Phase gate: budget + scope approval                            -->
+  <!-- ================================================================== -->
+  <bpmn:process id="pre-study-phase" name="Forstudiefas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Forstudie startad">
+      <bpmn:outgoing>flow_start_to_concept</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Concept Design Alternatives                            -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="concept_alternatives" name="Konceptalternativ"
+                   camunda:candidateGroups="designers_architect,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Develop 2-3 concept design alternatives based on the space program.
+        Include: floor plan sketches, massing studies, site analysis.
+        Evaluate each alternative against requirements and constraints.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_concept</bpmn:incoming>
+      <bpmn:outgoing>flow_concept_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Parallel: Technical feasibility per discipline -->
+    <bpmn:parallelGateway id="fork_feasibility">
+      <bpmn:incoming>flow_concept_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_hvac</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_elec</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_access</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK A: Structural feasibility -->
+    <bpmn:userTask id="structural_feasibility" name="Konstruktiv forstudie"
+                   camunda:candidateGroups="designers_structural"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Preliminary structural assessment: foundation conditions, load-bearing
+        capacity (for renovation), structural system options, seismic considerations.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK B: HVAC feasibility -->
+    <bpmn:userTask id="hvac_feasibility" name="VVS-forstudie"
+                   camunda:candidateGroups="designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Preliminary HVAC assessment: energy system options, district heating/cooling
+        availability, ventilation strategy (CAV/VAV/DCV), preliminary energy calculation.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_hvac</bpmn:incoming>
+      <bpmn:outgoing>flow_hvac_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK C: Fire safety feasibility -->
+    <bpmn:userTask id="fire_feasibility" name="Brandskydd forstudie"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Preliminary fire safety assessment: fire strategy (analytical or prescriptive),
+        evacuation concept, fire compartment layout, sprinkler needs.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK D: Electrical feasibility -->
+    <bpmn:userTask id="electrical_feasibility" name="El-forstudie"
+                   camunda:candidateGroups="designers_electrical"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Preliminary electrical assessment: power supply capacity, transformer needs,
+        backup power, solar/renewable potential, EV charging infrastructure.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_elec_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK E: Access/Security feasibility -->
+    <bpmn:userTask id="access_feasibility" name="Sakerhets-forstudie"
+                   camunda:candidateGroups="designers_security,security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Preliminary security assessment: access control level, security zones,
+        camera/surveillance needs, key management strategy.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join feasibility tracks -->
+    <bpmn:parallelGateway id="join_feasibility">
+      <bpmn:incoming>flow_structural_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_hvac_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_fire_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_elec_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_access_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_select</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: Select Preferred Concept                               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="select_concept" name="Valj koncept"
+                   camunda:candidateGroups="project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Evaluate concept alternatives against feasibility findings.
+        Select preferred concept. Document decision rationale.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_select</bpmn:incoming>
+      <bpmn:outgoing>flow_select_to_cost</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 4: Preliminary Cost Estimation                            -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="cost_estimation" name="Preliminar kostnadsberakning"
+                   camunda:candidateGroups="project_managers,finance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Detailed cost estimate (+/- 15%) for selected concept.
+        Include: construction costs per discipline, consultant fees,
+        building permit fees, project management, contingency (10-15%).
+        Compare to budget estimate from investigation phase.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_select_to_cost</bpmn:incoming>
+      <bpmn:outgoing>flow_cost_to_timeline</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: Project Scope and Timeline                             -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="define_scope_timeline" name="Definiera omfattning och tidplan"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Define: project scope, deliverables per phase, discipline breakdown,
+        master timeline with milestones, resource plan, procurement strategy
+        (totalentreprenad, generalentreprenad, delad entreprenad).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_cost_to_timeline</bpmn:incoming>
+      <bpmn:outgoing>flow_timeline_to_permit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Building Permit Preparation                            -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="prepare_building_permit" name="Forbered bygglovsansokan"
+                   camunda:candidateGroups="designers_architect,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare building permit application (Bygglovsansokan):
+        - Architectural drawings (plan, elevation, section)
+        - Site plan (situationsplan)
+        - Technical description
+        - Accessibility statement
+        Submit to municipality (Byggnadsnamnden).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_timeline_to_permit</bpmn:incoming>
+      <bpmn:outgoing>flow_permit_to_compile</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 7: Compile Pre-study Report                               -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="compile_prestudy" name="Sammanstall forstudierrapport"
+                      camunda:delegateExpression="${reportCompileDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="reportType" stringValue="pre_study" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_permit_to_compile</bpmn:incoming>
+      <bpmn:outgoing>flow_compile_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PHASE GATE: Owner + FM approval                                -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="approve_prestudy" name="Godkann forstudie"
+                   camunda:candidateGroups="owners,facility_managers,approvers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Owner and FM review pre-study report:
+        - Selected concept meets requirements
+        - Cost estimate within budget
+        - Timeline is realistic
+        - FM requirements are addressed
+        Decision: Approve (proceed to Design), Reject (rework), or Cancel project.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_compile_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_prestudy" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Forstudie klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_concept" sourceRef="start" targetRef="concept_alternatives" />
+    <bpmn:sequenceFlow id="flow_concept_to_fork" sourceRef="concept_alternatives" targetRef="fork_feasibility" />
+    <bpmn:sequenceFlow id="flow_fork_to_structural" sourceRef="fork_feasibility" targetRef="structural_feasibility" />
+    <bpmn:sequenceFlow id="flow_fork_to_hvac" sourceRef="fork_feasibility" targetRef="hvac_feasibility" />
+    <bpmn:sequenceFlow id="flow_fork_to_fire" sourceRef="fork_feasibility" targetRef="fire_feasibility" />
+    <bpmn:sequenceFlow id="flow_fork_to_elec" sourceRef="fork_feasibility" targetRef="electrical_feasibility" />
+    <bpmn:sequenceFlow id="flow_fork_to_access" sourceRef="fork_feasibility" targetRef="access_feasibility" />
+    <bpmn:sequenceFlow id="flow_structural_to_join" sourceRef="structural_feasibility" targetRef="join_feasibility" />
+    <bpmn:sequenceFlow id="flow_hvac_to_join" sourceRef="hvac_feasibility" targetRef="join_feasibility" />
+    <bpmn:sequenceFlow id="flow_fire_to_join" sourceRef="fire_feasibility" targetRef="join_feasibility" />
+    <bpmn:sequenceFlow id="flow_elec_to_join" sourceRef="electrical_feasibility" targetRef="join_feasibility" />
+    <bpmn:sequenceFlow id="flow_access_to_join" sourceRef="access_feasibility" targetRef="join_feasibility" />
+    <bpmn:sequenceFlow id="flow_join_to_select" sourceRef="join_feasibility" targetRef="select_concept" />
+    <bpmn:sequenceFlow id="flow_select_to_cost" sourceRef="select_concept" targetRef="cost_estimation" />
+    <bpmn:sequenceFlow id="flow_cost_to_timeline" sourceRef="cost_estimation" targetRef="define_scope_timeline" />
+    <bpmn:sequenceFlow id="flow_timeline_to_permit" sourceRef="define_scope_timeline" targetRef="prepare_building_permit" />
+    <bpmn:sequenceFlow id="flow_permit_to_compile" sourceRef="prepare_building_permit" targetRef="compile_prestudy" />
+    <bpmn:sequenceFlow id="flow_compile_to_approve" sourceRef="compile_prestudy" targetRef="approve_prestudy" />
+    <bpmn:sequenceFlow id="flow_approve_to_audit" sourceRef="approve_prestudy" targetRef="audit_prestudy" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_prestudy" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="prestudy-diagram">
+    <bpmndi:BPMNPlane id="prestudy-plane" bpmnElement="pre-study-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="concept_di" bpmnElement="concept_alternatives"><dc:Bounds x="140" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_feasibility"><dc:Bounds x="310" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="structural_di" bpmnElement="structural_feasibility"><dc:Bounds x="420" y="20" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hvac_di" bpmnElement="hvac_feasibility"><dc:Bounds x="420" y="120" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_di" bpmnElement="fire_feasibility"><dc:Bounds x="420" y="220" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="elec_di" bpmnElement="electrical_feasibility"><dc:Bounds x="420" y="320" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="access_feasibility"><dc:Bounds x="420" y="420" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_feasibility"><dc:Bounds x="600" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="select_di" bpmnElement="select_concept"><dc:Bounds x="700" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="cost_di" bpmnElement="cost_estimation"><dc:Bounds x="870" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timeline_di" bpmnElement="define_scope_timeline"><dc:Bounds x="1040" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="permit_di" bpmnElement="prepare_building_permit"><dc:Bounds x="1210" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="compile_di" bpmnElement="compile_prestudy"><dc:Bounds x="700" y="360" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_prestudy"><dc:Bounds x="870" y="360" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1100" y="382" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

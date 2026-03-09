@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="warranty-definitions"
+                   targetNamespace="http://doorman.local/warranty">
+
+  <!-- ================================================================== -->
+  <!-- WARRANTY MANAGEMENT PROCESS                                         -->
+  <!-- Per AB 04 chapter 5: 5-year warranty (garantitid)                   -->
+  <!--                                                                     -->
+  <!-- Includes:                                                           -->
+  <!--   - Warranty claim process                                          -->
+  <!--   - 2-year warranty inspection (Garantibesiktning)                  -->
+  <!--   - 5-year warranty expiry and final inspection                     -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-warranty" name="Garantihantering" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Garantiperiod aktiv">
+      <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:parallelGateway id="fork_warranty">
+      <bpmn:incoming>flow_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_claims</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_2year</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_5year</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- TRACK A: Warranty Claim Handling (event-driven)                -->
+    <!-- ============================================================== -->
+    <bpmn:subProcess id="warranty_claims_subprocess" name="Garantiarenden">
+
+      <bpmn:startEvent id="claim_start" name="Garantiansprak">
+        <bpmn:outgoing>flow_claim_start</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:userTask id="report_defect" name="Rapportera brist"
+                     camunda:candidateGroups="facility_managers,maintenance"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>
+          Report warranty defect:
+          - Describe defect and location
+          - Classify severity (critical, major, minor)
+          - Attach photos
+          - Identify responsible contractor
+          Send warranty claim to contractor.
+        </bpmn:documentation>
+        <bpmn:incoming>flow_claim_start</bpmn:incoming>
+        <bpmn:outgoing>flow_report_to_assess</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:userTask id="contractor_assessment" name="Entreprenorens bedomning"
+                     camunda:candidateGroups="contractors"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>
+          Contractor assesses warranty claim:
+          - Acknowledge or dispute the claim
+          - Schedule repair if acknowledged
+          - Provide estimated repair date
+        </bpmn:documentation>
+        <bpmn:incoming>flow_report_to_assess</bpmn:incoming>
+        <bpmn:outgoing>flow_assess_to_gate</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:exclusiveGateway id="gate_warranty_accepted" name="Garanti godkand?">
+        <bpmn:incoming>flow_assess_to_gate</bpmn:incoming>
+        <bpmn:outgoing>flow_accepted</bpmn:outgoing>
+        <bpmn:outgoing>flow_disputed</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <bpmn:userTask id="repair_under_warranty" name="Reparation under garanti"
+                     camunda:candidateGroups="contractors"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:incoming>flow_accepted</bpmn:incoming>
+        <bpmn:outgoing>flow_repair_to_verify</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:userTask id="dispute_resolution" name="Tvist-hantering"
+                     camunda:candidateGroups="legal,project_managers,owners"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:documentation>Resolve warranty dispute. May involve independent inspection.</bpmn:documentation>
+        <bpmn:incoming>flow_disputed</bpmn:incoming>
+        <bpmn:outgoing>flow_dispute_to_verify</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:userTask id="verify_warranty_repair" name="Verifiera garantireparation"
+                     camunda:candidateGroups="facility_managers"
+                     camunda:formKey="doorman:generic:1">
+        <bpmn:incoming>flow_repair_to_verify</bpmn:incoming>
+        <bpmn:incoming>flow_dispute_to_verify</bpmn:incoming>
+        <bpmn:outgoing>flow_verify_to_end</bpmn:outgoing>
+      </bpmn:userTask>
+
+      <bpmn:endEvent id="claim_end" name="Garantiarende klart">
+        <bpmn:incoming>flow_verify_to_end</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="flow_claim_start" sourceRef="claim_start" targetRef="report_defect" />
+      <bpmn:sequenceFlow id="flow_report_to_assess" sourceRef="report_defect" targetRef="contractor_assessment" />
+      <bpmn:sequenceFlow id="flow_assess_to_gate" sourceRef="contractor_assessment" targetRef="gate_warranty_accepted" />
+      <bpmn:sequenceFlow id="flow_accepted" sourceRef="gate_warranty_accepted" targetRef="repair_under_warranty">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${claimAccepted == true}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="flow_disputed" sourceRef="gate_warranty_accepted" targetRef="dispute_resolution">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${claimAccepted == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="flow_repair_to_verify" sourceRef="repair_under_warranty" targetRef="verify_warranty_repair" />
+      <bpmn:sequenceFlow id="flow_dispute_to_verify" sourceRef="dispute_resolution" targetRef="verify_warranty_repair" />
+      <bpmn:sequenceFlow id="flow_verify_to_end" sourceRef="verify_warranty_repair" targetRef="claim_end" />
+    </bpmn:subProcess>
+
+    <!-- ============================================================== -->
+    <!-- TRACK B: 2-Year Warranty Inspection                            -->
+    <!-- Per AB 04 5 §6                                                 -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="wait_2years" name="Vanta 2 ar">
+      <bpmn:incoming>flow_to_2year</bpmn:incoming>
+      <bpmn:outgoing>flow_2year_to_inspect</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P730D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:userTask id="warranty_inspection_2yr" name="Garantibesiktning 2 ar"
+                   camunda:candidateGroups="facility_managers,supervisors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        2-year warranty inspection per AB 04:
+        - Review all reported defects and their resolution
+        - Identify new defects that appeared during warranty
+        - Document remaining items for contractor to fix
+        - Update warranty status in Doorman
+      </bpmn:documentation>
+      <bpmn:incoming>flow_2year_to_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_2yr_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK C: 5-Year Warranty Expiry                                -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="wait_5years" name="Vanta 5 ar">
+      <bpmn:incoming>flow_to_5year</bpmn:incoming>
+      <bpmn:outgoing>flow_5year_to_final</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>P1825D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:userTask id="final_warranty_review" name="Slutlig garantigranskning"
+                   camunda:candidateGroups="facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Final warranty review at 5 years:
+        - All outstanding warranty claims resolved?
+        - Final inspection of contractor's work
+        - Release remaining retention money (innehallen summa)
+        - Close warranty period in Doorman
+      </bpmn:documentation>
+      <bpmn:incoming>flow_5year_to_final</bpmn:incoming>
+      <bpmn:outgoing>flow_final_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join -->
+    <bpmn:parallelGateway id="join_warranty">
+      <bpmn:incoming>flow_claims_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_2yr_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_final_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_end</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:endEvent id="end" name="Garantiperiod avslutad">
+      <bpmn:incoming>flow_join_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_fork" sourceRef="start" targetRef="fork_warranty" />
+    <bpmn:sequenceFlow id="flow_to_claims" sourceRef="fork_warranty" targetRef="warranty_claims_subprocess" />
+    <bpmn:sequenceFlow id="flow_to_2year" sourceRef="fork_warranty" targetRef="wait_2years" />
+    <bpmn:sequenceFlow id="flow_to_5year" sourceRef="fork_warranty" targetRef="wait_5years" />
+    <bpmn:sequenceFlow id="flow_claims_to_join" sourceRef="warranty_claims_subprocess" targetRef="join_warranty" />
+    <bpmn:sequenceFlow id="flow_2year_to_inspect" sourceRef="wait_2years" targetRef="warranty_inspection_2yr" />
+    <bpmn:sequenceFlow id="flow_2yr_to_join" sourceRef="warranty_inspection_2yr" targetRef="join_warranty" />
+    <bpmn:sequenceFlow id="flow_5year_to_final" sourceRef="wait_5years" targetRef="final_warranty_review" />
+    <bpmn:sequenceFlow id="flow_final_to_join" sourceRef="final_warranty_review" targetRef="join_warranty" />
+    <bpmn:sequenceFlow id="flow_join_to_end" sourceRef="join_warranty" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="warranty-diagram">
+    <bpmndi:BPMNPlane id="warranty-plane" bpmnElement="operations-warranty">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_warranty"><dc:Bounds x="140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="claims_di" bpmnElement="warranty_claims_subprocess" isExpanded="false"><dc:Bounds x="250" y="60" width="200" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="wait2_di" bpmnElement="wait_2years"><dc:Bounds x="325" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect2_di" bpmnElement="warranty_inspection_2yr"><dc:Bounds x="420" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="wait5_di" bpmnElement="wait_5years"><dc:Bounds x="325" y="342" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="final_di" bpmnElement="final_warranty_review"><dc:Bounds x="420" y="320" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_warranty"><dc:Bounds x="610" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="720" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

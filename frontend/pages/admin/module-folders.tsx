@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import SamrumLayout from '../../components/SamrumLayout';
 import TreeNav, { TreeNode } from '../../components/TreeNav';
+import { getStoredToken } from '../../lib/auth';
+
+const API = 'http://localhost:3000';
 
 interface Folder extends Record<string, unknown> {
   id: number;
@@ -38,18 +41,116 @@ function buildFolderTree(folders: Folder[], modules: Module[]): TreeNode[] {
   return roots;
 }
 
+function authHeaders(): Record<string, string> {
+  const token = getStoredToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+interface FolderFormProps {
+  folders: Folder[];
+  folder?: Folder | null;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function FolderFormModal({ folders, folder, onClose, onSaved }: FolderFormProps) {
+  const [form, setForm] = useState({
+    name: folder?.name ?? '',
+    parent_id: folder?.parent_id != null ? String(folder.parent_id) : '',
+    description: folder?.description ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!form.name.trim()) { setError('Mappnamn krävs'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const body = { name: form.name.trim(), parent_id: form.parent_id ? parseInt(form.parent_id) : null, description: form.description.trim() || null };
+      const url = folder ? `${API}/api/admin/module-folders/${folder.id}` : `${API}/api/admin/module-folders`;
+      const method = folder ? 'PUT' : 'POST';
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (d.success) { onSaved(); onClose(); }
+      else setError(d.error ?? 'Kunde inte spara mappen');
+    } catch { setError('Nätverksfel'); }
+    finally { setSaving(false); }
+  };
+
+  // Prevent selecting self as parent when editing
+  const parentOptions = folders.filter(f => !folder || f.id !== folder.id);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">{folder ? 'Ändra mapp' : 'Ny mapp'}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mappnamn <span className="text-red-500">*</span></label>
+            <input
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              value={form.name}
+              onChange={e => setForm(v => ({ ...v, name: e.target.value }))}
+              placeholder="Ange mappnamn..."
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Föräldermapp</label>
+            <select
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 bg-white"
+              value={form.parent_id}
+              onChange={e => setForm(v => ({ ...v, parent_id: e.target.value }))}>
+              <option value="">— Rotnivå —</option>
+              {parentOptions.map(f => <option key={f.id} value={String(f.id)}>{f.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Beskrivning</label>
+            <textarea
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+              rows={2}
+              value={form.description}
+              onChange={e => setForm(v => ({ ...v, description: e.target.value }))}
+              placeholder="Valfri beskrivning..."
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-200 rounded-lg">Avbryt</button>
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50">
+            {saving ? 'Sparar...' : 'Spara'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ModuleFoldersPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
   const [selected, setSelected] = useState<{ type: 'folder' | 'module'; data: Folder | Module } | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch('http://localhost:3000/api/admin/module-folders').then(r => r.json()),
-      fetch('http://localhost:3000/api/admin/modules').then(r => r.json()),
+      fetch(`${API}/api/admin/module-folders`, { headers: authHeaders() }).then(r => r.json()),
+      fetch(`${API}/api/admin/modules`, { headers: authHeaders() }).then(r => r.json()),
     ]).then(([fRes, mRes]) => {
       const folds: Folder[] = fRes.success ? fRes.data : [];
       const mods: Module[] = mRes.success ? mRes.data : [];
@@ -69,131 +170,164 @@ export default function ModuleFoldersPage() {
     }
   };
 
+  const handleDeleteFolder = async (folder: Folder) => {
+    const moduleCount = modules.filter(m => m.folder_id === folder.id).length;
+    const msg = moduleCount > 0
+      ? `Mappen "${folder.name}" innehåller ${moduleCount} modul(er). Radera ändå? Modulerna flyttas till rotnivå.`
+      : `Radera mappen "${folder.name}"?`;
+    if (!confirm(msg)) return;
+    await fetch(`${API}/api/admin/module-folders/${folder.id}`, { method: 'DELETE', headers: authHeaders() });
+    setSelected(null);
+    load();
+  };
+
   const folderModuleCount = (folderId: number) =>
     modules.filter(m => m.folder_id === folderId).length;
 
   return (
-    <SamrumLayout>
-      <div className="px-6 py-4 bg-white border-b border-samrum-border flex-shrink-0">
-        <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
-          <span>Admin</span>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-          </svg>
-          <span className="font-medium text-slate-900">Modulmappar</span>
-        </div>
-        <h1 className="text-xl font-bold text-slate-900">B011 – Modulmappar</h1>
-        <p className="text-sm text-slate-500">{folders.length} mappar, {modules.length} moduler</p>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Tree panel */}
-        <div className="w-80 bg-white border-r border-samrum-border flex flex-col overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-samrum-border">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mapphierarki</h3>
+    <>
+      <SamrumLayout>
+        <div className="px-6 py-4 bg-white border-b border-samrum-border flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
+            <span>Admin</span>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="font-medium text-slate-900">Modulmappar</span>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {loading ? (
-              <div className="animate-pulse space-y-2 p-2">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-6 bg-slate-100 rounded" />
-                ))}
-              </div>
-            ) : (
-              <TreeNav nodes={treeNodes} onSelect={handleSelect} defaultExpanded={true} />
-            )}
-          </div>
-          <div className="px-4 py-3 border-t border-samrum-border bg-slate-50">
-            <button className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-samrum-accent text-white rounded-lg hover:bg-samrum-accent-hover transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-              </svg>
-              Ny mapp
-            </button>
-          </div>
+          <h1 className="text-xl font-bold text-slate-900">Modulmappar</h1>
+          <p className="text-sm text-slate-500">{folders.length} mappar, {modules.length} moduler</p>
         </div>
 
-        {/* Detail / stats area */}
-        <div className="flex-1 overflow-y-auto bg-samrum-bg p-6">
-          {selected ? (
-            <div className="bg-white rounded-xl border border-samrum-border shadow-panel p-6">
-              {selected.type === 'folder' ? (
-                <>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-samrum-tree" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">{(selected.data as Folder).name}</h2>
-                      <p className="text-sm text-slate-500">Mapp</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-slate-50 rounded-lg p-4 text-center">
-                      <p className="text-2xl font-bold text-samrum-blue">
-                        {folderModuleCount((selected.data as Folder).id)}
-                      </p>
-                      <p className="text-sm text-slate-500 mt-1">Moduler</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-4 text-center">
-                      <p className="text-2xl font-bold text-amber-600">
-                        {folders.filter(f => f.parent_id === (selected.data as Folder).id).length}
-                      </p>
-                      <p className="text-sm text-slate-500 mt-1">Undermappar</p>
-                    </div>
-                  </div>
-                  {(selected.data as Folder).description && (
-                    <div className="bg-slate-50 rounded-lg p-4">
-                      <p className="text-xs font-medium text-slate-500 mb-1">Beskrivning</p>
-                      <p className="text-sm text-slate-700">{(selected.data as Folder).description}</p>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-4">
-                    <button className="px-4 py-2 text-sm font-medium bg-samrum-blue text-white rounded-lg hover:bg-samrum-blue-dark">Ändra</button>
-                    <button className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-200">Radera</button>
-                  </div>
-                </>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Tree panel */}
+          <div className="w-80 bg-white border-r border-samrum-border flex flex-col overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-samrum-border">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mapphierarki</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {loading ? (
+                <div className="animate-pulse space-y-2 p-2">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="h-6 bg-slate-100 rounded" />
+                  ))}
+                </div>
               ) : (
-                <>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-samrum-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">{(selected.data as Module).name}</h2>
-                      <p className="text-sm text-slate-500">Modul</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                      <span className="text-sm text-slate-500">Tillåt ofullständiga versioner</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(selected.data as Module).allow_incomplete_versions ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                        {(selected.data as Module).allow_incomplete_versions ? 'Ja' : 'Nej'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button className="px-4 py-2 text-sm font-medium bg-samrum-blue text-white rounded-lg hover:bg-samrum-blue-dark">Ändra</button>
-                    <button className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-200">Radera</button>
-                  </div>
-                </>
+                <TreeNav nodes={treeNodes} onSelect={handleSelect} defaultExpanded={true} />
               )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-              <svg className="w-16 h-16 mb-4 text-slate-200" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-              </svg>
-              <p className="text-sm">Välj en mapp eller modul i trädet</p>
+            <div className="px-4 py-3 border-t border-samrum-border bg-slate-50">
+              <button
+                onClick={() => { setEditingFolder(null); setShowForm(true); }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-samrum-accent text-white rounded-lg hover:bg-samrum-accent-hover transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Ny mapp
+              </button>
             </div>
-          )}
+          </div>
+
+          {/* Detail area */}
+          <div className="flex-1 overflow-y-auto bg-samrum-bg p-6">
+            {selected ? (
+              <div className="bg-white rounded-xl border border-samrum-border shadow-panel p-6">
+                {selected.type === 'folder' ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-samrum-tree" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">{(selected.data as Folder).name}</h2>
+                        <p className="text-sm text-slate-500">Mapp</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-slate-50 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-samrum-blue">
+                          {folderModuleCount((selected.data as Folder).id)}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">Moduler</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-4 text-center">
+                        <p className="text-2xl font-bold text-amber-600">
+                          {folders.filter(f => f.parent_id === (selected.data as Folder).id).length}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">Undermappar</p>
+                      </div>
+                    </div>
+                    {(selected.data as Folder).description && (
+                      <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-medium text-slate-500 mb-1">Beskrivning</p>
+                        <p className="text-sm text-slate-700">{(selected.data as Folder).description}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditingFolder(selected.data as Folder); setShowForm(true); }}
+                        className="px-4 py-2 text-sm font-medium bg-samrum-blue text-white rounded-lg hover:bg-samrum-blue-dark">
+                        Ändra
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFolder(selected.data as Folder)}
+                        className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-200">
+                        Radera
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-samrum-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">{(selected.data as Module).name}</h2>
+                        <p className="text-sm text-slate-500">Modul</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span className="text-sm text-slate-500">Tillåt ofullständiga versioner</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(selected.data as Module).allow_incomplete_versions ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                          {(selected.data as Module).allow_incomplete_versions ? 'Ja' : 'Nej'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 italic">Moduler redigeras i Moduler-sidan (B011)</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <svg className="w-16 h-16 mb-4 text-slate-200" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                </svg>
+                <p className="text-sm">Välj en mapp eller modul i trädet</p>
+                <p className="text-xs mt-1">Klicka &quot;Ny mapp&quot; för att skapa en ny mapp</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </SamrumLayout>
+      </SamrumLayout>
+
+      {showForm && (
+        <FolderFormModal
+          folders={folders}
+          folder={editingFolder}
+          onClose={() => { setShowForm(false); setEditingFolder(null); }}
+          onSaved={() => {
+            load();
+            setSelected(null);
+          }}
+        />
+      )}
+    </>
   );
 }

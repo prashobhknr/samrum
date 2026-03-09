@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="access-control-definitions"
+                   targetNamespace="http://doorman.local/access-control">
+
+  <!-- ================================================================== -->
+  <!-- ACCESS CONTROL LIFECYCLE PROCESS                                    -->
+  <!-- Source: Passagekontroll.bpm (Bizagi)                                -->
+  <!-- Covers design, installation, and operational management of          -->
+  <!-- access control systems (card readers, keypads, biometrics)          -->
+  <!-- ================================================================== -->
+  <bpmn:process id="access-control" name="Passagekontroll - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Passagekontroll startad">
+      <bpmn:outgoing>flow_start_to_define</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- DESIGN: Define access zones and requirements -->
+    <bpmn:userTask id="define_access_zones" name="Definiera behorighetsomraden"
+                   camunda:candidateGroups="security_admin,designers_security"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Define security zones, access levels, and time schedules. Map zones to spatial breakdown.</bpmn:documentation>
+      <bpmn:incoming>flow_start_to_define</bpmn:incoming>
+      <bpmn:outgoing>flow_define_to_specify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Specify reader types and integration -->
+    <bpmn:userTask id="specify_readers" name="Specificera lasare och integration"
+                   camunda:candidateGroups="designers_security"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Select reader technology (RFID, PIN, biometric), specify integration with central system.</bpmn:documentation>
+      <bpmn:incoming>flow_define_to_specify</bpmn:incoming>
+      <bpmn:outgoing>flow_specify_to_key</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Key group management -->
+    <bpmn:userTask id="define_key_groups" name="Definiera nyckelgrupper"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Define key groups (Nyckelgrupp). Assign doors to key groups. Map to Samrum module 66.</bpmn:documentation>
+      <bpmn:incoming>flow_specify_to_key</bpmn:incoming>
+      <bpmn:outgoing>flow_key_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- VALIDATION -->
+    <bpmn:serviceTask id="validate_access_design" name="Validera passagekontroll"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_key_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- APPROVAL -->
+    <bpmn:userTask id="approve_access_design" name="Godkann passagekontroll"
+                   camunda:candidateGroups="project_managers,security_admin"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Install readers -->
+    <bpmn:userTask id="install_readers" name="Installera lasare"
+                   camunda:candidateGroups="contractors,security_admin"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Install card readers, controllers, cabling. Record serial numbers.</bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_program</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Program system -->
+    <bpmn:userTask id="program_system" name="Programmera passagesystem"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Configure access rights, time schedules, alarm rules in central system.</bpmn:documentation>
+      <bpmn:incoming>flow_install_to_program</bpmn:incoming>
+      <bpmn:outgoing>flow_program_to_test</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Test -->
+    <bpmn:userTask id="test_access_system" name="Testa passagesystem"
+                   camunda:candidateGroups="security_admin,contractors"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Functional test of all access points. Verify alarms, forced door detection, time schedules.</bpmn:documentation>
+      <bpmn:incoming>flow_program_to_test</bpmn:incoming>
+      <bpmn:outgoing>flow_test_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Audit -->
+    <bpmn:serviceTask id="audit_access_complete" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_test_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Passagekontroll klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_define" sourceRef="start" targetRef="define_access_zones" />
+    <bpmn:sequenceFlow id="flow_define_to_specify" sourceRef="define_access_zones" targetRef="specify_readers" />
+    <bpmn:sequenceFlow id="flow_specify_to_key" sourceRef="specify_readers" targetRef="define_key_groups" />
+    <bpmn:sequenceFlow id="flow_key_to_validate" sourceRef="define_key_groups" targetRef="validate_access_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_access_design" targetRef="approve_access_design" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_access_design" targetRef="install_readers" />
+    <bpmn:sequenceFlow id="flow_install_to_program" sourceRef="install_readers" targetRef="program_system" />
+    <bpmn:sequenceFlow id="flow_program_to_test" sourceRef="program_system" targetRef="test_access_system" />
+    <bpmn:sequenceFlow id="flow_test_to_audit" sourceRef="test_access_system" targetRef="audit_access_complete" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_access_complete" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="access-control-diagram">
+    <bpmndi:BPMNPlane id="access-control-plane" bpmnElement="access-control">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="define_access_zones_di" bpmnElement="define_access_zones"><dc:Bounds x="140" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="specify_readers_di" bpmnElement="specify_readers"><dc:Bounds x="290" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="define_key_groups_di" bpmnElement="define_key_groups"><dc:Bounds x="440" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_access_design_di" bpmnElement="validate_access_design"><dc:Bounds x="590" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_access_design_di" bpmnElement="approve_access_design"><dc:Bounds x="740" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="install_readers_di" bpmnElement="install_readers"><dc:Bounds x="140" y="240" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="program_system_di" bpmnElement="program_system"><dc:Bounds x="290" y="240" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="test_access_system_di" bpmnElement="test_access_system"><dc:Bounds x="440" y="240" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="740" y="260" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

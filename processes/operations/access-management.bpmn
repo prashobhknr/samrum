@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="access-management-definitions"
+                   targetNamespace="http://doorman.local/access-management">
+
+  <!-- ================================================================== -->
+  <!-- ACCESS MANAGEMENT PROCESS (Operations)                              -->
+  <!-- Ongoing management of access rights, key groups, and security       -->
+  <!--                                                                     -->
+  <!-- Handles:                                                            -->
+  <!--   - Access card/key requests                                        -->
+  <!--   - Temporary access grants                                         -->
+  <!--   - Key group modifications                                         -->
+  <!--   - Access audits                                                   -->
+  <!--   - Lost card/key handling                                          -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-access-management" name="Behorighetshantering" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Behorighetsbegaran">
+      <bpmn:outgoing>flow_start_to_type</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Determine request type -->
+    <bpmn:exclusiveGateway id="gate_request_type" name="Typ av begaran?">
+      <bpmn:incoming>flow_start_to_type</bpmn:incoming>
+      <bpmn:outgoing>flow_new_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_modify_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_revoke_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_lost_card</bpmn:outgoing>
+      <bpmn:outgoing>flow_temp_access</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- PATH 1: New Access Request                                     -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="new_access_request" name="Ny behorighetsansokan"
+                   camunda:candidateGroups="facility_managers,security_admin"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Process new access request:
+        - Verify identity and employment
+        - Determine required access level/zones
+        - Check with tenant/department manager approval
+        - Assign to key group(s)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_new_access</bpmn:incoming>
+      <bpmn:outgoing>flow_new_to_approve</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="approve_access" name="Godkann behorighet"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Security admin approves access grant:
+        - Verify access level is appropriate
+        - No conflicting security restrictions
+        - Compliance with building security policy
+      </bpmn:documentation>
+      <bpmn:incoming>flow_new_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_issue</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="issue_access" name="Utfarda behorighet"
+                      camunda:delegateExpression="${accessProvisionDelegate}">
+      <bpmn:incoming>flow_approve_to_issue</bpmn:incoming>
+      <bpmn:outgoing>flow_issue_to_merge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 2: Modify Existing Access                                 -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="modify_access" name="Andra behorighet"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Modify existing access rights:
+        - Change key group assignment
+        - Update time schedules
+        - Add/remove zone access
+        Update in Doorman and central access system.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_modify_access</bpmn:incoming>
+      <bpmn:outgoing>flow_modify_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 3: Revoke Access                                          -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="revoke_access_task" name="Aterkalla behorighet"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Revoke access:
+        - Deactivate card/badge immediately
+        - Collect physical keys
+        - Remove from key groups
+        - Log reason for revocation
+      </bpmn:documentation>
+      <bpmn:incoming>flow_revoke_access</bpmn:incoming>
+      <bpmn:outgoing>flow_revoke_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 4: Lost Card/Key                                          -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="lost_card_report" name="Rapportera forlorat kort/nyckel"
+                   camunda:candidateGroups="security_admin,security_operators"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Handle lost card/key:
+        - Immediately deactivate lost card
+        - Assess security risk (master key lost = re-key?)
+        - Issue replacement card
+        - Log incident
+        - Notify building insurance if significant
+      </bpmn:documentation>
+      <bpmn:incoming>flow_lost_card</bpmn:incoming>
+      <bpmn:outgoing>flow_lost_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 5: Temporary Access                                       -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="temp_access_grant" name="Tillfallig behorighet"
+                   camunda:candidateGroups="security_operators,facility_managers"
+                   camunda:formKey="doorman:103:6">
+      <bpmn:documentation>
+        Grant temporary access:
+        - Visitor, contractor, delivery
+        - Set expiry date/time
+        - Escort requirements
+        - Record in visitor log
+      </bpmn:documentation>
+      <bpmn:incoming>flow_temp_access</bpmn:incoming>
+      <bpmn:outgoing>flow_temp_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Merge all paths -->
+    <bpmn:exclusiveGateway id="merge_paths">
+      <bpmn:incoming>flow_issue_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_modify_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_revoke_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_lost_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_temp_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_audit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="audit_access" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Behorighetsarende klart">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_type" sourceRef="start" targetRef="gate_request_type" />
+    <bpmn:sequenceFlow id="flow_new_access" sourceRef="gate_request_type" targetRef="new_access_request">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestType == 'new'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_modify_access" sourceRef="gate_request_type" targetRef="modify_access">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestType == 'modify'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_revoke_access" sourceRef="gate_request_type" targetRef="revoke_access_task">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestType == 'revoke'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_lost_card" sourceRef="gate_request_type" targetRef="lost_card_report">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestType == 'lost'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_temp_access" sourceRef="gate_request_type" targetRef="temp_access_grant">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestType == 'temporary'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_new_to_approve" sourceRef="new_access_request" targetRef="approve_access" />
+    <bpmn:sequenceFlow id="flow_approve_to_issue" sourceRef="approve_access" targetRef="issue_access" />
+    <bpmn:sequenceFlow id="flow_issue_to_merge" sourceRef="issue_access" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_modify_to_merge" sourceRef="modify_access" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_revoke_to_merge" sourceRef="revoke_access_task" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_lost_to_merge" sourceRef="lost_card_report" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_temp_to_merge" sourceRef="temp_access_grant" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_merge_to_audit" sourceRef="merge_paths" targetRef="audit_access" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_access" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="access-mgmt-diagram">
+    <bpmndi:BPMNPlane id="access-mgmt-plane" bpmnElement="operations-access-management">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="252" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_di" bpmnElement="gate_request_type" isMarkerVisible="true"><dc:Bounds x="140" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="new_di" bpmnElement="new_access_request"><dc:Bounds x="250" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_access"><dc:Bounds x="420" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="modify_di" bpmnElement="modify_access"><dc:Bounds x="250" y="160" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="revoke_di" bpmnElement="revoke_access_task"><dc:Bounds x="250" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="lost_di" bpmnElement="lost_card_report"><dc:Bounds x="250" y="400" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="temp_di" bpmnElement="temp_access_grant"><dc:Bounds x="250" y="520" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="merge_di" bpmnElement="merge_paths" isMarkerVisible="true"><dc:Bounds x="700" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="880" y="252" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

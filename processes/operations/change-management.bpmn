@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="change-management-definitions"
+                   targetNamespace="http://doorman.local/change-management">
+
+  <!-- ================================================================== -->
+  <!-- CHANGE MANAGEMENT PROCESS (Andringshantering)                       -->
+  <!-- Triggered by msg_change_request from operations-phase event sub-    -->
+  <!-- process. Handles tenant requests, FM-initiated changes, and         -->
+  <!-- regulatory-driven modifications.                                    -->
+  <!--                                                                     -->
+  <!-- Classification:                                                     -->
+  <!--   - Minor (Mindre justering): approve + execute internally          -->
+  <!--   - Moderate (Ombyggnad): mini-project with design/production loop  -->
+  <!--   - Major (Stor ombyggnad): escalate to new project                 -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-change-management" name="Andringshantering" isExecutable="true">
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Change Request Received                                -->
+    <!-- ============================================================== -->
+    <bpmn:startEvent id="start" name="Andringsforslag mottaget">
+      <bpmn:messageEventDefinition messageRef="msg_change_request" />
+      <bpmn:outgoing>flow_start_to_register</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="register_change" name="Registrera andringsforslag"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Register the change request:
+        - Source: tenant, facility manager, or regulatory requirement
+        - Description of requested change
+        - Affected building/zone/rooms
+        - Urgency level
+        - Initial cost estimate range
+        - Attach supporting documents (photos, drawings, regulations)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_register</bpmn:incoming>
+      <bpmn:outgoing>flow_register_to_assess</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2: Impact Assessment                                      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="impact_assessment" name="Konsekvensbedomning"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Assess impact of the proposed change:
+        - Structural impact (load-bearing walls, floor capacity)
+        - Building systems affected (HVAC, electrical, fire safety, access)
+        - Regulatory implications (building permit required?)
+        - Tenant disruption (relocation needed?)
+        - Cost estimate (order of magnitude)
+        - Timeline estimate
+        Classify as: minor / moderate / major
+      </bpmn:documentation>
+      <bpmn:incoming>flow_register_to_assess</bpmn:incoming>
+      <bpmn:outgoing>flow_assess_to_classify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: Classification Gateway                                 -->
+    <!-- minor → internal approve+execute                               -->
+    <!-- moderate → mini-project (design+production)                    -->
+    <!-- major → escalate to new full project                           -->
+    <!-- ============================================================== -->
+    <bpmn:exclusiveGateway id="gate_classification" name="Klassificering?">
+      <bpmn:incoming>flow_assess_to_classify</bpmn:incoming>
+      <bpmn:outgoing>flow_minor</bpmn:outgoing>
+      <bpmn:outgoing>flow_moderate</bpmn:outgoing>
+      <bpmn:outgoing>flow_major</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- PATH A: Minor Change (Mindre justering)                        -->
+    <!-- Examples: repaint room, replace fixture, adjust door closer    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="minor_approve" name="Godkann mindre andring"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Approve minor change internally:
+        - Verify within FM budget authority
+        - Confirm no permit required
+        - Assign to maintenance team or contractor
+        - Set target completion date
+      </bpmn:documentation>
+      <bpmn:incoming>flow_minor</bpmn:incoming>
+      <bpmn:outgoing>flow_minor_approve_to_implement</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="minor_implement" name="Genomfor mindre andring"
+                   camunda:candidateGroups="maintenance,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Execute the approved minor change:
+        - Perform the work
+        - Update affected attribute values in Doorman
+        - Take completion photos
+        - Record material/labor costs
+      </bpmn:documentation>
+      <bpmn:incoming>flow_minor_approve_to_implement</bpmn:incoming>
+      <bpmn:outgoing>flow_minor_implement_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="minor_verify" name="Verifiera mindre andring"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify completed minor change:
+        - Inspect work quality
+        - Confirm attribute values updated correctly
+        - Obtain tenant sign-off if applicable
+        - Close work order
+      </bpmn:documentation>
+      <bpmn:incoming>flow_minor_implement_to_verify</bpmn:incoming>
+      <bpmn:outgoing>flow_minor_verify_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH B: Moderate Change (Ombyggnad)                            -->
+    <!-- Examples: office reconfiguration, bathroom renovation,         -->
+    <!--           new partition walls, upgraded ventilation zone        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="moderate_scope" name="Definiera ombyggnadsomfattning"
+                   camunda:candidateGroups="project_managers,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Define renovation scope:
+        - Detailed scope description
+        - Affected rooms/zones listed
+        - Required disciplines (architect, HVAC, electrical, etc.)
+        - Preliminary schedule
+        - Identify permit requirements
+      </bpmn:documentation>
+      <bpmn:incoming>flow_moderate</bpmn:incoming>
+      <bpmn:outgoing>flow_scope_to_budget</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="moderate_budget" name="Budgetuppskattning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare budget estimate for the renovation:
+        - Collect contractor quotes
+        - Material cost estimates
+        - Design/consulting fees
+        - Contingency (typically 10-15%)
+        - Tenant disruption costs (temporary relocation)
+        - Total project cost estimate
+      </bpmn:documentation>
+      <bpmn:incoming>flow_scope_to_budget</bpmn:incoming>
+      <bpmn:outgoing>flow_budget_to_owner_approval</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="moderate_owner_approval" name="Agargodkannande"
+                   camunda:candidateGroups="owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Building owner reviews and approves renovation:
+        - Review scope and budget
+        - Approve funding
+        - Set constraints (timeline, noise restrictions, etc.)
+        - Decision: approve / reject / request revision
+      </bpmn:documentation>
+      <bpmn:incoming>flow_budget_to_owner_approval</bpmn:incoming>
+      <bpmn:outgoing>flow_owner_to_decision</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gate_owner_decision" name="Agarbeslut?">
+      <bpmn:incoming>flow_owner_to_decision</bpmn:incoming>
+      <bpmn:outgoing>flow_owner_approved</bpmn:outgoing>
+      <bpmn:outgoing>flow_owner_rejected</bpmn:outgoing>
+      <bpmn:outgoing>flow_owner_revise</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Owner requests revision → loop back to scope -->
+    <!-- Owner rejects → skip to merge (audit still logs it) -->
+
+    <bpmn:callActivity id="ca_renovation" name="Genomfor ombyggnad"
+                       calledElement="renovation-mini-project">
+      <bpmn:extensionElements>
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="changeRequestId" target="changeRequestId" />
+        <camunda:in source="projectScope" target="projectScope" />
+        <camunda:in source="approvedBudget" target="approvedBudget" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_owner_approved</bpmn:incoming>
+      <bpmn:outgoing>flow_renovation_to_verify</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:userTask id="moderate_verify" name="Verifiera ombyggnad"
+                   camunda:candidateGroups="facility_managers,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify completed renovation:
+        - Final inspection of all work
+        - Update all affected attributes in Doorman
+        - Verify compliance with approved scope
+        - Budget reconciliation
+        - Collect as-built documentation
+        - Update building drawings if applicable
+        - Obtain tenant acceptance
+      </bpmn:documentation>
+      <bpmn:incoming>flow_renovation_to_verify</bpmn:incoming>
+      <bpmn:outgoing>flow_moderate_verify_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="moderate_rejected_log" name="Logga avslag"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_owner_rejected</bpmn:incoming>
+      <bpmn:outgoing>flow_rejected_to_notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="notify_rejection" name="Meddela avslag"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Notify requester that the change has been rejected by owner.
+        Include reason for rejection.
+        Discuss alternatives if applicable.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_rejected_to_notify</bpmn:incoming>
+      <bpmn:outgoing>flow_notify_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH C: Major Change (Stor ombyggnad / Nybyggnad)              -->
+    <!-- Examples: structural modifications, new building wing,         -->
+    <!--           complete floor gut renovation, change of use          -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="major_document" name="Dokumentera stor andring"
+                   camunda:candidateGroups="project_managers,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Document major change for project initiation:
+        - Full scope description
+        - Preliminary feasibility study
+        - Estimated budget range
+        - Regulatory requirements (building permit, detailed plan)
+        - Recommended project organization
+        - Risk assessment
+      </bpmn:documentation>
+      <bpmn:incoming>flow_major</bpmn:incoming>
+      <bpmn:outgoing>flow_major_to_design_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="major_design_review" name="Projekteringsunderlag"
+                   camunda:candidateGroups="designers_architect,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Prepare preliminary design input for new project:
+        - Current building condition assessment
+        - Existing drawings and documentation
+        - Known constraints (structural, regulatory, tenant)
+        - Recommended design approach
+        - Required consultants and disciplines
+      </bpmn:documentation>
+      <bpmn:incoming>flow_major_to_design_review</bpmn:incoming>
+      <bpmn:outgoing>flow_design_review_to_escalate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="escalate_to_project" name="Eskalera till nytt projekt"
+                      camunda:delegateExpression="${projectInitiationDelegate}">
+      <bpmn:incoming>flow_design_review_to_escalate</bpmn:incoming>
+      <bpmn:outgoing>flow_escalate_to_throw</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:intermediateThrowEvent id="throw_project_initiated" name="Nytt projekt initierat">
+      <bpmn:messageEventDefinition messageRef="msg_project_initiated" />
+      <bpmn:incoming>flow_escalate_to_throw</bpmn:incoming>
+      <bpmn:outgoing>flow_throw_to_merge</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- ============================================================== -->
+    <!-- MERGE: All paths converge                                      -->
+    <!-- ============================================================== -->
+    <bpmn:exclusiveGateway id="merge_paths">
+      <bpmn:incoming>flow_minor_verify_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_moderate_verify_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_notify_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_throw_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_audit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- AUDIT LOG                                                      -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="audit_change" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Andringshantering klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================== -->
+    <!-- SEQUENCE FLOWS                                                 -->
+    <!-- ============================================================== -->
+
+    <!-- Start → Register → Assess → Classify -->
+    <bpmn:sequenceFlow id="flow_start_to_register" sourceRef="start" targetRef="register_change" />
+    <bpmn:sequenceFlow id="flow_register_to_assess" sourceRef="register_change" targetRef="impact_assessment" />
+    <bpmn:sequenceFlow id="flow_assess_to_classify" sourceRef="impact_assessment" targetRef="gate_classification" />
+
+    <!-- PATH A: Minor -->
+    <bpmn:sequenceFlow id="flow_minor" sourceRef="gate_classification" targetRef="minor_approve">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${changeClassification == 'minor'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_minor_approve_to_implement" sourceRef="minor_approve" targetRef="minor_implement" />
+    <bpmn:sequenceFlow id="flow_minor_implement_to_verify" sourceRef="minor_implement" targetRef="minor_verify" />
+    <bpmn:sequenceFlow id="flow_minor_verify_to_merge" sourceRef="minor_verify" targetRef="merge_paths" />
+
+    <!-- PATH B: Moderate -->
+    <bpmn:sequenceFlow id="flow_moderate" sourceRef="gate_classification" targetRef="moderate_scope">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${changeClassification == 'moderate'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_scope_to_budget" sourceRef="moderate_scope" targetRef="moderate_budget" />
+    <bpmn:sequenceFlow id="flow_budget_to_owner_approval" sourceRef="moderate_budget" targetRef="moderate_owner_approval" />
+    <bpmn:sequenceFlow id="flow_owner_to_decision" sourceRef="moderate_owner_approval" targetRef="gate_owner_decision" />
+    <bpmn:sequenceFlow id="flow_owner_approved" sourceRef="gate_owner_decision" targetRef="ca_renovation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'approved'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_owner_rejected" sourceRef="gate_owner_decision" targetRef="moderate_rejected_log">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'rejected'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_owner_revise" sourceRef="gate_owner_decision" targetRef="moderate_scope">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ownerDecision == 'revise'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_renovation_to_verify" sourceRef="ca_renovation" targetRef="moderate_verify" />
+    <bpmn:sequenceFlow id="flow_moderate_verify_to_merge" sourceRef="moderate_verify" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_rejected_to_notify" sourceRef="moderate_rejected_log" targetRef="notify_rejection" />
+    <bpmn:sequenceFlow id="flow_notify_to_merge" sourceRef="notify_rejection" targetRef="merge_paths" />
+
+    <!-- PATH C: Major -->
+    <bpmn:sequenceFlow id="flow_major" sourceRef="gate_classification" targetRef="major_document">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${changeClassification == 'major'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_major_to_design_review" sourceRef="major_document" targetRef="major_design_review" />
+    <bpmn:sequenceFlow id="flow_design_review_to_escalate" sourceRef="major_design_review" targetRef="escalate_to_project" />
+    <bpmn:sequenceFlow id="flow_escalate_to_throw" sourceRef="escalate_to_project" targetRef="throw_project_initiated" />
+    <bpmn:sequenceFlow id="flow_throw_to_merge" sourceRef="throw_project_initiated" targetRef="merge_paths" />
+
+    <!-- Merge → Audit → End -->
+    <bpmn:sequenceFlow id="flow_merge_to_audit" sourceRef="merge_paths" targetRef="audit_change" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_change" targetRef="end" />
+
+  </bpmn:process>
+
+  <!-- ============================================================== -->
+  <!-- MESSAGE DEFINITIONS                                            -->
+  <!-- ============================================================== -->
+  <bpmn:message id="msg_change_request" name="msg_change_request" />
+  <bpmn:message id="msg_project_initiated" name="msg_project_initiated" />
+
+  <!-- ============================================================== -->
+  <!-- BPMN DIAGRAM                                                   -->
+  <!-- ============================================================== -->
+  <bpmndi:BPMNDiagram id="change-management-diagram">
+    <bpmndi:BPMNPlane id="change-management-plane" bpmnElement="operations-change-management">
+
+      <!-- Start + common tasks -->
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="register_di" bpmnElement="register_change"><dc:Bounds x="140" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="assess_di" bpmnElement="impact_assessment"><dc:Bounds x="310" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="classify_di" bpmnElement="gate_classification" isMarkerVisible="true"><dc:Bounds x="485" y="315" width="50" height="50" /></bpmndi:BPMNShape>
+
+      <!-- PATH A: Minor (top row, y=80) -->
+      <bpmndi:BPMNShape id="minor_approve_di" bpmnElement="minor_approve"><dc:Bounds x="600" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="minor_implement_di" bpmnElement="minor_implement"><dc:Bounds x="770" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="minor_verify_di" bpmnElement="minor_verify"><dc:Bounds x="940" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- PATH B: Moderate (middle row, y=300) -->
+      <bpmndi:BPMNShape id="scope_di" bpmnElement="moderate_scope"><dc:Bounds x="600" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="budget_di" bpmnElement="moderate_budget"><dc:Bounds x="770" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="owner_approval_di" bpmnElement="moderate_owner_approval"><dc:Bounds x="940" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="owner_decision_di" bpmnElement="gate_owner_decision" isMarkerVisible="true"><dc:Bounds x="1110" y="315" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="renovation_di" bpmnElement="ca_renovation"><dc:Bounds x="1210" y="220" width="140" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="moderate_verify_di" bpmnElement="moderate_verify"><dc:Bounds x="1400" y="220" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rejected_log_di" bpmnElement="moderate_rejected_log"><dc:Bounds x="1210" y="400" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="notify_di" bpmnElement="notify_rejection"><dc:Bounds x="1380" y="400" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- PATH C: Major (bottom row, y=560) -->
+      <bpmndi:BPMNShape id="major_doc_di" bpmnElement="major_document"><dc:Bounds x="600" y="520" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_review_di" bpmnElement="major_design_review"><dc:Bounds x="770" y="520" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_di" bpmnElement="escalate_to_project"><dc:Bounds x="940" y="520" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="throw_di" bpmnElement="throw_project_initiated"><dc:Bounds x="1110" y="542" width="36" height="36" /></bpmndi:BPMNShape>
+
+      <!-- Merge + Audit + End -->
+      <bpmndi:BPMNShape id="merge_di" bpmnElement="merge_paths" isMarkerVisible="true"><dc:Bounds x="1560" y="315" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="audit_di" bpmnElement="audit_change"><dc:Bounds x="1660" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1830" y="322" width="36" height="36" /></bpmndi:BPMNShape>
+
+      <!-- EDGES: Start → Register → Assess → Classify -->
+      <bpmndi:BPMNEdge id="flow_start_to_register_di" bpmnElement="flow_start_to_register">
+        <di:waypoint x="86" y="340" /><di:waypoint x="140" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_register_to_assess_di" bpmnElement="flow_register_to_assess">
+        <di:waypoint x="260" y="340" /><di:waypoint x="310" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_assess_to_classify_di" bpmnElement="flow_assess_to_classify">
+        <di:waypoint x="430" y="340" /><di:waypoint x="485" y="340" />
+      </bpmndi:BPMNEdge>
+
+      <!-- PATH A edges -->
+      <bpmndi:BPMNEdge id="flow_minor_di" bpmnElement="flow_minor">
+        <di:waypoint x="510" y="315" /><di:waypoint x="510" y="80" /><di:waypoint x="600" y="80" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_minor_approve_di" bpmnElement="flow_minor_approve_to_implement">
+        <di:waypoint x="720" y="80" /><di:waypoint x="770" y="80" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_minor_implement_di" bpmnElement="flow_minor_implement_to_verify">
+        <di:waypoint x="890" y="80" /><di:waypoint x="940" y="80" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_minor_verify_merge_di" bpmnElement="flow_minor_verify_to_merge">
+        <di:waypoint x="1060" y="80" /><di:waypoint x="1585" y="80" /><di:waypoint x="1585" y="315" />
+      </bpmndi:BPMNEdge>
+
+      <!-- PATH B edges -->
+      <bpmndi:BPMNEdge id="flow_moderate_di" bpmnElement="flow_moderate">
+        <di:waypoint x="535" y="340" /><di:waypoint x="600" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_scope_budget_di" bpmnElement="flow_scope_to_budget">
+        <di:waypoint x="720" y="340" /><di:waypoint x="770" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_budget_owner_di" bpmnElement="flow_budget_to_owner_approval">
+        <di:waypoint x="890" y="340" /><di:waypoint x="940" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_owner_decision_di" bpmnElement="flow_owner_to_decision">
+        <di:waypoint x="1060" y="340" /><di:waypoint x="1110" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_owner_approved_di" bpmnElement="flow_owner_approved">
+        <di:waypoint x="1135" y="315" /><di:waypoint x="1135" y="260" /><di:waypoint x="1210" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_owner_rejected_di" bpmnElement="flow_owner_rejected">
+        <di:waypoint x="1135" y="365" /><di:waypoint x="1135" y="440" /><di:waypoint x="1210" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_owner_revise_di" bpmnElement="flow_owner_revise">
+        <di:waypoint x="1135" y="365" /><di:waypoint x="1135" y="480" /><di:waypoint x="660" y="480" /><di:waypoint x="660" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_renovation_verify_di" bpmnElement="flow_renovation_to_verify">
+        <di:waypoint x="1350" y="260" /><di:waypoint x="1400" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_mod_verify_merge_di" bpmnElement="flow_moderate_verify_to_merge">
+        <di:waypoint x="1520" y="260" /><di:waypoint x="1585" y="260" /><di:waypoint x="1585" y="315" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_rejected_notify_di" bpmnElement="flow_rejected_to_notify">
+        <di:waypoint x="1330" y="440" /><di:waypoint x="1380" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_notify_merge_di" bpmnElement="flow_notify_to_merge">
+        <di:waypoint x="1500" y="440" /><di:waypoint x="1585" y="440" /><di:waypoint x="1585" y="365" />
+      </bpmndi:BPMNEdge>
+
+      <!-- PATH C edges -->
+      <bpmndi:BPMNEdge id="flow_major_di" bpmnElement="flow_major">
+        <di:waypoint x="510" y="365" /><di:waypoint x="510" y="560" /><di:waypoint x="600" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_major_design_di" bpmnElement="flow_major_to_design_review">
+        <di:waypoint x="720" y="560" /><di:waypoint x="770" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_design_escalate_di" bpmnElement="flow_design_review_to_escalate">
+        <di:waypoint x="890" y="560" /><di:waypoint x="940" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalate_throw_di" bpmnElement="flow_escalate_to_throw">
+        <di:waypoint x="1060" y="560" /><di:waypoint x="1110" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_throw_merge_di" bpmnElement="flow_throw_to_merge">
+        <di:waypoint x="1146" y="560" /><di:waypoint x="1585" y="560" /><di:waypoint x="1585" y="365" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Merge → Audit → End -->
+      <bpmndi:BPMNEdge id="flow_merge_audit_di" bpmnElement="flow_merge_to_audit">
+        <di:waypoint x="1610" y="340" /><di:waypoint x="1660" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_audit_end_di" bpmnElement="flow_audit_to_end">
+        <di:waypoint x="1780" y="340" /><di:waypoint x="1830" y="340" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

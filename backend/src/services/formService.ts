@@ -225,6 +225,130 @@ export class FormService {
   }
 
   /**
+   * Generate form for a specific Samrum module + object type
+   * Used when formKey = doorman:{moduleId}:{objectTypeId} (moduleId != 'generic')
+   *
+   * Pulls columns from module_view_columns instead of task_permission_rules,
+   * allowing each of the 271 Samrum modules to render its specific column set.
+   */
+  async generateFormForModule(
+    taskId: string,
+    moduleId: number,
+    objectTypeId: number,
+    userGroup: string,
+    instanceId?: number
+  ): Promise<FormSchema> {
+    // 1. Load module columns (the module's field definitions)
+    const columnsQuery = `
+      SELECT
+        mvc.column_key,
+        mvc.label,
+        mvc.col_order,
+        mvc.col_type,
+        mvc.is_editable,
+        mvc.is_required,
+        mvc.show_by_default,
+        mvc.oms_attribute_id,
+        oa.attribute_name,
+        oa.attribute_type,
+        oa.enum_values,
+        oa.help_text,
+        oa.placeholder
+      FROM module_view_columns mvc
+      LEFT JOIN object_attributes oa ON oa.id = mvc.oms_attribute_id
+      WHERE mvc.module_id = $1
+        AND mvc.oms_attribute_id IS NOT NULL
+      ORDER BY mvc.col_order
+    `;
+    const columnsResult = await this.db.query(columnsQuery, [moduleId]);
+
+    // 2. Load user's base permissions for this object type
+    const userPermissions = await this.getUserPermissions(userGroup, objectTypeId);
+
+    // 3. Load instance data if provided
+    let instanceData = new Map<number, string>();
+    if (instanceId) {
+      instanceData = await this.getDoorInstanceData(instanceId);
+    }
+
+    // 4. Load module name for header
+    const moduleNameResult = await this.db.query(
+      'SELECT name FROM samrum_modules WHERE id = $1',
+      [moduleId]
+    );
+    const moduleName = moduleNameResult.rows[0]?.name || `Module ${moduleId}`;
+
+    // 5. Build fields from module columns
+    const fields: FormField[] = [];
+    for (const col of columnsResult.rows) {
+      const attrId = col.oms_attribute_id;
+      const userPerm = userPermissions.get(attrId) || { read: true, write: false };
+
+      fields.push({
+        attribute_id: attrId,
+        attribute_name: col.attribute_name || col.column_key,
+        type: this.mapColType(col.col_type || col.attribute_type),
+        value: instanceData.get(attrId) || null,
+        visible: userPerm.read,
+        editable: col.is_editable && userPerm.write,
+        required: col.is_required || false,
+        enum_values: col.enum_values ? (col.enum_values as string[]) : undefined,
+        help_text: col.help_text,
+        placeholder: col.placeholder
+      });
+    }
+
+    return {
+      task_id: taskId,
+      door_instance_id: instanceId || 0,
+      form_header: moduleName,
+      fields: fields.filter(f => f.visible),
+      metadata: {
+        generated_at: new Date().toISOString(),
+        user_group: userGroup,
+        read_only: fields.every(f => !f.editable)
+      }
+    };
+  }
+
+  /**
+   * Parse a Camunda formKey and route to the appropriate form generator
+   */
+  async generateFormFromKey(
+    formKey: string,
+    taskId: string,
+    userGroup: string,
+    instanceId?: number
+  ): Promise<FormSchema> {
+    const parts = formKey.split(':');
+    if (parts.length !== 3 || parts[0] !== 'doorman') {
+      throw new Error(`Invalid formKey format: ${formKey}. Expected doorman:{moduleId}:{objectTypeId}`);
+    }
+
+    const [, moduleIdStr, typeIdStr] = parts;
+    const objectTypeId = parseInt(typeIdStr, 10);
+
+    if (moduleIdStr === 'generic') {
+      // Generic form: use task_permission_rules + object_attributes
+      return this.generateFormForTask(taskId, instanceId || 0, userGroup);
+    } else {
+      // Module-specific form: use module_view_columns
+      const moduleId = parseInt(moduleIdStr, 10);
+      return this.generateFormForModule(taskId, moduleId, objectTypeId, userGroup, instanceId);
+    }
+  }
+
+  private mapColType(colType: string): 'text' | 'number' | 'date' | 'enum' | 'boolean' {
+    switch (colType) {
+      case 'number': return 'number';
+      case 'date': return 'date';
+      case 'boolean': return 'boolean';
+      case 'enum': case 'reference': return 'enum';
+      default: return 'text';
+    }
+  }
+
+  /**
    * Validate form submission
    */
   async validateFormSubmission(

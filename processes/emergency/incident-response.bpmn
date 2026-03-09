@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="incident-response-process"
+                   targetNamespace="http://doorman.local/incident-response">
+
+  <!-- ================================================================
+       Process: Emergency & Incident Response for Building Operations
+       Handles: fire, water_damage, security_breach, structural_damage,
+                power_failure, gas_leak
+       ================================================================ -->
+  <bpmn:message id="msg_incident_reported" name="msg_incident_reported" />
+
+  <bpmn:process id="incident-response" name="Akut- och incidenthantering" isExecutable="true">
+
+    <!-- ===================== START EVENT ===================== -->
+    <bpmn:startEvent id="start_incident" name="Incident rapporterad">
+      <bpmn:messageEventDefinition messageRef="msg_incident_reported" />
+      <bpmn:outgoing>flow_start_to_classify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ===================== CLASSIFY INCIDENT ===================== -->
+    <bpmn:exclusiveGateway id="gw_classify_incident" name="Klassificera incidenttyp">
+      <bpmn:incoming>flow_start_to_classify</bpmn:incoming>
+      <bpmn:outgoing>flow_to_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_water</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_security</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_power</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_gas</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_start_to_classify" sourceRef="start_incident" targetRef="gw_classify_incident" />
+
+    <!-- ===================== FIRE PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_fire" sourceRef="gw_classify_incident" targetRef="task_fire_verify_evacuation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'fire'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_fire_verify_evacuation" name="Verifiera evakuering"
+                   camunda:candidateGroups="fire_safety_officer,security_operators"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Verifiera att alla berorda omraden har evakuerats enligt utrymningsplan.</bpmn:documentation>
+      <bpmn:incoming>flow_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_fire_coordinate_dept" name="Koordinera med raddningstjansten"
+                   camunda:candidateGroups="fire_safety_officer,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Samordna insatsen med raddningstjansten och ge tillgang till byggnadsinformation.</bpmn:documentation>
+      <bpmn:incoming>flow_fire_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_fire_damage_assessment" name="Skadebedomning efter brand"
+                   camunda:candidateGroups="facility_managers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Dokumentera brandskador pa byggnaden, dorrar, las och installationer.</bpmn:documentation>
+      <bpmn:incoming>flow_fire_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_fire_restoration_plan" name="Ateruppbyggnadsplan efter brand"
+                   camunda:candidateGroups="project_managers,facility_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Upprata ateruppbyggnadsplan inklusive tidsplan och budget.</bpmn:documentation>
+      <bpmn:incoming>flow_fire_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_fire_1_2" sourceRef="task_fire_verify_evacuation" targetRef="task_fire_coordinate_dept" />
+    <bpmn:sequenceFlow id="flow_fire_2_3" sourceRef="task_fire_coordinate_dept" targetRef="task_fire_damage_assessment" />
+    <bpmn:sequenceFlow id="flow_fire_3_4" sourceRef="task_fire_damage_assessment" targetRef="task_fire_restoration_plan" />
+
+    <!-- ===================== WATER DAMAGE PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_water" sourceRef="gw_classify_incident" targetRef="task_water_shutoff">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'water_damage'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_water_shutoff" name="Akutavstangning av vatten"
+                   camunda:candidateGroups="maintenance,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Stang av vattenforsorjningen till det drabbade omradet omedelbart.</bpmn:documentation>
+      <bpmn:incoming>flow_to_water</bpmn:incoming>
+      <bpmn:outgoing>flow_water_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_water_pump_dry" name="Pumpa och torka"
+                   camunda:candidateGroups="maintenance,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Pumpa bort vatten och paborja uttorkning av drabbade utrymmen.</bpmn:documentation>
+      <bpmn:incoming>flow_water_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_water_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_water_mold_prevention" name="Mogelforebyggande atgarder"
+                   camunda:candidateGroups="contractors,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Genomfor mogelforebyggande behandling av drabbade ytor och material.</bpmn:documentation>
+      <bpmn:incoming>flow_water_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_water_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_water_damage_assessment" name="Skadebedomning efter vattenskada"
+                   camunda:candidateGroups="facility_managers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Dokumentera vattenskador pa struktur, installationer och utrustning.</bpmn:documentation>
+      <bpmn:incoming>flow_water_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_water_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_water_1_2" sourceRef="task_water_shutoff" targetRef="task_water_pump_dry" />
+    <bpmn:sequenceFlow id="flow_water_2_3" sourceRef="task_water_pump_dry" targetRef="task_water_mold_prevention" />
+    <bpmn:sequenceFlow id="flow_water_3_4" sourceRef="task_water_mold_prevention" targetRef="task_water_damage_assessment" />
+
+    <!-- ===================== SECURITY BREACH PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_security" sourceRef="gw_classify_incident" targetRef="task_security_lockdown">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'security_breach'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_security_lockdown" name="Las ner berorda zoner"
+                   camunda:candidateGroups="security_operators,security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Omedelbar nedlasning av berorda sakerhetszoner och spatarning av atkomstpunkter.</bpmn:documentation>
+      <bpmn:incoming>flow_to_security</bpmn:incoming>
+      <bpmn:outgoing>flow_security_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_security_review" name="Sakerhetsgenomgang"
+                   camunda:candidateGroups="security_admin,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Genomfor fullstandig sakerhetsgenomgang av handelsen och identifiera sakerhetsluckor.</bpmn:documentation>
+      <bpmn:incoming>flow_security_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_security_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_security_access_audit" name="Atkomstgranskning"
+                   camunda:candidateGroups="security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Granska all atkomstlogg for berorda omraden och identifiera obehorigaforsk.</bpmn:documentation>
+      <bpmn:incoming>flow_security_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_security_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_security_countermeasures" name="Implementera motatgarder"
+                   camunda:candidateGroups="security_admin,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Installera eller uppgradera sakerhetssystem som svar pa identifierade brister.</bpmn:documentation>
+      <bpmn:incoming>flow_security_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_security_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_security_1_2" sourceRef="task_security_lockdown" targetRef="task_security_review" />
+    <bpmn:sequenceFlow id="flow_security_2_3" sourceRef="task_security_review" targetRef="task_security_access_audit" />
+    <bpmn:sequenceFlow id="flow_security_3_4" sourceRef="task_security_access_audit" targetRef="task_security_countermeasures" />
+
+    <!-- ===================== STRUCTURAL DAMAGE PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_structural" sourceRef="gw_classify_incident" targetRef="task_structural_evacuate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'structural_damage'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_structural_evacuate" name="Evakuera berort omrade"
+                   camunda:candidateGroups="security_operators,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Evakuera alla personer fran det strukturellt skadade omradet omedelbart.</bpmn:documentation>
+      <bpmn:incoming>flow_to_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_structural_engineer_assessment" name="Konstruktorbedomning"
+                   camunda:candidateGroups="contractors,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Anlita konstruktor for bedomning av strukturella skador och risker.</bpmn:documentation>
+      <bpmn:incoming>flow_structural_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_structural_temp_shoring" name="Temporar avstagning"
+                   camunda:candidateGroups="contractors,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Installera temporara stodkonstruktioner for att sakra det skadade omradet.</bpmn:documentation>
+      <bpmn:incoming>flow_structural_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_structural_permanent_repair" name="Permanent reparationsplan"
+                   camunda:candidateGroups="project_managers,owners,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Upprata plan for permanent reparation med tidsplan, budget och entreprenorer.</bpmn:documentation>
+      <bpmn:incoming>flow_structural_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_structural_1_2" sourceRef="task_structural_evacuate" targetRef="task_structural_engineer_assessment" />
+    <bpmn:sequenceFlow id="flow_structural_2_3" sourceRef="task_structural_engineer_assessment" targetRef="task_structural_temp_shoring" />
+    <bpmn:sequenceFlow id="flow_structural_3_4" sourceRef="task_structural_temp_shoring" targetRef="task_structural_permanent_repair" />
+
+    <!-- ===================== POWER FAILURE PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_power" sourceRef="gw_classify_incident" targetRef="task_power_activate_backup">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'power_failure'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_power_activate_backup" name="Aktivera reservkraft"
+                   camunda:candidateGroups="technicians,maintenance"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Starta reservkraftsystem och sakerstall kritiska funktioner (las, larm, belysning).</bpmn:documentation>
+      <bpmn:incoming>flow_to_power</bpmn:incoming>
+      <bpmn:outgoing>flow_power_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_power_identify_cause" name="Identifiera orsak till stromavbrott"
+                   camunda:candidateGroups="technicians,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Utred och identifiera grundorsaken till stromavbrottet.</bpmn:documentation>
+      <bpmn:incoming>flow_power_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_power_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_power_restore" name="Aterstall stromforsorjning"
+                   camunda:candidateGroups="technicians,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Reparera felet och aterstall normal stromforsorjning till byggnaden.</bpmn:documentation>
+      <bpmn:incoming>flow_power_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_power_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_power_test_systems" name="Testa system efter aterstart"
+                   camunda:candidateGroups="technicians,security_operators"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Testa alla kritiska system: passersystem, larm, hissar, ventilation.</bpmn:documentation>
+      <bpmn:incoming>flow_power_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_power_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_power_1_2" sourceRef="task_power_activate_backup" targetRef="task_power_identify_cause" />
+    <bpmn:sequenceFlow id="flow_power_2_3" sourceRef="task_power_identify_cause" targetRef="task_power_restore" />
+    <bpmn:sequenceFlow id="flow_power_3_4" sourceRef="task_power_restore" targetRef="task_power_test_systems" />
+
+    <!-- ===================== GAS LEAK PATH ===================== -->
+    <bpmn:sequenceFlow id="flow_to_gas" sourceRef="gw_classify_incident" targetRef="task_gas_evacuate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${incidentType == 'gas_leak'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:userTask id="task_gas_evacuate" name="Evakuera vid gaslacka"
+                   camunda:candidateGroups="fire_safety_officer,security_operators"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Evakuera byggnaden omedelbart och sparra omradet runt lackan.</bpmn:documentation>
+      <bpmn:incoming>flow_to_gas</bpmn:incoming>
+      <bpmn:outgoing>flow_gas_1_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_gas_ventilate" name="Ventilera drabbat omrade"
+                   camunda:candidateGroups="maintenance,fire_safety_officer"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Oppna ventilationssystem och fonster for att ventilera ut gasen sakert.</bpmn:documentation>
+      <bpmn:incoming>flow_gas_1_2</bpmn:incoming>
+      <bpmn:outgoing>flow_gas_2_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_gas_locate_leak" name="Lokalisera gaslacka"
+                   camunda:candidateGroups="technicians,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Anvand gasdetektor for att lokalisera exakt plats for lackan.</bpmn:documentation>
+      <bpmn:incoming>flow_gas_2_3</bpmn:incoming>
+      <bpmn:outgoing>flow_gas_3_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_gas_repair" name="Reparera gaslacka"
+                   camunda:candidateGroups="contractors,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Reparera den identifierade gaslackan och verifiera att lackan ar tatat.</bpmn:documentation>
+      <bpmn:incoming>flow_gas_3_4</bpmn:incoming>
+      <bpmn:outgoing>flow_gas_4_5</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="task_gas_air_quality" name="Luftkvalitetstest"
+                   camunda:candidateGroups="technicians,fire_safety_officer"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Genomfor luftkvalitetstest for att sakerstalla att omradet ar sakert att atervanda till.</bpmn:documentation>
+      <bpmn:incoming>flow_gas_4_5</bpmn:incoming>
+      <bpmn:outgoing>flow_gas_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_gas_1_2" sourceRef="task_gas_evacuate" targetRef="task_gas_ventilate" />
+    <bpmn:sequenceFlow id="flow_gas_2_3" sourceRef="task_gas_ventilate" targetRef="task_gas_locate_leak" />
+    <bpmn:sequenceFlow id="flow_gas_3_4" sourceRef="task_gas_locate_leak" targetRef="task_gas_repair" />
+    <bpmn:sequenceFlow id="flow_gas_4_5" sourceRef="task_gas_repair" targetRef="task_gas_air_quality" />
+
+    <!-- ===================== MERGE GATEWAY ===================== -->
+    <bpmn:exclusiveGateway id="gw_merge_paths" name="Sammanfoga incidentvagar">
+      <bpmn:incoming>flow_fire_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_water_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_security_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_structural_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_power_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_gas_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_insurance</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_fire_to_merge" sourceRef="task_fire_restoration_plan" targetRef="gw_merge_paths" />
+    <bpmn:sequenceFlow id="flow_water_to_merge" sourceRef="task_water_damage_assessment" targetRef="gw_merge_paths" />
+    <bpmn:sequenceFlow id="flow_security_to_merge" sourceRef="task_security_countermeasures" targetRef="gw_merge_paths" />
+    <bpmn:sequenceFlow id="flow_structural_to_merge" sourceRef="task_structural_permanent_repair" targetRef="gw_merge_paths" />
+    <bpmn:sequenceFlow id="flow_power_to_merge" sourceRef="task_power_test_systems" targetRef="gw_merge_paths" />
+    <bpmn:sequenceFlow id="flow_gas_to_merge" sourceRef="task_gas_air_quality" targetRef="gw_merge_paths" />
+
+    <!-- ===================== COMMON POST-INCIDENT TASKS ===================== -->
+
+    <!-- Insurance notification (service task with conditional logic) -->
+    <bpmn:serviceTask id="task_insurance_notification" name="Forsakringsanmalan"
+                      camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:documentation>Skicka forsakringsanmalan om incidenten uppfyller villkoren for anmalan.</bpmn:documentation>
+      <bpmn:incoming>flow_merge_to_insurance</bpmn:incoming>
+      <bpmn:outgoing>flow_insurance_to_restoration</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="flow_merge_to_insurance" sourceRef="gw_merge_paths" targetRef="task_insurance_notification" />
+
+    <!-- Restoration execution -->
+    <bpmn:userTask id="task_restoration_execution" name="Genomfor aterstallning"
+                   camunda:candidateGroups="contractors,maintenance,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Genomfor ateruppbyggnad och aterstallning av byggnaden till normalt skick.</bpmn:documentation>
+      <bpmn:incoming>flow_insurance_to_restoration</bpmn:incoming>
+      <bpmn:outgoing>flow_restoration_to_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_insurance_to_restoration" sourceRef="task_insurance_notification" targetRef="task_restoration_execution" />
+
+    <!-- Post-incident review -->
+    <bpmn:userTask id="task_post_incident_review" name="Efterhandelsegenomgang"
+                   camunda:candidateGroups="project_managers,facility_managers,owners,security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>Genomfor efterhandelsegenomgang: identifiera rotorsaker, forbattringsforslagg och uppdatera beredskapsplaner.</bpmn:documentation>
+      <bpmn:incoming>flow_restoration_to_review</bpmn:incoming>
+      <bpmn:outgoing>flow_review_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:sequenceFlow id="flow_restoration_to_review" sourceRef="task_restoration_execution" targetRef="task_post_incident_review" />
+
+    <!-- Audit log (service task) -->
+    <bpmn:serviceTask id="task_audit_log" name="Skriv granskningslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:documentation>Skriv fullstandig granskningslogg over hela incidenthanteringen till audit_log-tabellen.</bpmn:documentation>
+      <bpmn:incoming>flow_review_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="flow_review_to_audit" sourceRef="task_post_incident_review" targetRef="task_audit_log" />
+
+    <!-- ===================== END EVENT ===================== -->
+    <bpmn:endEvent id="end_incident" name="Incident avslutad">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="task_audit_log" targetRef="end_incident" />
+
+  </bpmn:process>
+
+  <!-- ================================================================
+       BPMN DIAGRAM INFORMATION
+       Layout: horizontal left-to-right, 6 incident paths stacked vertically,
+       merging into common post-incident flow on the right.
+       ================================================================ -->
+  <bpmndi:BPMNDiagram id="incident-response-diagram" name="Akut- och incidenthantering Diagram">
+    <bpmndi:BPMNPlane id="plane" bpmnElement="incident-response">
+
+      <!-- START EVENT -->
+      <bpmndi:BPMNShape id="start_incident_di" bpmnElement="start_incident">
+        <dc:Bounds x="50" y="532" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- CLASSIFY GATEWAY -->
+      <bpmndi:BPMNShape id="gw_classify_incident_di" bpmnElement="gw_classify_incident" isMarkerVisible="true">
+        <dc:Bounds x="160" y="525" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_start_to_classify_di" bpmnElement="flow_start_to_classify">
+        <di:waypoint x="86" y="550" />
+        <di:waypoint x="160" y="550" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== FIRE PATH (y=50) ========== -->
+      <bpmndi:BPMNShape id="task_fire_verify_evacuation_di" bpmnElement="task_fire_verify_evacuation">
+        <dc:Bounds x="300" y="30" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_fire_coordinate_dept_di" bpmnElement="task_fire_coordinate_dept">
+        <dc:Bounds x="450" y="30" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_fire_damage_assessment_di" bpmnElement="task_fire_damage_assessment">
+        <dc:Bounds x="600" y="30" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_fire_restoration_plan_di" bpmnElement="task_fire_restoration_plan">
+        <dc:Bounds x="750" y="30" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_fire_di" bpmnElement="flow_to_fire">
+        <di:waypoint x="185" y="525" />
+        <di:waypoint x="185" y="70" />
+        <di:waypoint x="300" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_fire_1_2_di" bpmnElement="flow_fire_1_2">
+        <di:waypoint x="400" y="70" />
+        <di:waypoint x="450" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_fire_2_3_di" bpmnElement="flow_fire_2_3">
+        <di:waypoint x="550" y="70" />
+        <di:waypoint x="600" y="70" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_fire_3_4_di" bpmnElement="flow_fire_3_4">
+        <di:waypoint x="700" y="70" />
+        <di:waypoint x="750" y="70" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== WATER DAMAGE PATH (y=210) ========== -->
+      <bpmndi:BPMNShape id="task_water_shutoff_di" bpmnElement="task_water_shutoff">
+        <dc:Bounds x="300" y="190" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_water_pump_dry_di" bpmnElement="task_water_pump_dry">
+        <dc:Bounds x="450" y="190" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_water_mold_prevention_di" bpmnElement="task_water_mold_prevention">
+        <dc:Bounds x="600" y="190" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_water_damage_assessment_di" bpmnElement="task_water_damage_assessment">
+        <dc:Bounds x="750" y="190" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_water_di" bpmnElement="flow_to_water">
+        <di:waypoint x="185" y="525" />
+        <di:waypoint x="185" y="230" />
+        <di:waypoint x="300" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_water_1_2_di" bpmnElement="flow_water_1_2">
+        <di:waypoint x="400" y="230" />
+        <di:waypoint x="450" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_water_2_3_di" bpmnElement="flow_water_2_3">
+        <di:waypoint x="550" y="230" />
+        <di:waypoint x="600" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_water_3_4_di" bpmnElement="flow_water_3_4">
+        <di:waypoint x="700" y="230" />
+        <di:waypoint x="750" y="230" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== SECURITY BREACH PATH (y=370) ========== -->
+      <bpmndi:BPMNShape id="task_security_lockdown_di" bpmnElement="task_security_lockdown">
+        <dc:Bounds x="300" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_security_review_di" bpmnElement="task_security_review">
+        <dc:Bounds x="450" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_security_access_audit_di" bpmnElement="task_security_access_audit">
+        <dc:Bounds x="600" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_security_countermeasures_di" bpmnElement="task_security_countermeasures">
+        <dc:Bounds x="750" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_security_di" bpmnElement="flow_to_security">
+        <di:waypoint x="185" y="525" />
+        <di:waypoint x="185" y="390" />
+        <di:waypoint x="300" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_security_1_2_di" bpmnElement="flow_security_1_2">
+        <di:waypoint x="400" y="390" />
+        <di:waypoint x="450" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_security_2_3_di" bpmnElement="flow_security_2_3">
+        <di:waypoint x="550" y="390" />
+        <di:waypoint x="600" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_security_3_4_di" bpmnElement="flow_security_3_4">
+        <di:waypoint x="700" y="390" />
+        <di:waypoint x="750" y="390" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== STRUCTURAL DAMAGE PATH (y=530) ========== -->
+      <bpmndi:BPMNShape id="task_structural_evacuate_di" bpmnElement="task_structural_evacuate">
+        <dc:Bounds x="300" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_structural_engineer_assessment_di" bpmnElement="task_structural_engineer_assessment">
+        <dc:Bounds x="450" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_structural_temp_shoring_di" bpmnElement="task_structural_temp_shoring">
+        <dc:Bounds x="600" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_structural_permanent_repair_di" bpmnElement="task_structural_permanent_repair">
+        <dc:Bounds x="750" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_structural_di" bpmnElement="flow_to_structural">
+        <di:waypoint x="210" y="550" />
+        <di:waypoint x="300" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_structural_1_2_di" bpmnElement="flow_structural_1_2">
+        <di:waypoint x="400" y="550" />
+        <di:waypoint x="450" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_structural_2_3_di" bpmnElement="flow_structural_2_3">
+        <di:waypoint x="550" y="550" />
+        <di:waypoint x="600" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_structural_3_4_di" bpmnElement="flow_structural_3_4">
+        <di:waypoint x="700" y="550" />
+        <di:waypoint x="750" y="550" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== POWER FAILURE PATH (y=690) ========== -->
+      <bpmndi:BPMNShape id="task_power_activate_backup_di" bpmnElement="task_power_activate_backup">
+        <dc:Bounds x="300" y="670" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_power_identify_cause_di" bpmnElement="task_power_identify_cause">
+        <dc:Bounds x="450" y="670" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_power_restore_di" bpmnElement="task_power_restore">
+        <dc:Bounds x="600" y="670" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_power_test_systems_di" bpmnElement="task_power_test_systems">
+        <dc:Bounds x="750" y="670" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_power_di" bpmnElement="flow_to_power">
+        <di:waypoint x="185" y="575" />
+        <di:waypoint x="185" y="710" />
+        <di:waypoint x="300" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_power_1_2_di" bpmnElement="flow_power_1_2">
+        <di:waypoint x="400" y="710" />
+        <di:waypoint x="450" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_power_2_3_di" bpmnElement="flow_power_2_3">
+        <di:waypoint x="550" y="710" />
+        <di:waypoint x="600" y="710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_power_3_4_di" bpmnElement="flow_power_3_4">
+        <di:waypoint x="700" y="710" />
+        <di:waypoint x="750" y="710" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== GAS LEAK PATH (y=850) ========== -->
+      <bpmndi:BPMNShape id="task_gas_evacuate_di" bpmnElement="task_gas_evacuate">
+        <dc:Bounds x="300" y="830" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_gas_ventilate_di" bpmnElement="task_gas_ventilate">
+        <dc:Bounds x="450" y="830" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_gas_locate_leak_di" bpmnElement="task_gas_locate_leak">
+        <dc:Bounds x="600" y="830" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_gas_repair_di" bpmnElement="task_gas_repair">
+        <dc:Bounds x="750" y="830" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_gas_air_quality_di" bpmnElement="task_gas_air_quality">
+        <dc:Bounds x="900" y="830" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_to_gas_di" bpmnElement="flow_to_gas">
+        <di:waypoint x="185" y="575" />
+        <di:waypoint x="185" y="870" />
+        <di:waypoint x="300" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gas_1_2_di" bpmnElement="flow_gas_1_2">
+        <di:waypoint x="400" y="870" />
+        <di:waypoint x="450" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gas_2_3_di" bpmnElement="flow_gas_2_3">
+        <di:waypoint x="550" y="870" />
+        <di:waypoint x="600" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gas_3_4_di" bpmnElement="flow_gas_3_4">
+        <di:waypoint x="700" y="870" />
+        <di:waypoint x="750" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gas_4_5_di" bpmnElement="flow_gas_4_5">
+        <di:waypoint x="850" y="870" />
+        <di:waypoint x="900" y="870" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== MERGE GATEWAY ========== -->
+      <bpmndi:BPMNShape id="gw_merge_paths_di" bpmnElement="gw_merge_paths" isMarkerVisible="true">
+        <dc:Bounds x="1050" y="525" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_fire_to_merge_di" bpmnElement="flow_fire_to_merge">
+        <di:waypoint x="850" y="70" />
+        <di:waypoint x="1075" y="70" />
+        <di:waypoint x="1075" y="525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_water_to_merge_di" bpmnElement="flow_water_to_merge">
+        <di:waypoint x="850" y="230" />
+        <di:waypoint x="1075" y="230" />
+        <di:waypoint x="1075" y="525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_security_to_merge_di" bpmnElement="flow_security_to_merge">
+        <di:waypoint x="850" y="390" />
+        <di:waypoint x="1075" y="390" />
+        <di:waypoint x="1075" y="525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_structural_to_merge_di" bpmnElement="flow_structural_to_merge">
+        <di:waypoint x="850" y="550" />
+        <di:waypoint x="1050" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_power_to_merge_di" bpmnElement="flow_power_to_merge">
+        <di:waypoint x="850" y="710" />
+        <di:waypoint x="1075" y="710" />
+        <di:waypoint x="1075" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gas_to_merge_di" bpmnElement="flow_gas_to_merge">
+        <di:waypoint x="1000" y="870" />
+        <di:waypoint x="1075" y="870" />
+        <di:waypoint x="1075" y="575" />
+      </bpmndi:BPMNEdge>
+
+      <!-- ========== COMMON POST-INCIDENT TASKS ========== -->
+      <bpmndi:BPMNShape id="task_insurance_notification_di" bpmnElement="task_insurance_notification">
+        <dc:Bounds x="1170" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_restoration_execution_di" bpmnElement="task_restoration_execution">
+        <dc:Bounds x="1320" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_post_incident_review_di" bpmnElement="task_post_incident_review">
+        <dc:Bounds x="1470" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="task_audit_log_di" bpmnElement="task_audit_log">
+        <dc:Bounds x="1620" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_merge_to_insurance_di" bpmnElement="flow_merge_to_insurance">
+        <di:waypoint x="1100" y="550" />
+        <di:waypoint x="1170" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_insurance_to_restoration_di" bpmnElement="flow_insurance_to_restoration">
+        <di:waypoint x="1270" y="550" />
+        <di:waypoint x="1320" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_restoration_to_review_di" bpmnElement="flow_restoration_to_review">
+        <di:waypoint x="1420" y="550" />
+        <di:waypoint x="1470" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_review_to_audit_di" bpmnElement="flow_review_to_audit">
+        <di:waypoint x="1570" y="550" />
+        <di:waypoint x="1620" y="550" />
+      </bpmndi:BPMNEdge>
+
+      <!-- END EVENT -->
+      <bpmndi:BPMNShape id="end_incident_di" bpmnElement="end_incident">
+        <dc:Bounds x="1782" y="532" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="flow_audit_to_end_di" bpmnElement="flow_audit_to_end">
+        <di:waypoint x="1720" y="550" />
+        <di:waypoint x="1782" y="550" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

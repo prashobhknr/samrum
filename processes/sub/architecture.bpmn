@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="architecture-definitions"
+                   targetNamespace="http://doorman.local/architecture">
+
+  <!-- ================================================================== -->
+  <!-- ARCHITECTURE DESIGN PROCESS                                         -->
+  <!-- Samrum modules: 67 (Lankn rum), 73 (Utokad rum), 102 (Golv)        -->
+  <!--                                                                     -->
+  <!-- The architect defines spatial layout, room specifications,          -->
+  <!-- material selections, and accessibility compliance.                  -->
+  <!-- This is the "backbone" subprocess — other disciplines reference     -->
+  <!-- the architect's room layout and spatial breakdown.                  -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-architecture" name="Arkitektur - Projektering" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Arkitekturprocess startad">
+      <bpmn:outgoing>flow_start_to_layout</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- DESIGN: Floor plan layout -->
+    <bpmn:userTask id="floor_plan_layout" name="Planlösning"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Develop detailed floor plan layout based on space program:
+        - Room placement and sizing
+        - Circulation (corridors, stairs, exits)
+        - Shaft locations (verified with structural + HVAC)
+        - Accessibility routes (BBR 3:1)
+        - Emergency exit routes (BBR 5:3)
+        Output: plan drawings (Planritningar) per floor.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_layout</bpmn:incoming>
+      <bpmn:outgoing>flow_layout_to_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Parallel: Room specs + Facade + Interior -->
+    <bpmn:parallelGateway id="fork_arch">
+      <bpmn:incoming>flow_layout_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_rooms</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_facade</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_interior</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK A: Detailed Room Specification -->
+    <bpmn:userTask id="room_specification" name="Utokad rumsbeskrivning"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Detailed room specification (Samrum module 73):
+        - Room function and requirements
+        - Floor finish (Golv - module 102)
+        - Wall finish
+        - Ceiling type and height
+        - Acoustic requirements
+        - Lighting requirements (input to electrical)
+        - Climate requirements (input to HVAC)
+        - Special requirements (wet room, clean room, etc.)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_rooms</bpmn:incoming>
+      <bpmn:outgoing>flow_rooms_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK B: Facade Design -->
+    <bpmn:userTask id="facade_design" name="Fasadutformning"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Facade design:
+        - Material selection and color scheme
+        - Window placement and sizing (U-value targets)
+        - Solar shading strategy
+        - Entrance design
+        - Heritage compliance if K-marked
+        Output: elevation drawings (Fasadritningar).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_facade</bpmn:incoming>
+      <bpmn:outgoing>flow_facade_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TRACK C: Interior Design -->
+    <bpmn:userTask id="interior_design" name="Inredningsarkitektur"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Interior architecture:
+        - Material palette (floors, walls, ceilings)
+        - Color scheme
+        - Built-in furniture and millwork
+        - Signage and wayfinding
+        - Accessibility features (contrast marking, tactile)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_interior</bpmn:incoming>
+      <bpmn:outgoing>flow_interior_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="join_arch">
+      <bpmn:incoming>flow_rooms_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_facade_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_interior_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_accessibility</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Accessibility check -->
+    <bpmn:userTask id="accessibility_check" name="Tillganglighetsgranskning"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>
+        Verify BBR accessibility compliance:
+        - Door widths (min 800mm free passage)
+        - Level thresholds (max 15mm)
+        - Wheelchair turning space (1500mm diameter)
+        - Accessible toilets
+        - Elevator access to all levels
+        - Contrast marking and tactile guidance
+        - Hearing loop in reception/meeting rooms
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_accessibility</bpmn:incoming>
+      <bpmn:outgoing>flow_accessibility_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_architecture" name="Validera arkitektur"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_accessibility_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_architecture" name="Godkann arkitektur"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_architecture" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Arkitektur klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_layout" sourceRef="start" targetRef="floor_plan_layout" />
+    <bpmn:sequenceFlow id="flow_layout_to_fork" sourceRef="floor_plan_layout" targetRef="fork_arch" />
+    <bpmn:sequenceFlow id="flow_to_rooms" sourceRef="fork_arch" targetRef="room_specification" />
+    <bpmn:sequenceFlow id="flow_to_facade" sourceRef="fork_arch" targetRef="facade_design" />
+    <bpmn:sequenceFlow id="flow_to_interior" sourceRef="fork_arch" targetRef="interior_design" />
+    <bpmn:sequenceFlow id="flow_rooms_to_join" sourceRef="room_specification" targetRef="join_arch" />
+    <bpmn:sequenceFlow id="flow_facade_to_join" sourceRef="facade_design" targetRef="join_arch" />
+    <bpmn:sequenceFlow id="flow_interior_to_join" sourceRef="interior_design" targetRef="join_arch" />
+    <bpmn:sequenceFlow id="flow_join_to_accessibility" sourceRef="join_arch" targetRef="accessibility_check" />
+    <bpmn:sequenceFlow id="flow_accessibility_to_validate" sourceRef="accessibility_check" targetRef="validate_architecture" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_architecture" targetRef="approve_architecture" />
+    <bpmn:sequenceFlow id="flow_approve_to_audit" sourceRef="approve_architecture" targetRef="audit_architecture" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_architecture" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="architecture-diagram">
+    <bpmndi:BPMNPlane id="architecture-plane" bpmnElement="design-architecture">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="layout_di" bpmnElement="floor_plan_layout"><dc:Bounds x="140" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_arch"><dc:Bounds x="310" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="rooms_di" bpmnElement="room_specification"><dc:Bounds x="420" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="facade_di" bpmnElement="facade_design"><dc:Bounds x="420" y="200" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="interior_di" bpmnElement="interior_design"><dc:Bounds x="420" y="320" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_arch"><dc:Bounds x="600" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="accessibility_check"><dc:Bounds x="710" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_architecture"><dc:Bounds x="1050" y="180" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1280" y="202" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

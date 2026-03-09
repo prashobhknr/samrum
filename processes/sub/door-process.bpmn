@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="door-process-definitions"
+                   targetNamespace="http://doorman.local/door-process">
+
+  <!-- ================================================================== -->
+  <!-- FULL DOOR LIFECYCLE PROCESS                                         -->
+  <!-- Source: Passagesystem process.bpm (Bizagi)                          -->
+  <!-- Covers design through production for door/passage objects           -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-door-process" name="Dorrprocess - Projektering till produktion" isExecutable="true">
+
+    <!-- START -->
+    <bpmn:startEvent id="start" name="Dorr-process startad">
+      <bpmn:outgoing>flow_start_to_arch</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Architecture                                  -->
+    <!-- Samrum modules: 32 (Tilltradeobjekt arkitekt), 63 (funktionsprog.)-->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="define_door_requirements" name="Definiera dorrkrav"
+                   camunda:candidateGroups="designers_architect,occupants"
+                   camunda:formKey="doorman:63:6">
+      <bpmn:documentation>Define door requirements from space program. Fire class, sound class, security level, dimensions.</bpmn:documentation>
+      <bpmn:incoming>flow_start_to_arch</bpmn:incoming>
+      <bpmn:outgoing>flow_req_to_arch_design</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="architect_door_design" name="Arkitekt dorrbeskrivning"
+                   camunda:candidateGroups="designers_architect"
+                   camunda:formKey="doorman:32:6">
+      <bpmn:documentation>Architect specifies door appearance, material, surface treatment, dimensions. EN 14351-1 and SS 81 73 40 compliance.</bpmn:documentation>
+      <bpmn:incoming>flow_req_to_arch_design</bpmn:incoming>
+      <bpmn:outgoing>flow_arch_to_fire</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Fire Safety                                   -->
+    <!-- Samrum module: 79 (3.21 Brandskydd rumsredovisat)               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="fire_classification" name="Brandklassning dorr"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Set fire resistance class (EI30/EI60/EI90), smoke seal requirements, self-closing requirements.</bpmn:documentation>
+      <bpmn:incoming>flow_arch_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_tech</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Technical / Lock & Hardware                   -->
+    <!-- Samrum module: 64 (Tilltradeobjekt teknik, las o beslagning)    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="technical_specification" name="Teknisk specifikation las och beslag"
+                   camunda:candidateGroups="designers_door"
+                   camunda:formKey="doorman:64:6">
+      <bpmn:documentation>Specify lock type, cylinder, handle, closer, hinges. Link to key groups.</bpmn:documentation>
+      <bpmn:incoming>flow_fire_to_tech</bpmn:incoming>
+      <bpmn:outgoing>flow_tech_to_access</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Access Control                                -->
+    <!-- Samrum modules: 83 (Passagekontroll), 82 (Sakerhet)             -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="access_control_design" name="Passagekontroll projektering"
+                   camunda:candidateGroups="designers_security,security_admin"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Define access control method, reader type, integration with central system.</bpmn:documentation>
+      <bpmn:incoming>flow_tech_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_elec</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Electrical Conduit                            -->
+    <!-- Samrum module: 108 (3.35 Dorrar, kanalisation El)               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="electrical_conduit" name="Elkanalisation till dorr"
+                   camunda:candidateGroups="designers_electrical"
+                   camunda:formKey="doorman:108:6">
+      <bpmn:documentation>Verify and specify external electrical conduit routing to the door.</bpmn:documentation>
+      <bpmn:incoming>flow_access_to_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_elec_to_boundary</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- DESIGN SUB-PHASE: Boundary List                                 -->
+    <!-- Samrum module: 107 (3.36 Dorrar gränsdragningslista)            -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="boundary_list" name="Gransdragningslista dorrar"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:107:6">
+      <bpmn:documentation>Define responsibility boundaries between disciplines for each door.</bpmn:documentation>
+      <bpmn:incoming>flow_elec_to_boundary</bpmn:incoming>
+      <bpmn:outgoing>flow_boundary_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- VALIDATION: Check design completeness via Doorman API           -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="validate_door_design" name="Validera dorrbeskrivning"
+                      camunda:delegateExpression="${doorValidationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="objectTypeId" stringValue="6" />
+        <camunda:field name="requiredPhase" stringValue="design" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_boundary_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_gate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Design approval gateway -->
+    <bpmn:exclusiveGateway id="gate_design_complete" name="Design komplett?">
+      <bpmn:incoming>flow_validate_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_design_approved</bpmn:outgoing>
+      <bpmn:outgoing>flow_design_rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:sequenceFlow id="flow_design_approved" sourceRef="gate_design_complete" targetRef="approve_door_design">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationPassed == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_design_rejected" sourceRef="gate_design_complete" targetRef="technical_specification">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationPassed == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- ============================================================== -->
+    <!-- APPROVAL                                                        -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="approve_door_design" name="Godkann dorrbeskrivning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:1:6">
+      <bpmn:documentation>Project manager reviews and approves complete door specification.</bpmn:documentation>
+      <bpmn:incoming>flow_design_approved</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_production</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION SUB-PHASE: Delivery Planning                         -->
+    <!-- Samrum module: 65 (Leveransplanering dorrar)                    -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="delivery_planning" name="Leveransplanering dorrar"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:65:6">
+      <bpmn:documentation>Plan delivery sequence. Assign doors to numbered pallets. Set delivery dates.</bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_production</bpmn:incoming>
+      <bpmn:outgoing>flow_delivery_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION SUB-PHASE: Installation                              -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="install_door" name="Montera dorr"
+                   camunda:candidateGroups="contractors,locksmiths"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Install door leaf, frame, hardware. Record serial numbers and as-built dimensions.</bpmn:documentation>
+      <bpmn:incoming>flow_delivery_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_inspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION SUB-PHASE: Inspection                                -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="inspect_installation" name="Besiktning dorr"
+                   camunda:candidateGroups="supervisors,project_managers"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Inspect installation quality. Verify fire class compliance. Check access control function.</bpmn:documentation>
+      <bpmn:incoming>flow_install_to_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_inspect_to_doc</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PRODUCTION SUB-PHASE: Documentation                             -->
+    <!-- Samrum module: 112 (Dokumentation tilltradeobjekt)              -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="document_door" name="Dokumentera tilltradeobjekt"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:83:6">
+      <bpmn:documentation>Complete as-built documentation. Upload photos, certificates, test protocols.</bpmn:documentation>
+      <bpmn:incoming>flow_inspect_to_doc</bpmn:incoming>
+      <bpmn:outgoing>flow_doc_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Write audit entry -->
+    <bpmn:serviceTask id="audit_door_complete" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_doc_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- END -->
+    <bpmn:endEvent id="end" name="Dorrprocess klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================== -->
+    <!-- SEQUENCE FLOWS                                                  -->
+    <!-- ============================================================== -->
+    <bpmn:sequenceFlow id="flow_start_to_arch" sourceRef="start" targetRef="define_door_requirements" />
+    <bpmn:sequenceFlow id="flow_req_to_arch_design" sourceRef="define_door_requirements" targetRef="architect_door_design" />
+    <bpmn:sequenceFlow id="flow_arch_to_fire" sourceRef="architect_door_design" targetRef="fire_classification" />
+    <bpmn:sequenceFlow id="flow_fire_to_tech" sourceRef="fire_classification" targetRef="technical_specification" />
+    <bpmn:sequenceFlow id="flow_tech_to_access" sourceRef="technical_specification" targetRef="access_control_design" />
+    <bpmn:sequenceFlow id="flow_access_to_elec" sourceRef="access_control_design" targetRef="electrical_conduit" />
+    <bpmn:sequenceFlow id="flow_elec_to_boundary" sourceRef="electrical_conduit" targetRef="boundary_list" />
+    <bpmn:sequenceFlow id="flow_boundary_to_validate" sourceRef="boundary_list" targetRef="validate_door_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_gate" sourceRef="validate_door_design" targetRef="gate_design_complete" />
+    <bpmn:sequenceFlow id="flow_approve_to_production" sourceRef="approve_door_design" targetRef="delivery_planning" />
+    <bpmn:sequenceFlow id="flow_delivery_to_install" sourceRef="delivery_planning" targetRef="install_door" />
+    <bpmn:sequenceFlow id="flow_install_to_inspect" sourceRef="install_door" targetRef="inspect_installation" />
+    <bpmn:sequenceFlow id="flow_inspect_to_doc" sourceRef="inspect_installation" targetRef="document_door" />
+    <bpmn:sequenceFlow id="flow_doc_to_audit" sourceRef="document_door" targetRef="audit_door_complete" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_door_complete" targetRef="end" />
+
+  </bpmn:process>
+
+  <!-- ================================================================== -->
+  <!-- DIAGRAM                                                             -->
+  <!-- ================================================================== -->
+  <bpmndi:BPMNDiagram id="door-process-diagram">
+    <bpmndi:BPMNPlane id="door-process-plane" bpmnElement="design-door-process">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start">
+        <dc:Bounds x="50" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="define_door_requirements_di" bpmnElement="define_door_requirements">
+        <dc:Bounds x="140" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="architect_door_design_di" bpmnElement="architect_door_design">
+        <dc:Bounds x="290" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_classification_di" bpmnElement="fire_classification">
+        <dc:Bounds x="440" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="technical_specification_di" bpmnElement="technical_specification">
+        <dc:Bounds x="590" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_control_design_di" bpmnElement="access_control_design">
+        <dc:Bounds x="740" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="electrical_conduit_di" bpmnElement="electrical_conduit">
+        <dc:Bounds x="890" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="boundary_list_di" bpmnElement="boundary_list">
+        <dc:Bounds x="1040" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_door_design_di" bpmnElement="validate_door_design">
+        <dc:Bounds x="140" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_design_complete_di" bpmnElement="gate_design_complete" isMarkerVisible="true">
+        <dc:Bounds x="290" y="355" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_door_design_di" bpmnElement="approve_door_design">
+        <dc:Bounds x="390" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="delivery_planning_di" bpmnElement="delivery_planning">
+        <dc:Bounds x="540" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="install_door_di" bpmnElement="install_door">
+        <dc:Bounds x="690" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="inspect_installation_di" bpmnElement="inspect_installation">
+        <dc:Bounds x="840" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="document_door_di" bpmnElement="document_door">
+        <dc:Bounds x="990" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end">
+        <dc:Bounds x="1140" y="360" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

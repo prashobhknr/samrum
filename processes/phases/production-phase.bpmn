@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="production-phase-definitions"
+                   targetNamespace="http://doorman.local/production-phase">
+
+  <bpmn:error id="err_critical_failure" name="Critical Failure" errorCode="CRITICAL_FAILURE" />
+
+  <!-- SIGNAL DEFINITIONS -->
+  <bpmn:signal id="sig_construction_start" name="sig_construction_start" />
+  <bpmn:signal id="sig_design_freeze" name="sig_design_freeze" />
+
+  <!-- MESSAGE DEFINITIONS -->
+  <bpmn:message id="msg_budget_deviation" name="msg_budget_deviation" />
+
+  <!-- ================================================================== -->
+  <!-- PRODUCTION PHASE (Produktion)                                       -->
+  <!-- PLCS: AS_PLANNED -> AS_REALIZED                                     -->
+  <!-- Swedish building phase: Produktion                                  -->
+  <!--                                                                     -->
+  <!-- Architecture:                                                       -->
+  <!--   1. Pre-construction meeting (Byggstartsmote)                      -->
+  <!--   2. Parallel installation tracks per discipline                    -->
+  <!--   3. Progress inspections (Byggmoter)                               -->
+  <!--   4. Coordinated functional testing (SFP)                           -->
+  <!--   5. Final inspection (Slutbesiktning)                              -->
+  <!-- ================================================================== -->
+  <bpmn:process id="production-phase" name="Produktionsfas" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Produktion startad">
+      <bpmn:outgoing>flow_start_to_kickoff</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Pre-construction Meeting                               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="preconstruction_meeting" name="Byggstartsmote"
+                   camunda:candidateGroups="project_managers,contractors,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Pre-construction kickoff meeting:
+        - Review contract scope and conditions
+        - Establish communication channels
+        - Agree on reporting procedures
+        - Review safety plan and environmental plan
+        - Distribute access credentials for Doorman system
+        - Set up recurring building meetings (Byggmoter)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_kickoff</bpmn:incoming>
+      <bpmn:outgoing>flow_kickoff_to_technical</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2: Technical Startup (Teknisk byggstart)                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="technical_startup" name="Teknisk byggstart"
+                   camunda:candidateGroups="project_managers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify building permit start notification (Startbesked) received.
+        Establish site logistics, temporary facilities, safety setup.
+        Quality plan and control plan approved.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_kickoff_to_technical</bpmn:incoming>
+      <bpmn:outgoing>flow_technical_to_signal</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Construction Start Signal: broadcast that construction has begun -->
+    <bpmn:intermediateThrowEvent id="throw_construction_start" name="Byggstart signalerad">
+      <bpmn:signalEventDefinition signalRef="sig_construction_start" />
+      <bpmn:incoming>flow_technical_to_signal</bpmn:incoming>
+      <bpmn:outgoing>flow_signal_to_fork</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: Parallel Installation Tracks                           -->
+    <!-- ============================================================== -->
+    <bpmn:parallelGateway id="fork_installations" name="Parallella installationer">
+      <bpmn:incoming>flow_signal_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_doors</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_hvac</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_elec</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_access</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_plumbing</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_transport</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_scheduling</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- TRACK 9: Contractor Scheduling (CPM / resource management) -->
+    <bpmn:callActivity id="ca_prod_scheduling" name="Entreprenörsplanering"
+                       calledElement="contractor-scheduling">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="contractIds" target="contractIds" />
+        <camunda:out source="scheduleComplete" target="schedulingComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_scheduling</bpmn:incoming>
+      <bpmn:outgoing>flow_scheduling_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 1: Structural / Shell -->
+    <bpmn:callActivity id="ca_prod_structural" name="Stomme/Skal"
+                       calledElement="design-structural">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="structuralComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_structural_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 2: Doors -->
+    <bpmn:callActivity id="ca_prod_doors" name="Dorrar"
+                       calledElement="design-door-process">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="doorsComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_doors</bpmn:incoming>
+      <bpmn:outgoing>flow_doors_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 3: HVAC -->
+    <bpmn:callActivity id="ca_prod_hvac" name="VVS"
+                       calledElement="hvac">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="hvacComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_hvac</bpmn:incoming>
+      <bpmn:outgoing>flow_hvac_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 4: Electrical -->
+    <bpmn:callActivity id="ca_prod_elec" name="El"
+                       calledElement="electrical">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="elecComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_elec_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 5: Fire Systems -->
+    <bpmn:callActivity id="ca_prod_fire" name="Brandsystem"
+                       calledElement="fire-safety">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="fireComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 6: Access Control -->
+    <bpmn:callActivity id="ca_prod_access" name="Passagekontroll"
+                       calledElement="access-control">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="accessComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_access</bpmn:incoming>
+      <bpmn:outgoing>flow_access_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 7: Plumbing -->
+    <bpmn:callActivity id="ca_prod_plumbing" name="Sanitet/Avlopp"
+                       calledElement="design-plumbing">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="plumbingComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_plumbing</bpmn:incoming>
+      <bpmn:outgoing>flow_plumbing_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- TRACK 8: Transport (Elevators) -->
+    <bpmn:callActivity id="ca_prod_transport" name="Hiss"
+                       calledElement="design-transport">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:out source="disciplineComplete" target="transportComplete" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_transport</bpmn:incoming>
+      <bpmn:outgoing>flow_transport_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Join all installation tracks -->
+    <bpmn:parallelGateway id="join_installations">
+      <bpmn:incoming>flow_structural_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_doors_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_hvac_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_elec_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_fire_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_access_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_plumbing_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_transport_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_scheduling_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_sfp</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 4: Coordinated Functional Testing (SFP)                   -->
+    <!-- Samrum module: 104 (Samordnade funktionsprover)                -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="coordinated_testing" name="Samordnad funktionsprovning (SFP)"
+                   camunda:candidateGroups="project_managers,contractors"
+                   camunda:formKey="doorman:104:1">
+      <bpmn:documentation>
+        Coordinated functional testing (SFP):
+        - Fire alarm activates correct dampers, doors, elevators
+        - Access control integrated with fire alarm (unlock on alarm)
+        - HVAC responds to fire mode
+        - Emergency lighting activates on power failure
+        - Elevator recall functions correctly
+        All systems tested as an integrated whole.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_sfp</bpmn:incoming>
+      <bpmn:outgoing>flow_sfp_to_ovk</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: Mandatory Inspections                                  -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="ovk_inspection" name="OVK-besiktning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Mandatory ventilation inspection (OVK - Obligatorisk Ventilationskontroll).
+        Required before occupancy. Performed by certified inspector.
+        Result: OVK protocol — must be approved.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_sfp_to_ovk</bpmn:incoming>
+      <bpmn:outgoing>flow_ovk_to_final</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: Final Inspection (Slutbesiktning)                      -->
+    <!-- Per AB 04 chapter 7                                            -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="final_inspection" name="Slutbesiktning"
+                   camunda:candidateGroups="project_managers,owners,supervisors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Final inspection (Slutbesiktning) per AB 04 chapter 7:
+        - Inspector (besiktningsman) reviews all work
+        - Identifies defects (anmarkningar) to remediate
+        - Results in inspection protocol (besiktningsprotokoll)
+        - Contractor has remediation period (avhjalpandetid)
+        Approved = proceed to handover. Not approved = rework.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_ovk_to_final</bpmn:incoming>
+      <bpmn:outgoing>flow_final_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gate_inspection" name="Besiktning godkand?">
+      <bpmn:incoming>flow_final_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_inspection_pass</bpmn:outgoing>
+      <bpmn:outgoing>flow_inspection_fail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Remediation loop -->
+    <bpmn:userTask id="remediate_defects" name="Avhjalpa anmarkningar"
+                   camunda:candidateGroups="contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Contractor remediates defects from inspection protocol.
+        Must be completed within agreed remediation period.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_inspection_fail</bpmn:incoming>
+      <bpmn:outgoing>flow_remediate_to_reinspect</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="reinspection" name="Efterbesiktning"
+                   camunda:candidateGroups="supervisors,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_remediate_to_reinspect</bpmn:incoming>
+      <bpmn:outgoing>flow_reinspect_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 7: As-Built Documentation                                 -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="asbuilt_documentation" name="Relationshandlingar"
+                   camunda:candidateGroups="contractors,project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Compile as-built documentation (Relationshandlingar):
+        - Updated drawings reflecting actual installation
+        - Equipment lists with serial numbers
+        - Test protocols and certificates
+        - Operation and maintenance manuals (DU-instruktioner)
+        - BIM model updated to as-built
+      </bpmn:documentation>
+      <bpmn:incoming>flow_inspection_pass</bpmn:incoming>
+      <bpmn:outgoing>flow_asbuilt_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_production" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_asbuilt_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Produktion klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_kickoff" sourceRef="start" targetRef="preconstruction_meeting" />
+    <bpmn:sequenceFlow id="flow_kickoff_to_technical" sourceRef="preconstruction_meeting" targetRef="technical_startup" />
+    <bpmn:sequenceFlow id="flow_technical_to_signal" sourceRef="technical_startup" targetRef="throw_construction_start" />
+    <bpmn:sequenceFlow id="flow_signal_to_fork" sourceRef="throw_construction_start" targetRef="fork_installations" />
+    <bpmn:sequenceFlow id="flow_to_structural" sourceRef="fork_installations" targetRef="ca_prod_structural" />
+    <bpmn:sequenceFlow id="flow_to_doors" sourceRef="fork_installations" targetRef="ca_prod_doors" />
+    <bpmn:sequenceFlow id="flow_to_hvac" sourceRef="fork_installations" targetRef="ca_prod_hvac" />
+    <bpmn:sequenceFlow id="flow_to_elec" sourceRef="fork_installations" targetRef="ca_prod_elec" />
+    <bpmn:sequenceFlow id="flow_to_fire" sourceRef="fork_installations" targetRef="ca_prod_fire" />
+    <bpmn:sequenceFlow id="flow_to_access" sourceRef="fork_installations" targetRef="ca_prod_access" />
+    <bpmn:sequenceFlow id="flow_to_plumbing" sourceRef="fork_installations" targetRef="ca_prod_plumbing" />
+    <bpmn:sequenceFlow id="flow_to_transport" sourceRef="fork_installations" targetRef="ca_prod_transport" />
+    <bpmn:sequenceFlow id="flow_to_scheduling" sourceRef="fork_installations" targetRef="ca_prod_scheduling" />
+    <bpmn:sequenceFlow id="flow_scheduling_to_join" sourceRef="ca_prod_scheduling" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_structural_to_join" sourceRef="ca_prod_structural" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_doors_to_join" sourceRef="ca_prod_doors" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_hvac_to_join" sourceRef="ca_prod_hvac" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_elec_to_join" sourceRef="ca_prod_elec" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_fire_to_join" sourceRef="ca_prod_fire" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_access_to_join" sourceRef="ca_prod_access" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_plumbing_to_join" sourceRef="ca_prod_plumbing" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_transport_to_join" sourceRef="ca_prod_transport" targetRef="join_installations" />
+    <bpmn:sequenceFlow id="flow_join_to_sfp" sourceRef="join_installations" targetRef="coordinated_testing" />
+    <bpmn:sequenceFlow id="flow_sfp_to_ovk" sourceRef="coordinated_testing" targetRef="ovk_inspection" />
+    <bpmn:sequenceFlow id="flow_ovk_to_final" sourceRef="ovk_inspection" targetRef="final_inspection" />
+    <bpmn:sequenceFlow id="flow_final_to_gate" sourceRef="final_inspection" targetRef="gate_inspection" />
+    <bpmn:sequenceFlow id="flow_inspection_pass" sourceRef="gate_inspection" targetRef="asbuilt_documentation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inspectionApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_inspection_fail" sourceRef="gate_inspection" targetRef="remediate_defects">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inspectionApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_remediate_to_reinspect" sourceRef="remediate_defects" targetRef="reinspection" />
+    <bpmn:sequenceFlow id="flow_reinspect_to_gate" sourceRef="reinspection" targetRef="gate_inspection" />
+    <bpmn:sequenceFlow id="flow_asbuilt_to_audit" sourceRef="asbuilt_documentation" targetRef="audit_production" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_production" targetRef="end" />
+
+    <!-- Event sub-process: Budget Overrun / ÄTA (can happen anytime during production) -->
+    <bpmn:subProcess id="budget_event_subprocess" name="Budgetöverskridning (ÄTA)" triggeredByEvent="true">
+      <bpmn:startEvent id="budget_start" name="Budgetavvikelse rapporterad" isInterrupting="false">
+        <bpmn:messageEventDefinition messageRef="msg_budget_deviation" />
+      </bpmn:startEvent>
+      <bpmn:callActivity id="ca_budget_handling" name="ÄTA-hantering"
+                         calledElement="budget-overrun-handling">
+        <bpmn:extensionElements>
+          <camunda:in source="projectId" target="projectId" />
+          <camunda:in source="buildingId" target="buildingId" />
+          <camunda:in source="deviationAmount" target="deviationAmount" />
+          <camunda:in source="deviationSource" target="deviationSource" />
+        </bpmn:extensionElements>
+      </bpmn:callActivity>
+      <bpmn:endEvent id="budget_end" name="ÄTA hanterad" />
+      <bpmn:sequenceFlow id="bf1" sourceRef="budget_start" targetRef="ca_budget_handling" />
+      <bpmn:sequenceFlow id="bf2" sourceRef="ca_budget_handling" targetRef="budget_end" />
+    </bpmn:subProcess>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="production-diagram">
+    <bpmndi:BPMNPlane id="production-plane" bpmnElement="production-phase">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="kickoff_di" bpmnElement="preconstruction_meeting"><dc:Bounds x="140" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="technical_di" bpmnElement="technical_startup"><dc:Bounds x="310" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="signal_di" bpmnElement="throw_construction_start"><dc:Bounds x="462" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_installations"><dc:Bounds x="530" y="255" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="structural_di" bpmnElement="ca_prod_structural"><dc:Bounds x="590" y="20" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="doors_di" bpmnElement="ca_prod_doors"><dc:Bounds x="590" y="90" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hvac_di" bpmnElement="ca_prod_hvac"><dc:Bounds x="590" y="160" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="elec_di" bpmnElement="ca_prod_elec"><dc:Bounds x="590" y="230" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_di" bpmnElement="ca_prod_fire"><dc:Bounds x="590" y="300" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="access_di" bpmnElement="ca_prod_access"><dc:Bounds x="590" y="370" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="plumbing_di" bpmnElement="ca_prod_plumbing"><dc:Bounds x="590" y="440" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="transport_di" bpmnElement="ca_prod_transport"><dc:Bounds x="590" y="510" width="120" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_installations"><dc:Bounds x="770" y="255" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sfp_di" bpmnElement="coordinated_testing"><dc:Bounds x="870" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ovk_di" bpmnElement="ovk_inspection"><dc:Bounds x="1040" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="final_di" bpmnElement="final_inspection"><dc:Bounds x="1210" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_di" bpmnElement="gate_inspection" isMarkerVisible="true"><dc:Bounds x="1380" y="255" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="asbuilt_di" bpmnElement="asbuilt_documentation"><dc:Bounds x="1480" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1680" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="inspections-definitions"
+                   targetNamespace="http://doorman.local/inspections">
+
+  <!-- ================================================================== -->
+  <!-- REGULATORY INSPECTIONS PROCESS                                      -->
+  <!-- Recurring mandatory inspections during operations phase             -->
+  <!--                                                                     -->
+  <!-- Swedish mandatory inspections:                                      -->
+  <!--   - OVK: Obligatorisk Ventilationskontroll (every 3-6 years)       -->
+  <!--   - Hiss: Elevator inspection (every 1.5 years)                    -->
+  <!--   - Brandskydd: SBA - Systematiskt brandskyddsarbete (annual)      -->
+  <!--   - Energi: Energy declaration (every 10 years)                    -->
+  <!--   - Radon: Radon measurement (when required)                       -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-inspections" name="Lagstadgade besiktningar" isExecutable="true">
+
+    <!-- Timer-based start for recurring inspections -->
+    <bpmn:startEvent id="start" name="Besiktningscykel startad">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Identify which inspections are due -->
+    <bpmn:serviceTask id="identify_due_inspections" name="Identifiera forfallna besiktningar"
+                      camunda:delegateExpression="${inspectionQueryDelegate}">
+      <bpmn:incoming>flow_start_to_identify</bpmn:incoming>
+      <bpmn:outgoing>flow_identify_to_fork</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel: Each inspection type that is due -->
+    <bpmn:inclusiveGateway id="fork_inspections" name="Vilka besiktningar?">
+      <bpmn:incoming>flow_identify_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_ovk</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_elevator</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_energy</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- OVK - Obligatorisk Ventilationskontroll                        -->
+    <!-- Interval: 3 years (schools, hospitals), 6 years (offices)      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="schedule_ovk" name="Boka OVK-besiktning"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Schedule OVK inspection with certified OVK inspector.
+        Prepare: previous OVK protocol, ventilation drawings, maintenance log.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_ovk</bpmn:incoming>
+      <bpmn:outgoing>flow_ovk_to_execute</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="execute_ovk" name="Genomfor OVK"
+                   camunda:candidateGroups="facility_managers,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        OVK inspector performs inspection:
+        - Verify ventilation system function
+        - Measure air flows (compare to design values)
+        - Check filters, dampers, AHU condition
+        - Measure indoor air quality (CO2, humidity)
+        - Issue OVK protocol (godkand/ej godkand)
+        Record MEASURED values in Doorman (value_qualifier = MEASURED).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_ovk_to_execute</bpmn:incoming>
+      <bpmn:outgoing>flow_execute_ovk_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gate_ovk" name="OVK godkand?">
+      <bpmn:incoming>flow_execute_ovk_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_ovk_pass</bpmn:outgoing>
+      <bpmn:outgoing>flow_ovk_fail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="remediate_ovk" name="Atgarda OVK-brister"
+                   camunda:candidateGroups="maintenance,hvac_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:incoming>flow_ovk_fail</bpmn:incoming>
+      <bpmn:outgoing>flow_remediate_ovk_to_execute</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- Elevator Inspection                                            -->
+    <!-- Interval: 18 months (accredited body)                          -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="schedule_elevator" name="Boka hissbesiktning"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Schedule elevator inspection with accredited inspection body.
+        Interval: 18 months per AFS 2003:6.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_elevator</bpmn:incoming>
+      <bpmn:outgoing>flow_elevator_to_execute</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="execute_elevator_inspection" name="Genomfor hissbesiktning"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Accredited inspector checks:
+        - Safety devices (overspeed, door locks, buffer)
+        - Electrical safety
+        - Car condition, lighting, communication
+        - Fire recall function
+        - Maintenance log review
+        Result: inspection certificate (besiktningsintyg).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_elevator_to_execute</bpmn:incoming>
+      <bpmn:outgoing>flow_elevator_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- Fire Safety - SBA (Systematiskt brandskyddsarbete)             -->
+    <!-- Annual review per SRVFS 2004:3                                 -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="sba_review" name="SBA-genomgang"
+                   camunda:candidateGroups="facility_managers,security_admin"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Annual systematic fire safety review (SBA):
+        - Organization and responsibilities documented
+        - Fire safety documentation up to date
+        - Fire equipment inspection (extinguishers, hose reels)
+        - Emergency exit routes clear and marked
+        - Fire alarm tested (monthly tests logged)
+        - Fire drill conducted (record results)
+        - Fire doors checked (self-closing, seals)
+        - Evacuation plan current
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_fire_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- Energy Declaration                                             -->
+    <!-- Every 10 years per Lag 2006:985                                -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="energy_declaration" name="Energideklaration"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Energy declaration (every 10 years):
+        - Certified energy expert performs assessment
+        - Measure actual energy consumption (kWh/m2)
+        - Compare to reference values
+        - Identify energy efficiency measures
+        - Submit to Boverket's energy declaration register
+        Record in Doorman: actual energy values (MEASURED).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_energy</bpmn:incoming>
+      <bpmn:outgoing>flow_energy_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join inspection tracks -->
+    <bpmn:inclusiveGateway id="join_inspections">
+      <bpmn:incoming>flow_ovk_pass</bpmn:incoming>
+      <bpmn:incoming>flow_elevator_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_fire_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_energy_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_audit</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <bpmn:serviceTask id="audit_inspections" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_join_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Besiktningscykel klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_identify" sourceRef="start" targetRef="identify_due_inspections" />
+    <bpmn:sequenceFlow id="flow_identify_to_fork" sourceRef="identify_due_inspections" targetRef="fork_inspections" />
+    <bpmn:sequenceFlow id="flow_to_ovk" sourceRef="fork_inspections" targetRef="schedule_ovk">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ovkDue == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_elevator" sourceRef="fork_inspections" targetRef="schedule_elevator">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${elevatorInspectionDue == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_fire" sourceRef="fork_inspections" targetRef="sba_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${sbaReviewDue == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_energy" sourceRef="fork_inspections" targetRef="energy_declaration">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${energyDeclarationDue == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_ovk_to_execute" sourceRef="schedule_ovk" targetRef="execute_ovk" />
+    <bpmn:sequenceFlow id="flow_execute_ovk_to_gate" sourceRef="execute_ovk" targetRef="gate_ovk" />
+    <bpmn:sequenceFlow id="flow_ovk_pass" sourceRef="gate_ovk" targetRef="join_inspections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ovkApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_ovk_fail" sourceRef="gate_ovk" targetRef="remediate_ovk">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ovkApproved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_remediate_ovk_to_execute" sourceRef="remediate_ovk" targetRef="execute_ovk" />
+    <bpmn:sequenceFlow id="flow_elevator_to_execute" sourceRef="schedule_elevator" targetRef="execute_elevator_inspection" />
+    <bpmn:sequenceFlow id="flow_elevator_to_join" sourceRef="execute_elevator_inspection" targetRef="join_inspections" />
+    <bpmn:sequenceFlow id="flow_fire_to_join" sourceRef="sba_review" targetRef="join_inspections" />
+    <bpmn:sequenceFlow id="flow_energy_to_join" sourceRef="energy_declaration" targetRef="join_inspections" />
+    <bpmn:sequenceFlow id="flow_join_to_audit" sourceRef="join_inspections" targetRef="audit_inspections" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_inspections" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="inspections-diagram">
+    <bpmndi:BPMNPlane id="inspections-plane" bpmnElement="operations-inspections">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="232" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="identify_di" bpmnElement="identify_due_inspections"><dc:Bounds x="140" y="210" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_di" bpmnElement="fork_inspections"><dc:Bounds x="310" y="225" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ovk_schedule_di" bpmnElement="schedule_ovk"><dc:Bounds x="420" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ovk_execute_di" bpmnElement="execute_ovk"><dc:Bounds x="590" y="40" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="elevator_di" bpmnElement="schedule_elevator"><dc:Bounds x="420" y="160" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="elevator_exec_di" bpmnElement="execute_elevator_inspection"><dc:Bounds x="590" y="160" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sba_di" bpmnElement="sba_review"><dc:Bounds x="420" y="280" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="energy_di" bpmnElement="energy_declaration"><dc:Bounds x="420" y="400" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_di" bpmnElement="join_inspections"><dc:Bounds x="790" y="225" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="990" y="232" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

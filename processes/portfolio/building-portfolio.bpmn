@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="building-portfolio-definitions"
+                   targetNamespace="http://doorman.local/portfolio">
+
+  <!-- ================================================================== -->
+  <!-- BUILDING PORTFOLIO MANAGEMENT PROCESS                               -->
+  <!-- Manages multiple buildings in a property portfolio.                 -->
+  <!--                                                                     -->
+  <!-- Capabilities:                                                       -->
+  <!--   1. Register new building → spawn master lifecycle instance        -->
+  <!--   2. Cross-building asset inventory (doors, rooms, systems)         -->
+  <!--   3. Portfolio-level KPI aggregation                                -->
+  <!--   4. Bulk operations (multi-building maintenance campaigns)         -->
+  <!--   5. Building comparison and benchmarking                           -->
+  <!-- ================================================================== -->
+
+  <bpmn:message id="msg_register_building" name="msg_register_building" />
+  <bpmn:message id="msg_bulk_maintenance" name="msg_bulk_maintenance" />
+  <bpmn:message id="msg_portfolio_report" name="msg_portfolio_report" />
+
+  <bpmn:process id="building-portfolio" name="Fastighetsportfolj" isExecutable="true">
+
+    <!-- ============================================================== -->
+    <!-- Start: Portfolio process runs continuously                     -->
+    <!-- ============================================================== -->
+    <bpmn:startEvent id="start" name="Portfoljprocess startad">
+      <bpmn:outgoing>flow_start_to_event_gw</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Event-based gateway: wait for one of several triggers -->
+    <bpmn:eventBasedGateway id="event_gw" name="Vanta pa handelse">
+      <bpmn:incoming>flow_start_to_event_gw</bpmn:incoming>
+      <bpmn:incoming>flow_loop_back</bpmn:incoming>
+      <bpmn:outgoing>flow_to_new_building</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_bulk_maint</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_report</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_annual_review</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <!-- ============================================================== -->
+    <!-- PATH 1: Register New Building                                  -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="catch_new_building" name="Ny fastighet">
+      <bpmn:messageEventDefinition messageRef="msg_register_building" />
+      <bpmn:incoming>flow_to_new_building</bpmn:incoming>
+      <bpmn:outgoing>flow_new_to_register</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:userTask id="register_building" name="Registrera fastighet"
+                   camunda:candidateGroups="owners,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Register a new building in the portfolio:
+        - Building name, address, property designation (fastighetsbeteckning)
+        - Building type (kontor, bostad, industri, handel)
+        - Year of construction, total area (BTA, BOA, LOA)
+        - Number of floors, building systems overview
+        - Owner/manager assignment
+        - Initial lifecycle phase (typically investigation or operations)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_new_to_register</bpmn:incoming>
+      <bpmn:outgoing>flow_register_to_create</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="create_building_instance" name="Skapa byggnadsobjekt"
+                      camunda:delegateExpression="${buildingInstanceDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="action" stringValue="create" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_register_to_create</bpmn:incoming>
+      <bpmn:outgoing>flow_create_to_gate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Decide if building needs full lifecycle or enters operations directly -->
+    <bpmn:exclusiveGateway id="gate_lifecycle_start" name="Startfas?">
+      <bpmn:incoming>flow_create_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_new_build</bpmn:outgoing>
+      <bpmn:outgoing>flow_existing_build</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- New construction: spawn full master lifecycle -->
+    <bpmn:serviceTask id="spawn_lifecycle_new" name="Starta livscykel (nybyggnad)"
+                      camunda:delegateExpression="${processSpawnDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="processKey" stringValue="master-building-lifecycle" />
+        <camunda:field name="startMessage" stringValue="msg_project_initiated" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_new_build</bpmn:incoming>
+      <bpmn:outgoing>flow_spawn_new_to_merge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Existing building: spawn lifecycle starting at operations phase -->
+    <bpmn:serviceTask id="spawn_lifecycle_existing" name="Starta livscykel (befintlig)"
+                      camunda:delegateExpression="${processSpawnDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="processKey" stringValue="operations-phase" />
+        <camunda:field name="skipToPhase" stringValue="operations" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_existing_build</bpmn:incoming>
+      <bpmn:outgoing>flow_spawn_existing_to_merge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 2: Bulk Maintenance Campaign                              -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="catch_bulk_maint" name="Kampanjunderhall">
+      <bpmn:messageEventDefinition messageRef="msg_bulk_maintenance" />
+      <bpmn:incoming>flow_to_bulk_maint</bpmn:incoming>
+      <bpmn:outgoing>flow_bulk_to_scope</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:userTask id="define_campaign_scope" name="Definiera kampanjomfattning"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Define bulk maintenance campaign:
+        - Select buildings to include
+        - Define maintenance type (door hardware, fire systems, HVAC, elevators)
+        - Set campaign timeline
+        - Assign contractor(s)
+        - Budget allocation per building
+      </bpmn:documentation>
+      <bpmn:incoming>flow_bulk_to_scope</bpmn:incoming>
+      <bpmn:outgoing>flow_scope_to_spawn_maint</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="spawn_maintenance_per_building" name="Starta underhall per byggnad"
+                      camunda:delegateExpression="${bulkMaintenanceDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="processKey" stringValue="maintenance-cycle" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_scope_to_spawn_maint</bpmn:incoming>
+      <bpmn:outgoing>flow_spawn_maint_to_track</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="track_campaign_progress" name="Folj kampanjframsteg"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Track campaign progress:
+        - Buildings completed / remaining
+        - Issues found per building
+        - Budget spent vs. allocated
+        - Expected completion date
+      </bpmn:documentation>
+      <bpmn:incoming>flow_spawn_maint_to_track</bpmn:incoming>
+      <bpmn:outgoing>flow_track_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 3: Portfolio Report                                       -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="catch_report" name="Portfoljrapport">
+      <bpmn:messageEventDefinition messageRef="msg_portfolio_report" />
+      <bpmn:incoming>flow_to_report</bpmn:incoming>
+      <bpmn:outgoing>flow_report_to_generate</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="generate_portfolio_report" name="Generera portfoljrapport"
+                      camunda:delegateExpression="${portfolioReportDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="reportType" stringValue="portfolio_summary" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_report_to_generate</bpmn:incoming>
+      <bpmn:outgoing>flow_generate_to_review</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="review_portfolio_report" name="Granska portfoljrapport"
+                   camunda:candidateGroups="owners,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Review portfolio report:
+        - Building count and total area
+        - Lifecycle phase distribution
+        - Energy performance benchmarking (kWh/m2)
+        - Maintenance backlog by building
+        - Upcoming inspections (OVK, elevator, SBA)
+        - Access control statistics
+        - Portfolio valuation impact
+      </bpmn:documentation>
+      <bpmn:incoming>flow_generate_to_review</bpmn:incoming>
+      <bpmn:outgoing>flow_review_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- PATH 4: Annual Portfolio Review (timer)                        -->
+    <!-- ============================================================== -->
+    <bpmn:intermediateCatchEvent id="catch_annual_review" name="Arlig oversyn">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+      <bpmn:incoming>flow_to_annual_review</bpmn:incoming>
+      <bpmn:outgoing>flow_annual_to_benchmark</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:serviceTask id="benchmark_buildings" name="Jamfor fastigheter"
+                      camunda:delegateExpression="${portfolioBenchmarkDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="metrics" stringValue="energy,maintenance_cost,occupancy,incidents" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_annual_to_benchmark</bpmn:incoming>
+      <bpmn:outgoing>flow_benchmark_to_strategic</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="strategic_review" name="Strategisk portfoljoversyn"
+                   camunda:candidateGroups="owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Annual strategic portfolio review:
+        - Building performance ranking
+        - Acquisition/divestment recommendations
+        - Capital expenditure planning (5-year horizon)
+        - Sustainability targets and progress
+        - Regulatory compliance status across portfolio
+        - Risk assessment per building
+      </bpmn:documentation>
+      <bpmn:incoming>flow_benchmark_to_strategic</bpmn:incoming>
+      <bpmn:outgoing>flow_strategic_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- MERGE: All paths converge → loop back to event gateway         -->
+    <!-- ============================================================== -->
+    <bpmn:exclusiveGateway id="merge_paths">
+      <bpmn:incoming>flow_spawn_new_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_spawn_existing_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_track_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_review_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_strategic_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_audit</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="audit_portfolio" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_loop_back</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- SEQUENCE FLOWS                                                 -->
+    <!-- ============================================================== -->
+    <bpmn:sequenceFlow id="flow_start_to_event_gw" sourceRef="start" targetRef="event_gw" />
+    <bpmn:sequenceFlow id="flow_loop_back" sourceRef="audit_portfolio" targetRef="event_gw" />
+
+    <!-- Path 1: New building -->
+    <bpmn:sequenceFlow id="flow_to_new_building" sourceRef="event_gw" targetRef="catch_new_building" />
+    <bpmn:sequenceFlow id="flow_new_to_register" sourceRef="catch_new_building" targetRef="register_building" />
+    <bpmn:sequenceFlow id="flow_register_to_create" sourceRef="register_building" targetRef="create_building_instance" />
+    <bpmn:sequenceFlow id="flow_create_to_gate" sourceRef="create_building_instance" targetRef="gate_lifecycle_start" />
+    <bpmn:sequenceFlow id="flow_new_build" sourceRef="gate_lifecycle_start" targetRef="spawn_lifecycle_new">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${buildingType == 'new_construction'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_existing_build" sourceRef="gate_lifecycle_start" targetRef="spawn_lifecycle_existing">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${buildingType == 'existing'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_spawn_new_to_merge" sourceRef="spawn_lifecycle_new" targetRef="merge_paths" />
+    <bpmn:sequenceFlow id="flow_spawn_existing_to_merge" sourceRef="spawn_lifecycle_existing" targetRef="merge_paths" />
+
+    <!-- Path 2: Bulk maintenance -->
+    <bpmn:sequenceFlow id="flow_to_bulk_maint" sourceRef="event_gw" targetRef="catch_bulk_maint" />
+    <bpmn:sequenceFlow id="flow_bulk_to_scope" sourceRef="catch_bulk_maint" targetRef="define_campaign_scope" />
+    <bpmn:sequenceFlow id="flow_scope_to_spawn_maint" sourceRef="define_campaign_scope" targetRef="spawn_maintenance_per_building" />
+    <bpmn:sequenceFlow id="flow_spawn_maint_to_track" sourceRef="spawn_maintenance_per_building" targetRef="track_campaign_progress" />
+    <bpmn:sequenceFlow id="flow_track_to_merge" sourceRef="track_campaign_progress" targetRef="merge_paths" />
+
+    <!-- Path 3: Report -->
+    <bpmn:sequenceFlow id="flow_to_report" sourceRef="event_gw" targetRef="catch_report" />
+    <bpmn:sequenceFlow id="flow_report_to_generate" sourceRef="catch_report" targetRef="generate_portfolio_report" />
+    <bpmn:sequenceFlow id="flow_generate_to_review" sourceRef="generate_portfolio_report" targetRef="review_portfolio_report" />
+    <bpmn:sequenceFlow id="flow_review_to_merge" sourceRef="review_portfolio_report" targetRef="merge_paths" />
+
+    <!-- Path 4: Annual review -->
+    <bpmn:sequenceFlow id="flow_to_annual_review" sourceRef="event_gw" targetRef="catch_annual_review" />
+    <bpmn:sequenceFlow id="flow_annual_to_benchmark" sourceRef="catch_annual_review" targetRef="benchmark_buildings" />
+    <bpmn:sequenceFlow id="flow_benchmark_to_strategic" sourceRef="benchmark_buildings" targetRef="strategic_review" />
+    <bpmn:sequenceFlow id="flow_strategic_to_merge" sourceRef="strategic_review" targetRef="merge_paths" />
+
+    <!-- Merge → audit → loop -->
+    <bpmn:sequenceFlow id="flow_merge_to_audit" sourceRef="merge_paths" targetRef="audit_portfolio" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="portfolio-diagram">
+    <bpmndi:BPMNPlane id="portfolio-plane" bpmnElement="building-portfolio">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="382" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="event_gw_di" bpmnElement="event_gw"><dc:Bounds x="140" y="375" width="50" height="50" /></bpmndi:BPMNShape>
+
+      <!-- Path 1 -->
+      <bpmndi:BPMNShape id="catch_new_di" bpmnElement="catch_new_building"><dc:Bounds x="250" y="82" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="register_di" bpmnElement="register_building"><dc:Bounds x="340" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="create_di" bpmnElement="create_building_instance"><dc:Bounds x="510" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_start_di" bpmnElement="gate_lifecycle_start" isMarkerVisible="true"><dc:Bounds x="680" y="75" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="spawn_new_di" bpmnElement="spawn_lifecycle_new"><dc:Bounds x="790" y="20" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="spawn_existing_di" bpmnElement="spawn_lifecycle_existing"><dc:Bounds x="790" y="120" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Path 2 -->
+      <bpmndi:BPMNShape id="catch_bulk_di" bpmnElement="catch_bulk_maint"><dc:Bounds x="250" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="scope_di" bpmnElement="define_campaign_scope"><dc:Bounds x="340" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="spawn_maint_di" bpmnElement="spawn_maintenance_per_building"><dc:Bounds x="510" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="track_di" bpmnElement="track_campaign_progress"><dc:Bounds x="680" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Path 3 -->
+      <bpmndi:BPMNShape id="catch_report_di" bpmnElement="catch_report"><dc:Bounds x="250" y="462" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gen_report_di" bpmnElement="generate_portfolio_report"><dc:Bounds x="340" y="440" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="review_report_di" bpmnElement="review_portfolio_report"><dc:Bounds x="510" y="440" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Path 4 -->
+      <bpmndi:BPMNShape id="catch_annual_di" bpmnElement="catch_annual_review"><dc:Bounds x="250" y="632" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="benchmark_di" bpmnElement="benchmark_buildings"><dc:Bounds x="340" y="610" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="strategic_di" bpmnElement="strategic_review"><dc:Bounds x="510" y="610" width="120" height="80" /></bpmndi:BPMNShape>
+
+      <!-- Merge + Audit -->
+      <bpmndi:BPMNShape id="merge_di" bpmnElement="merge_paths" isMarkerVisible="true"><dc:Bounds x="1000" y="375" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="audit_di" bpmnElement="audit_portfolio"><dc:Bounds x="1100" y="360" width="120" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

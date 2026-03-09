@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="energy-management-definitions"
+                   targetNamespace="http://doorman.local/energy-management">
+
+  <!-- ================================================================== -->
+  <!-- ENERGY MANAGEMENT PROCESS (Operations)                              -->
+  <!-- ISO 50001 energy management system principles                       -->
+  <!--                                                                     -->
+  <!-- Recurring annual cycle:                                             -->
+  <!--   1. Collect energy data (monthly)                                  -->
+  <!--   2. Annual energy analysis                                         -->
+  <!--   3. Identify efficiency measures                                   -->
+  <!--   4. Implement measures                                             -->
+  <!--   5. Verify results                                                 -->
+  <!-- ================================================================== -->
+  <bpmn:process id="operations-energy" name="Energiuppfoljning" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Energicykel startad">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_start_to_collect</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Collect energy consumption data -->
+    <bpmn:serviceTask id="collect_energy_data" name="Hamta energidata"
+                      camunda:delegateExpression="${energyDataCollectionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:field name="dataPoints" stringValue="electricity,heating,cooling,water" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_start_to_collect</bpmn:incoming>
+      <bpmn:outgoing>flow_collect_to_analyze</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Annual energy analysis -->
+    <bpmn:userTask id="energy_analysis" name="Arlig energianalys"
+                   camunda:candidateGroups="facility_managers,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Annual energy analysis:
+        - Compare actual consumption to design targets
+        - Benchmark against similar buildings (kWh/m2)
+        - Degree-day normalization for weather
+        - Identify anomalies and trends
+        - Compare to previous year
+        Record analysis values in Doorman (MEASURED qualifier).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_collect_to_analyze</bpmn:incoming>
+      <bpmn:outgoing>flow_analyze_to_identify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Identify efficiency measures -->
+    <bpmn:userTask id="identify_measures" name="Identifiera atgarder"
+                   camunda:candidateGroups="facility_managers,technicians"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Identify energy efficiency measures:
+        - Quick wins (setpoint adjustments, scheduling)
+        - Medium-term (LED retrofit, insulation, BMS optimization)
+        - Long-term investments (heat pump, solar PV, windows)
+        Calculate ROI and prioritize.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_analyze_to_identify</bpmn:incoming>
+      <bpmn:outgoing>flow_identify_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Any measures to implement? -->
+    <bpmn:exclusiveGateway id="gate_measures" name="Atgarder att genomfora?">
+      <bpmn:incoming>flow_identify_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_measures_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_measures_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Approve and implement -->
+    <bpmn:userTask id="approve_measures" name="Godkann energiatgarder"
+                   camunda:candidateGroups="owners,facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Approve energy efficiency investments:
+        - Review cost-benefit analysis
+        - Approve budget
+        - Set implementation timeline
+      </bpmn:documentation>
+      <bpmn:incoming>flow_measures_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_implement</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="implement_measures" name="Genomfor atgarder"
+                   camunda:candidateGroups="maintenance,technicians,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Implement approved measures:
+        - Adjust BMS settings
+        - Install efficiency equipment
+        - Commission and verify
+        Update Doorman attribute values with new settings.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_implement</bpmn:incoming>
+      <bpmn:outgoing>flow_implement_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Verify results -->
+    <bpmn:userTask id="verify_results" name="Verifiera resultat"
+                   camunda:candidateGroups="facility_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify energy savings after implementation:
+        - Compare energy use before/after (weather-normalized)
+        - Document actual savings vs. predicted
+        - Update energy targets if needed
+      </bpmn:documentation>
+      <bpmn:incoming>flow_implement_to_verify</bpmn:incoming>
+      <bpmn:outgoing>flow_verify_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_energy" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_verify_to_audit</bpmn:incoming>
+      <bpmn:incoming>flow_measures_no</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Energicykel klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_collect" sourceRef="start" targetRef="collect_energy_data" />
+    <bpmn:sequenceFlow id="flow_collect_to_analyze" sourceRef="collect_energy_data" targetRef="energy_analysis" />
+    <bpmn:sequenceFlow id="flow_analyze_to_identify" sourceRef="energy_analysis" targetRef="identify_measures" />
+    <bpmn:sequenceFlow id="flow_identify_to_gate" sourceRef="identify_measures" targetRef="gate_measures" />
+    <bpmn:sequenceFlow id="flow_measures_yes" sourceRef="gate_measures" targetRef="approve_measures">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${measuresIdentified == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_measures_no" sourceRef="gate_measures" targetRef="audit_energy">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${measuresIdentified == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_approve_to_implement" sourceRef="approve_measures" targetRef="implement_measures" />
+    <bpmn:sequenceFlow id="flow_implement_to_verify" sourceRef="implement_measures" targetRef="verify_results" />
+    <bpmn:sequenceFlow id="flow_verify_to_audit" sourceRef="verify_results" targetRef="audit_energy" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_energy" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="energy-diagram">
+    <bpmndi:BPMNPlane id="energy-plane" bpmnElement="operations-energy">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="collect_di" bpmnElement="collect_energy_data"><dc:Bounds x="140" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="analyze_di" bpmnElement="energy_analysis"><dc:Bounds x="310" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="identify_di" bpmnElement="identify_measures"><dc:Bounds x="480" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_di" bpmnElement="gate_measures" isMarkerVisible="true"><dc:Bounds x="650" y="95" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_measures"><dc:Bounds x="760" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="implement_di" bpmnElement="implement_measures"><dc:Bounds x="930" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="verify_di" bpmnElement="verify_results"><dc:Bounds x="1100" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1380" y="102" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

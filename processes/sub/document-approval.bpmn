@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="document-approval-definitions"
+                   targetNamespace="http://doorman.local/document-approval">
+
+  <!-- ================================================================== -->
+  <!-- DOCUMENT APPROVAL WORKFLOW                                          -->
+  <!-- Reusable subprocess for document review and approval                -->
+  <!--                                                                     -->
+  <!-- Used by: all discipline subprocesses, phase gates                   -->
+  <!--                                                                     -->
+  <!-- Handles:                                                            -->
+  <!--   - Design document submission                                      -->
+  <!--   - Multi-reviewer approval (parallel or sequential)               -->
+  <!--   - Revision cycle (reject → revise → resubmit)                    -->
+  <!--   - Version control and audit trail                                 -->
+  <!--   - Document classification (Handling A-F per Swedish standards)   -->
+  <!--                                                                     -->
+  <!-- Document classes:                                                   -->
+  <!--   A = Systemhandling (System design)                                -->
+  <!--   B = Bygghandling (Construction documents)                         -->
+  <!--   C = Relationshandling (As-built)                                  -->
+  <!--   D = DU-instruktion (O&M manual)                                   -->
+  <!--   E = Brandskyddsdokumentation (Fire safety doc)                    -->
+  <!--   F = Kontrollplan (Control plan)                                   -->
+  <!-- ================================================================== -->
+  <bpmn:process id="document-approval" name="Dokumentgodkannande" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Dokument inlamnat">
+      <bpmn:outgoing>flow_start_to_classify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Classify document and determine review requirements -->
+    <bpmn:userTask id="classify_document" name="Klassificera dokument"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Classify submitted document:
+        - Document type (A-F per Swedish standards)
+        - Discipline (architecture, structural, fire, etc.)
+        - Review level required (single, dual, committee)
+        - Confidentiality level
+        - Distribution list
+        Assign to appropriate reviewer(s).
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_classify</bpmn:incoming>
+      <bpmn:outgoing>flow_classify_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Determine review type -->
+    <bpmn:exclusiveGateway id="gate_review_type" name="Granskningstyp?">
+      <bpmn:incoming>flow_classify_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_single_review</bpmn:outgoing>
+      <bpmn:outgoing>flow_dual_review</bpmn:outgoing>
+      <bpmn:outgoing>flow_committee_review</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- PATH 1: Single Reviewer -->
+    <bpmn:userTask id="single_review" name="Granskning (enkel)"
+                   camunda:candidateGroups="project_managers,designers_architect,designers_structural,designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Single reviewer checks document for:
+        - Technical correctness
+        - Compliance with design basis
+        - Completeness
+        - Consistency with other discipline documents
+        Decision: Approve, Approve with comments, Reject.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_single_review</bpmn:incoming>
+      <bpmn:outgoing>flow_single_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PATH 2: Dual Review (technical + PM) -->
+    <bpmn:parallelGateway id="fork_dual">
+      <bpmn:incoming>flow_dual_review</bpmn:incoming>
+      <bpmn:outgoing>flow_to_tech_review</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_pm_review</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:userTask id="technical_review" name="Teknisk granskning"
+                   camunda:candidateGroups="designers_architect,designers_structural,designers_fire,designers_hvac,designers_electrical"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Technical specialist reviews for discipline-specific correctness.
+        Checks calculations, specifications, and standard compliance.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_tech_review</bpmn:incoming>
+      <bpmn:outgoing>flow_tech_to_join_dual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="pm_review" name="Projektledarens granskning"
+                   camunda:candidateGroups="project_managers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        PM reviews for project alignment: scope, budget impact,
+        schedule impact, cross-discipline coordination.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_pm_review</bpmn:incoming>
+      <bpmn:outgoing>flow_pm_to_join_dual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:parallelGateway id="join_dual">
+      <bpmn:incoming>flow_tech_to_join_dual</bpmn:incoming>
+      <bpmn:incoming>flow_pm_to_join_dual</bpmn:incoming>
+      <bpmn:outgoing>flow_join_dual_to_merge</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- PATH 3: Committee Review (building permit, fire safety) -->
+    <bpmn:userTask id="committee_review" name="Granskning i kommitte"
+                   camunda:candidateGroups="project_managers,owners,designers_architect,designers_fire,legal"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Committee review for critical documents:
+        - Building permit applications
+        - Fire safety documentation (Brandskyddsdokumentation)
+        - Control plans (Kontrollplan)
+        - Third-party certifications (SAK-K)
+        All committee members must sign off.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_committee_review</bpmn:incoming>
+      <bpmn:outgoing>flow_committee_to_merge</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Merge all review paths -->
+    <bpmn:exclusiveGateway id="merge_reviews">
+      <bpmn:incoming>flow_single_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_join_dual_to_merge</bpmn:incoming>
+      <bpmn:incoming>flow_committee_to_merge</bpmn:incoming>
+      <bpmn:outgoing>flow_merge_to_decision</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Decision gateway -->
+    <bpmn:exclusiveGateway id="gate_decision" name="Beslut?">
+      <bpmn:incoming>flow_merge_to_decision</bpmn:incoming>
+      <bpmn:outgoing>flow_approved</bpmn:outgoing>
+      <bpmn:outgoing>flow_approved_with_comments</bpmn:outgoing>
+      <bpmn:outgoing>flow_rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Approved: register and distribute -->
+    <bpmn:serviceTask id="register_document" name="Registrera godkant dokument"
+                      camunda:delegateExpression="${documentRegistrationDelegate}">
+      <bpmn:incoming>flow_approved</bpmn:incoming>
+      <bpmn:incoming>flow_comments_resolved</bpmn:incoming>
+      <bpmn:outgoing>flow_register_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approved with comments: author must address -->
+    <bpmn:userTask id="address_comments" name="Hantera granskningskommentarer"
+                   camunda:candidateGroups="designers_architect,designers_structural,designers_fire,designers_hvac,designers_electrical,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Author addresses review comments:
+        - Incorporate required changes
+        - Respond to each comment
+        - Update document version
+        Submit revised document for verification.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approved_with_comments</bpmn:incoming>
+      <bpmn:outgoing>flow_comments_resolved</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Rejected: revise and resubmit -->
+    <bpmn:userTask id="revise_document" name="Revidera och lamna in pa nytt"
+                   camunda:candidateGroups="designers_architect,designers_structural,designers_fire,designers_hvac,designers_electrical,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Document rejected — author must revise and resubmit:
+        - Address all rejection reasons
+        - Update document version (increment revision number)
+        - Re-submit for new review cycle
+      </bpmn:documentation>
+      <bpmn:incoming>flow_rejected</bpmn:incoming>
+      <bpmn:outgoing>flow_revise_to_classify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Audit and end -->
+    <bpmn:serviceTask id="audit_document" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_register_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Dokumentgodkannande klart">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_classify" sourceRef="start" targetRef="classify_document" />
+    <bpmn:sequenceFlow id="flow_classify_to_gate" sourceRef="classify_document" targetRef="gate_review_type" />
+    <bpmn:sequenceFlow id="flow_single_review" sourceRef="gate_review_type" targetRef="single_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewType == 'single'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_dual_review" sourceRef="gate_review_type" targetRef="fork_dual">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewType == 'dual'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_committee_review" sourceRef="gate_review_type" targetRef="committee_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewType == 'committee'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_tech_review" sourceRef="fork_dual" targetRef="technical_review" />
+    <bpmn:sequenceFlow id="flow_to_pm_review" sourceRef="fork_dual" targetRef="pm_review" />
+    <bpmn:sequenceFlow id="flow_tech_to_join_dual" sourceRef="technical_review" targetRef="join_dual" />
+    <bpmn:sequenceFlow id="flow_pm_to_join_dual" sourceRef="pm_review" targetRef="join_dual" />
+    <bpmn:sequenceFlow id="flow_single_to_merge" sourceRef="single_review" targetRef="merge_reviews" />
+    <bpmn:sequenceFlow id="flow_join_dual_to_merge" sourceRef="join_dual" targetRef="merge_reviews" />
+    <bpmn:sequenceFlow id="flow_committee_to_merge" sourceRef="committee_review" targetRef="merge_reviews" />
+    <bpmn:sequenceFlow id="flow_merge_to_decision" sourceRef="merge_reviews" targetRef="gate_decision" />
+    <bpmn:sequenceFlow id="flow_approved" sourceRef="gate_decision" targetRef="register_document">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewDecision == 'approved'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_approved_with_comments" sourceRef="gate_decision" targetRef="address_comments">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewDecision == 'approved_with_comments'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_rejected" sourceRef="gate_decision" targetRef="revise_document">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewDecision == 'rejected'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_comments_resolved" sourceRef="address_comments" targetRef="register_document" />
+    <bpmn:sequenceFlow id="flow_revise_to_classify" sourceRef="revise_document" targetRef="classify_document" />
+    <bpmn:sequenceFlow id="flow_register_to_audit" sourceRef="register_document" targetRef="audit_document" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_document" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="doc-approval-diagram">
+    <bpmndi:BPMNPlane id="doc-approval-plane" bpmnElement="document-approval">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="252" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="classify_di" bpmnElement="classify_document"><dc:Bounds x="140" y="230" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="gate_type_di" bpmnElement="gate_review_type" isMarkerVisible="true"><dc:Bounds x="310" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <!-- Single review path (top) -->
+      <bpmndi:BPMNShape id="single_di" bpmnElement="single_review"><dc:Bounds x="420" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <!-- Dual review path (middle) -->
+      <bpmndi:BPMNShape id="fork_dual_di" bpmnElement="fork_dual"><dc:Bounds x="420" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="tech_di" bpmnElement="technical_review"><dc:Bounds x="520" y="200" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="pm_di" bpmnElement="pm_review"><dc:Bounds x="520" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_dual_di" bpmnElement="join_dual"><dc:Bounds x="690" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <!-- Committee review path (bottom) -->
+      <bpmndi:BPMNShape id="committee_di" bpmnElement="committee_review"><dc:Bounds x="420" y="420" width="120" height="80" /></bpmndi:BPMNShape>
+      <!-- Merge + decision -->
+      <bpmndi:BPMNShape id="merge_di" bpmnElement="merge_reviews" isMarkerVisible="true"><dc:Bounds x="800" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="decision_di" bpmnElement="gate_decision" isMarkerVisible="true"><dc:Bounds x="900" y="245" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="register_di" bpmnElement="register_document"><dc:Bounds x="1010" y="230" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="comments_di" bpmnElement="address_comments"><dc:Bounds x="1010" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="revise_di" bpmnElement="revise_document"><dc:Bounds x="1010" y="380" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="audit_di" bpmnElement="audit_document"><dc:Bounds x="1190" y="230" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1370" y="252" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

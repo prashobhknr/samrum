@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="fire-safety-definitions"
+                   targetNamespace="http://doorman.local/fire-safety">
+
+  <!-- ================================================================== -->
+  <!-- FIRE SAFETY LIFECYCLE PROCESS                                       -->
+  <!-- Sources: Brandlarm.bpm + Brandfunktionsprocessen.bpm (Bizagi)       -->
+  <!-- Covers fire alarm design, fire function specification,              -->
+  <!-- installation, and commissioning                                     -->
+  <!-- ================================================================== -->
+  <bpmn:process id="fire-safety" name="Brandsakerhet - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Brandsäkerhet startad">
+      <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Parallel: Fire functions + Fire alarm designed concurrently -->
+    <bpmn:parallelGateway id="fork_fire_tracks" name="Parallella brandspår">
+      <bpmn:incoming>flow_start_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_functions</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_alarm</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- ============================================================== -->
+    <!-- TRACK A: Fire Functions (Brandfunktionsprocessen)                -->
+    <!-- Samrum module: 99 (3.22 Brand- o sakerhetsfunktioner)           -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="define_fire_compartments" name="Definiera brandceller"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Define fire compartments, fire resistance requirements per wall/door/floor.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_functions</bpmn:incoming>
+      <bpmn:outgoing>flow_compartments_to_functions</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="specify_fire_functions" name="Specificera brandfunktioner"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Define fire functions per room: smoke detection, sprinkler, evacuation signage, damper control.</bpmn:documentation>
+      <bpmn:incoming>flow_compartments_to_functions</bpmn:incoming>
+      <bpmn:outgoing>flow_functions_to_signal</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="define_signal_chains" name="Definiera signalkedjor"
+                   camunda:candidateGroups="designers_fire,designers_controls"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Map signal chains: detector --> central --> actuator. Fire damper control sequences.</bpmn:documentation>
+      <bpmn:incoming>flow_functions_to_signal</bpmn:incoming>
+      <bpmn:outgoing>flow_signal_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- TRACK B: Fire Alarm (Brandlarm)                                 -->
+    <!-- Samrum modules: 81 (3.52 Brandlarm), 103 (tele-styr-brand)      -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="design_fire_alarm" name="Projektera brandlarm"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Design fire alarm system: detector placement, loop design, central location.</bpmn:documentation>
+      <bpmn:incoming>flow_fork_to_alarm</bpmn:incoming>
+      <bpmn:outgoing>flow_alarm_to_central</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="specify_alarm_central" name="Specificera brandlarmscentral"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Specify fire alarm central unit. Integration with building management system.</bpmn:documentation>
+      <bpmn:incoming>flow_alarm_to_central</bpmn:incoming>
+      <bpmn:outgoing>flow_central_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Join parallel tracks -->
+    <bpmn:parallelGateway id="join_fire_tracks" name="Sammanfor brandspår">
+      <bpmn:incoming>flow_signal_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_central_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_doc</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Fire safety documentation -->
+    <bpmn:userTask id="fire_safety_documentation" name="Brandskyddsdokumentation"
+                   camunda:candidateGroups="designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Compile fire safety documentation (Brandskyddsdokumentation). Module 789.</bpmn:documentation>
+      <bpmn:incoming>flow_join_to_doc</bpmn:incoming>
+      <bpmn:outgoing>flow_doc_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_fire_design" name="Validera brandprojektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_doc_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval -->
+    <bpmn:userTask id="approve_fire_design" name="Godkann brandprojektering"
+                   camunda:candidateGroups="project_managers,designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Install -->
+    <bpmn:userTask id="install_fire_systems" name="Installera brandsystem"
+                   camunda:candidateGroups="contractors,fire_installers"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Install detectors, alarm central, sprinkler heads, fire dampers.</bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_test</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Functional test -->
+    <bpmn:userTask id="test_fire_systems" name="Funktionsprov brandsystem"
+                   camunda:candidateGroups="contractors,designers_fire"
+                   camunda:formKey="doorman:79:6">
+      <bpmn:documentation>Test all fire functions. Verify signal chains. Document test results.</bpmn:documentation>
+      <bpmn:incoming>flow_install_to_test</bpmn:incoming>
+      <bpmn:outgoing>flow_test_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_fire_complete" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_test_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Brandsäkerhet klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_fork" sourceRef="start" targetRef="fork_fire_tracks" />
+    <bpmn:sequenceFlow id="flow_fork_to_functions" sourceRef="fork_fire_tracks" targetRef="define_fire_compartments" />
+    <bpmn:sequenceFlow id="flow_fork_to_alarm" sourceRef="fork_fire_tracks" targetRef="design_fire_alarm" />
+    <bpmn:sequenceFlow id="flow_compartments_to_functions" sourceRef="define_fire_compartments" targetRef="specify_fire_functions" />
+    <bpmn:sequenceFlow id="flow_functions_to_signal" sourceRef="specify_fire_functions" targetRef="define_signal_chains" />
+    <bpmn:sequenceFlow id="flow_signal_to_join" sourceRef="define_signal_chains" targetRef="join_fire_tracks" />
+    <bpmn:sequenceFlow id="flow_alarm_to_central" sourceRef="design_fire_alarm" targetRef="specify_alarm_central" />
+    <bpmn:sequenceFlow id="flow_central_to_join" sourceRef="specify_alarm_central" targetRef="join_fire_tracks" />
+    <bpmn:sequenceFlow id="flow_join_to_doc" sourceRef="join_fire_tracks" targetRef="fire_safety_documentation" />
+    <bpmn:sequenceFlow id="flow_doc_to_validate" sourceRef="fire_safety_documentation" targetRef="validate_fire_design" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_fire_design" targetRef="approve_fire_design" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_fire_design" targetRef="install_fire_systems" />
+    <bpmn:sequenceFlow id="flow_install_to_test" sourceRef="install_fire_systems" targetRef="test_fire_systems" />
+    <bpmn:sequenceFlow id="flow_test_to_audit" sourceRef="test_fire_systems" targetRef="audit_fire_complete" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_fire_complete" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="fire-safety-diagram">
+    <bpmndi:BPMNPlane id="fire-safety-plane" bpmnElement="fire-safety">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fork_fire_tracks_di" bpmnElement="fork_fire_tracks"><dc:Bounds x="140" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="define_fire_compartments_di" bpmnElement="define_fire_compartments"><dc:Bounds x="250" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="specify_fire_functions_di" bpmnElement="specify_fire_functions"><dc:Bounds x="400" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="define_signal_chains_di" bpmnElement="define_signal_chains"><dc:Bounds x="550" y="80" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_fire_alarm_di" bpmnElement="design_fire_alarm"><dc:Bounds x="250" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="specify_alarm_central_di" bpmnElement="specify_alarm_central"><dc:Bounds x="400" y="280" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="join_fire_tracks_di" bpmnElement="join_fire_tracks"><dc:Bounds x="700" y="195" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="fire_safety_documentation_di" bpmnElement="fire_safety_documentation"><dc:Bounds x="800" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="1250" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

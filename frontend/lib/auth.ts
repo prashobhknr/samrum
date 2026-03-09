@@ -23,66 +23,31 @@ export interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const MOCK_USERS: Record<string, { password: string; user: User }> = {
-  'john.locksmith': {
-    password: 'password123',
-    user: {
-      id: '1',
-      username: 'john.locksmith',
-      name: 'John Locksmith',
-      email: 'john@example.com',
-      groups: ['locksmiths'],
-    },
-  },
-  'jane.supervisor': {
-    password: 'password123',
-    user: {
-      id: '2',
-      username: 'jane.supervisor',
-      name: 'Jane Supervisor',
-      email: 'jane@example.com',
-      groups: ['supervisors'],
-    },
-  },
-  'mike.maintenance': {
-    password: 'password123',
-    user: {
-      id: '3',
-      username: 'mike.maintenance',
-      name: 'Mike Maintenance',
-      email: 'mike@example.com',
-      groups: ['maintenance'],
-    },
-  },
-  'admin': {
-    password: 'password123',
-    user: {
-      id: '4',
-      username: 'admin',
-      name: 'Admin User',
-      email: 'admin@example.com',
-      groups: ['security_admin', 'supervisors'],
-    },
-  },
-};
 
 export async function loginUser(username: string, password: string): Promise<User> {
-  // In production, call Keycloak/LDAP API
-  const mockUser = MOCK_USERS[username];
+  // Phase 8: Real Authentication Call
+  const res = await fetch('http://localhost:3000/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
 
-  if (!mockUser || mockUser.password !== password) {
-    throw new Error('Invalid credentials');
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Invalid credentials');
   }
 
-  // Store token in localStorage
-  const token = Buffer.from(`${username}:${password}`).toString('base64');
+  const user = data.data as User;
+
+  // Store token in localStorage (browser-safe base64 for basic auth demo)
+  const token = typeof window !== 'undefined' ? btoa(`${username}:${password}`) : '';
   localStorage.setItem('auth_token', token);
-  localStorage.setItem('auth_user', JSON.stringify(mockUser.user));
+  localStorage.setItem('auth_user', JSON.stringify(user));
 
   // Set API token
   api.setToken(token);
 
-  return mockUser.user;
+  return user;
 }
 
 export async function logoutUser(): Promise<void> {

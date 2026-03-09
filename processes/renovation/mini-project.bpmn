@@ -1,0 +1,1048 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="renovation-mini-project-definitions"
+                   targetNamespace="http://doorman.local/renovation-mini-project"
+                   exporter="Doorman Architect"
+                   exporterVersion="2.0.0">
+
+  <!-- ================================================================== -->
+  <!-- ERROR DEFINITIONS                                                   -->
+  <!-- ================================================================== -->
+  <bpmn:error id="err_budget_exceeded" name="Budget Exceeded" errorCode="BUDGET_EXCEEDED" />
+  <bpmn:error id="err_inspection_failed" name="Inspection Failed" errorCode="INSPECTION_FAILED" />
+  <bpmn:error id="err_scope_invalid" name="Scope Invalid" errorCode="SCOPE_INVALID" />
+
+  <!-- ================================================================== -->
+  <!-- RENOVATION MINI-PROJECT PROCESS                                     -->
+  <!-- (Renoveringsprojekt — komprimerad livscykel)                       -->
+  <!--                                                                     -->
+  <!-- Called from change-management process when a renovation is needed.  -->
+  <!-- Loops from operations back through condensed design->production.    -->
+  <!--                                                                     -->
+  <!-- Architecture:                                                       -->
+  <!--   1. Scope definition (Omfattningsdefinition)                      -->
+  <!--   2. Existing condition survey (Statusbesiktning)                  -->
+  <!--   3. Inclusive gateway: discipline design (only affected)           -->
+  <!--   4. Renovation coordination + approval                            -->
+  <!--   5. Production: tenant notification, installation, inspection      -->
+  <!--   6. Handback: tenant return, verification, Doorman update, audit   -->
+  <!-- ================================================================== -->
+  <bpmn:process id="renovation-mini-project" name="Renoveringsprojekt" isExecutable="true">
+
+    <!-- ============================================================== -->
+    <!-- START: None start — called from change-management              -->
+    <!-- ============================================================== -->
+    <bpmn:startEvent id="start_renovation" name="Renovering initierad">
+      <bpmn:outgoing>flow_start_to_scope</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- STEP 1: Renovation Scope Definition                            -->
+    <!-- Define affected areas, disciplines involved, budget cap         -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="scope_definition" name="Omfattningsdefinition"
+                   camunda:candidateGroups="facility_managers,project_managers,owners"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Define renovation scope:
+        - Identify affected areas and building parts
+        - Select which disciplines are affected (architecture, structural,
+          fire safety, door/access, HVAC, electrical)
+        - Set budget cap and timeline constraints
+        - Classify renovation type (cosmetic, functional, regulatory)
+        - Identify tenant impact level
+
+        Process variables set:
+          scopeArchitecture, scopeStructural, scopeFireSafety,
+          scopeDoor, scopeHvac, scopeElectrical (boolean each)
+          budgetCap (number), renovationType (string)
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="affectedAreas" label="Berorda omraden" type="string" />
+          <camunda:formField id="scopeArchitecture" label="Arkitektur (planlösningsändringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="scopeStructural" label="Konstruktion (bärande ändringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="scopeFireSafety" label="Brandskydd (brandcellsändringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="scopeDoor" label="Dörr/Tillträde (dörrändringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="scopeHvac" label="Ventilation (klimatsystemändringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="scopeElectrical" label="El (eländringar)" type="boolean" defaultValue="false" />
+          <camunda:formField id="budgetCap" label="Budgettak (SEK)" type="long" />
+          <camunda:formField id="renovationType" label="Renoveringstyp" type="enum">
+            <camunda:value id="cosmetic" name="Kosmetisk" />
+            <camunda:value id="functional" name="Funktionell" />
+            <camunda:value id="regulatory" name="Myndighetskrav" />
+          </camunda:formField>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_start_to_scope</bpmn:incoming>
+      <bpmn:outgoing>flow_scope_to_survey</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 2: Existing Condition Survey (Statusbesiktning)           -->
+    <!-- Document current state of affected building parts               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="condition_survey" name="Statusbesiktning"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="facility_managers,maintenance,contractors">
+      <bpmn:documentation>
+        Existing condition survey:
+        - Document current state of affected building parts
+        - Photograph and register existing conditions in Doorman
+        - Identify hazardous materials (asbestos, PCB, lead paint)
+        - Record current attribute values as baseline
+        - Note deviations from original drawings
+        - Assess structural integrity where relevant
+      </bpmn:documentation>
+      <bpmn:incoming>flow_scope_to_survey</bpmn:incoming>
+      <bpmn:outgoing>flow_survey_to_design_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 3: INCLUSIVE GATEWAY — Discipline Design Fork             -->
+    <!-- Only affected disciplines execute; multiple can be true         -->
+    <!-- ============================================================== -->
+    <bpmn:inclusiveGateway id="design_fork" name="Disciplinfördelning (projektering)"
+                            default="flow_design_fork_default">
+      <bpmn:incoming>flow_survey_to_design_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_design_arch</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_design_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_design_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_design_door</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_design_hvac</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_design_elec</bpmn:outgoing>
+      <bpmn:outgoing>flow_design_fork_default</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <!-- DISCIPLINE 1: Architecture (if layout changes) -->
+    <bpmn:callActivity id="ca_renov_arch" name="Arkitektur (projektering)"
+                       calledElement="design-architecture">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in source="budgetCap" target="budgetCap" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="archDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_arch</bpmn:incoming>
+      <bpmn:outgoing>flow_design_arch_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 2: Structural (if load-bearing changes) -->
+    <bpmn:callActivity id="ca_renov_structural" name="Konstruktion (projektering)"
+                       calledElement="design-structural">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="structuralDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_design_structural_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 3: Fire Safety (if fire compartment changes) -->
+    <bpmn:callActivity id="ca_renov_fire" name="Brandskydd (projektering)"
+                       calledElement="fire-safety">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="fireDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_design_fire_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 4: Door/Access (if door changes) -->
+    <bpmn:callActivity id="ca_renov_door" name="Dörr/Tillträde (projektering)"
+                       calledElement="design-door-process">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="doorDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_door</bpmn:incoming>
+      <bpmn:outgoing>flow_design_door_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 5: HVAC (if climate system changes) -->
+    <bpmn:callActivity id="ca_renov_hvac" name="Ventilation (projektering)"
+                       calledElement="hvac">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="hvacDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_hvac</bpmn:incoming>
+      <bpmn:outgoing>flow_design_hvac_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- DISCIPLINE 6: Electrical (if electrical changes) -->
+    <bpmn:callActivity id="ca_renov_elec" name="El (projektering)"
+                       calledElement="electrical">
+      <bpmn:extensionElements>
+        <camunda:in source="projectId" target="projectId" />
+        <camunda:in source="buildingId" target="buildingId" />
+        <camunda:in source="affectedAreas" target="affectedAreas" />
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:out source="disciplineApproved" target="elecDesignApproved" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_design_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_design_elec_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Default path: no disciplines selected (edge case — goes straight to join) -->
+    <bpmn:serviceTask id="validate_scope_not_empty" name="Validera omfattning"
+                      camunda:delegateExpression="${renovationScopeValidatorDelegate}">
+      <bpmn:documentation>
+        Default path: if no discipline flags are set, validate and raise error.
+        At least one discipline must be selected for a renovation project.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_design_fork_default</bpmn:incoming>
+      <bpmn:outgoing>flow_default_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- INCLUSIVE JOIN — all activated discipline branches converge     -->
+    <!-- ============================================================== -->
+    <bpmn:inclusiveGateway id="design_join" name="Projektering klar">
+      <bpmn:incoming>flow_design_arch_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_design_structural_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_design_fire_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_design_door_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_design_hvac_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_design_elec_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_default_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_coordination</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- STEP 4: Renovation Coordination (Samordning)                   -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="renovation_coordination" name="Renoveringssamordning"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="project_managers,designers_architect">
+      <bpmn:documentation>
+        Cross-discipline coordination for renovation:
+        - Review combined discipline outputs
+        - Resolve clashes and conflicts between disciplines
+        - Consolidate timeline and resource plan
+        - Verify budget compliance against budgetCap
+        - Prepare consolidated renovation package for approval
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_coordination</bpmn:incoming>
+      <bpmn:outgoing>flow_coordination_to_approval</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- APPROVAL GATEWAY                                               -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="renovation_approval" name="Renoveringsgodkännande"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="owners,project_managers">
+      <bpmn:documentation>
+        Approve or reject the consolidated renovation design package.
+        If rejected, loop back to scope definition for re-scoping.
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="renovationApproved" label="Godkänd?" type="boolean" />
+          <camunda:formField id="rejectionReason" label="Avslagsorsak" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_coordination_to_approval</bpmn:incoming>
+      <bpmn:outgoing>flow_approval_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gate_approval" name="Godkänd?">
+      <bpmn:incoming>flow_approval_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_approved_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_approved_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Rejection: loop back to scope definition -->
+    <bpmn:sequenceFlow id="flow_approved_no" name="Nej" sourceRef="gate_approval" targetRef="scope_definition">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">
+        ${renovationApproved == false}
+      </bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- ============================================================== -->
+    <!-- STEP 5: PRODUCTION PHASE (Komprimerad produktion)              -->
+    <!-- ============================================================== -->
+
+    <!-- 5a: Tenant Notification -->
+    <bpmn:userTask id="tenant_notification" name="Hyresgästavisering"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="facility_managers,project_managers">
+      <bpmn:documentation>
+        Notify affected tenants about upcoming renovation:
+        - Send formal notification with timeline
+        - Describe scope and expected disruption
+        - Provide contact information for questions
+        - Coordinate temporary relocation if needed
+        - Document tenant acknowledgement
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approved_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_notify_to_relocation_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- 5b: Temporary Relocation (if needed) -->
+    <bpmn:exclusiveGateway id="gate_relocation" name="Evakuering nödvändig?">
+      <bpmn:incoming>flow_notify_to_relocation_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_relocation_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_relocation_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="temporary_relocation" name="Tillfällig evakuering"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="facility_managers,project_managers">
+      <bpmn:documentation>
+        Execute temporary tenant relocation:
+        - Arrange temporary premises
+        - Coordinate move logistics
+        - Update access credentials in Doorman
+        - Document condition of vacated premises
+      </bpmn:documentation>
+      <bpmn:incoming>flow_relocation_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_relocation_to_install_fork</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- 5c: Inclusive Gateway — Installation tracks for affected disciplines -->
+    <bpmn:inclusiveGateway id="install_fork" name="Installationsfördelning"
+                            default="flow_install_fork_default">
+      <bpmn:incoming>flow_relocation_to_install_fork</bpmn:incoming>
+      <bpmn:incoming>flow_relocation_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_install_arch</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_install_structural</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_install_fire</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_install_door</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_install_hvac</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_install_elec</bpmn:outgoing>
+      <bpmn:outgoing>flow_install_fork_default</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <!-- INSTALLATION 1: Architecture -->
+    <bpmn:userTask id="install_arch" name="Installation arkitektur"
+                   camunda:formKey="doorman:32:6"
+                   camunda:candidateGroups="contractors,designers_architect">
+      <bpmn:documentation>Execute architectural renovation work (layout changes, finishes, partitions).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_arch</bpmn:incoming>
+      <bpmn:outgoing>flow_install_arch_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- INSTALLATION 2: Structural -->
+    <bpmn:userTask id="install_structural" name="Installation konstruktion"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="contractors,designers_structural">
+      <bpmn:documentation>Execute structural renovation work (load-bearing modifications, reinforcements).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_structural</bpmn:incoming>
+      <bpmn:outgoing>flow_install_structural_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- INSTALLATION 3: Fire Safety -->
+    <bpmn:userTask id="install_fire" name="Installation brandskydd"
+                   camunda:formKey="doorman:79:6"
+                   camunda:candidateGroups="contractors,designers_fire">
+      <bpmn:documentation>Execute fire safety renovation (compartment changes, fire doors, sealing).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_fire</bpmn:incoming>
+      <bpmn:outgoing>flow_install_fire_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- INSTALLATION 4: Door/Access -->
+    <bpmn:userTask id="install_door" name="Installation dörr/tillträde"
+                   camunda:formKey="doorman:83:6"
+                   camunda:candidateGroups="contractors,maintenance">
+      <bpmn:documentation>Execute door/access renovation (door replacement, lock changes, access hardware).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_door</bpmn:incoming>
+      <bpmn:outgoing>flow_install_door_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- INSTALLATION 5: HVAC -->
+    <bpmn:userTask id="install_hvac" name="Installation ventilation"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="contractors,designers_hvac">
+      <bpmn:documentation>Execute HVAC renovation (ductwork, units, controls, balancing).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_hvac</bpmn:incoming>
+      <bpmn:outgoing>flow_install_hvac_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- INSTALLATION 6: Electrical -->
+    <bpmn:userTask id="install_elec" name="Installation el"
+                   camunda:formKey="doorman:108:6"
+                   camunda:candidateGroups="contractors,designers_electrical">
+      <bpmn:documentation>Execute electrical renovation (wiring, panels, fixtures, systems).</bpmn:documentation>
+      <bpmn:incoming>flow_to_install_elec</bpmn:incoming>
+      <bpmn:outgoing>flow_install_elec_to_join</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Default: no installation (edge case, should not happen post-approval) -->
+    <bpmn:serviceTask id="log_no_installation" name="Logga tom installation"
+                      camunda:delegateExpression="${auditLogDelegate}">
+      <bpmn:incoming>flow_install_fork_default</bpmn:incoming>
+      <bpmn:outgoing>flow_install_default_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Installation Join -->
+    <bpmn:inclusiveGateway id="install_join" name="Installation klar">
+      <bpmn:incoming>flow_install_arch_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_structural_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_fire_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_door_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_hvac_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_elec_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_install_default_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_install_join_to_inspection</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+
+    <!-- ============================================================== -->
+    <!-- 5d: Inspection + Remediation Loop                              -->
+    <!-- ============================================================== -->
+    <bpmn:userTask id="inspection" name="Besiktning"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="project_managers,facility_managers,contractors">
+      <bpmn:documentation>
+        Renovation inspection:
+        - Verify all discipline work meets specifications
+        - Document deviations and defects
+        - Compare actual result to approved design
+        - Check fire safety compliance
+        - Verify accessibility requirements
+        - Create punch list (anmärkningslista) if needed
+      </bpmn:documentation>
+      <bpmn:incoming>flow_install_join_to_inspection</bpmn:incoming>
+      <bpmn:incoming>flow_remediation_to_inspection</bpmn:incoming>
+      <bpmn:outgoing>flow_inspection_to_gate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="gate_inspection" name="Besiktning godkänd?">
+      <bpmn:incoming>flow_inspection_to_gate</bpmn:incoming>
+      <bpmn:outgoing>flow_inspection_pass</bpmn:outgoing>
+      <bpmn:outgoing>flow_inspection_fail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Remediation loop -->
+    <bpmn:userTask id="remediation" name="Åtgärda anmärkningar"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="contractors,maintenance">
+      <bpmn:documentation>
+        Address inspection defects:
+        - Fix identified deviations from punch list
+        - Document remediation actions taken
+        - Notify inspector when ready for re-inspection
+      </bpmn:documentation>
+      <bpmn:incoming>flow_inspection_fail</bpmn:incoming>
+      <bpmn:outgoing>flow_remediation_to_inspection</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- ============================================================== -->
+    <!-- STEP 6: HANDBACK PHASE (Återlämning)                          -->
+    <!-- ============================================================== -->
+
+    <!-- 6a: Tenant Return -->
+    <bpmn:userTask id="tenant_return" name="Hyresgäst återflyttning"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="facility_managers,project_managers">
+      <bpmn:documentation>
+        Coordinate tenant return to renovated premises:
+        - Schedule move-back date
+        - Provide orientation on any changes
+        - Restore/update access credentials in Doorman
+        - Handover keys and access cards
+      </bpmn:documentation>
+      <bpmn:incoming>flow_inspection_pass</bpmn:incoming>
+      <bpmn:outgoing>flow_return_to_verify</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- 6b: Verify Functionality -->
+    <bpmn:userTask id="verify_functionality" name="Verifiera funktionalitet"
+                   camunda:formKey="doorman:generic:1"
+                   camunda:candidateGroups="facility_managers,maintenance">
+      <bpmn:documentation>
+        Post-renovation functionality verification:
+        - Test all affected systems (doors, locks, HVAC, electrical)
+        - Verify fire safety systems operational
+        - Confirm access control functioning correctly
+        - Validate tenant can use all facilities
+        - Document final state
+      </bpmn:documentation>
+      <bpmn:incoming>flow_return_to_verify</bpmn:incoming>
+      <bpmn:outgoing>flow_verify_to_update</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- 6c: Update Doorman Attribute Values -->
+    <bpmn:serviceTask id="update_doorman" name="Uppdatera Doorman attributvärden"
+                      camunda:delegateExpression="${doormanAttributeUpdateDelegate}">
+      <bpmn:documentation>
+        Automatically update Doorman object attribute values to reflect
+        the renovated state. Updates attribute_values table for all
+        affected object instances (doors, rooms, access points, etc.).
+        Sets PLCS lifecycle state to AS_MAINTAINED.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_verify_to_update</bpmn:incoming>
+      <bpmn:outgoing>flow_update_to_audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 6d: Audit Log -->
+    <bpmn:serviceTask id="audit_renovation" name="Skapa revisionslogg"
+                      camunda:delegateExpression="${renovationAuditDelegate}">
+      <bpmn:documentation>
+        Create comprehensive audit trail for renovation:
+        - Log all attribute changes with before/after values
+        - Record approval chain and timestamps
+        - Store inspection results and remediation history
+        - Archive renovation documentation references
+        - Write to audit_log table with full traceability
+      </bpmn:documentation>
+      <bpmn:incoming>flow_update_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- END EVENT -->
+    <bpmn:endEvent id="end_renovation" name="Renovering avslutad">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================== -->
+    <!-- SEQUENCE FLOWS                                                 -->
+    <!-- ============================================================== -->
+
+    <!-- Start to scope -->
+    <bpmn:sequenceFlow id="flow_start_to_scope" sourceRef="start_renovation" targetRef="scope_definition" />
+    <bpmn:sequenceFlow id="flow_scope_to_survey" sourceRef="scope_definition" targetRef="condition_survey" />
+    <bpmn:sequenceFlow id="flow_survey_to_design_fork" sourceRef="condition_survey" targetRef="design_fork" />
+
+    <!-- Design fork: conditional flows -->
+    <bpmn:sequenceFlow id="flow_to_design_arch" name="Arkitektur" sourceRef="design_fork" targetRef="ca_renov_arch">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeArchitecture == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_design_structural" name="Konstruktion" sourceRef="design_fork" targetRef="ca_renov_structural">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeStructural == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_design_fire" name="Brandskydd" sourceRef="design_fork" targetRef="ca_renov_fire">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeFireSafety == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_design_door" name="Dorr/Tilltrade" sourceRef="design_fork" targetRef="ca_renov_door">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeDoor == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_design_hvac" name="Ventilation" sourceRef="design_fork" targetRef="ca_renov_hvac">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeHvac == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_design_elec" name="El" sourceRef="design_fork" targetRef="ca_renov_elec">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeElectrical == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_design_fork_default" sourceRef="design_fork" targetRef="validate_scope_not_empty" />
+
+    <!-- Design join flows -->
+    <bpmn:sequenceFlow id="flow_design_arch_to_join" sourceRef="ca_renov_arch" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_design_structural_to_join" sourceRef="ca_renov_structural" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_design_fire_to_join" sourceRef="ca_renov_fire" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_design_door_to_join" sourceRef="ca_renov_door" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_design_hvac_to_join" sourceRef="ca_renov_hvac" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_design_elec_to_join" sourceRef="ca_renov_elec" targetRef="design_join" />
+    <bpmn:sequenceFlow id="flow_default_to_join" sourceRef="validate_scope_not_empty" targetRef="design_join" />
+
+    <!-- Coordination and approval -->
+    <bpmn:sequenceFlow id="flow_join_to_coordination" sourceRef="design_join" targetRef="renovation_coordination" />
+    <bpmn:sequenceFlow id="flow_coordination_to_approval" sourceRef="renovation_coordination" targetRef="renovation_approval" />
+    <bpmn:sequenceFlow id="flow_approval_to_gate" sourceRef="renovation_approval" targetRef="gate_approval" />
+    <bpmn:sequenceFlow id="flow_approved_yes" name="Ja" sourceRef="gate_approval" targetRef="tenant_notification">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${renovationApproved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Tenant notification and relocation -->
+    <bpmn:sequenceFlow id="flow_notify_to_relocation_gate" sourceRef="tenant_notification" targetRef="gate_relocation" />
+    <bpmn:sequenceFlow id="flow_relocation_yes" name="Ja, evakuering" sourceRef="gate_relocation" targetRef="temporary_relocation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${relocationRequired == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_relocation_no" name="Nej" sourceRef="gate_relocation" targetRef="install_fork">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${relocationRequired == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_relocation_to_install_fork" sourceRef="temporary_relocation" targetRef="install_fork" />
+
+    <!-- Installation fork: conditional flows (reuse same scope variables) -->
+    <bpmn:sequenceFlow id="flow_to_install_arch" name="Arkitektur" sourceRef="install_fork" targetRef="install_arch">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeArchitecture == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_install_structural" name="Konstruktion" sourceRef="install_fork" targetRef="install_structural">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeStructural == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_install_fire" name="Brandskydd" sourceRef="install_fork" targetRef="install_fire">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeFireSafety == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_install_door" name="Dorr/Tilltrade" sourceRef="install_fork" targetRef="install_door">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeDoor == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_install_hvac" name="Ventilation" sourceRef="install_fork" targetRef="install_hvac">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeHvac == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_install_elec" name="El" sourceRef="install_fork" targetRef="install_elec">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${scopeElectrical == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_install_fork_default" sourceRef="install_fork" targetRef="log_no_installation" />
+
+    <!-- Installation join flows -->
+    <bpmn:sequenceFlow id="flow_install_arch_to_join" sourceRef="install_arch" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_structural_to_join" sourceRef="install_structural" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_fire_to_join" sourceRef="install_fire" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_door_to_join" sourceRef="install_door" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_hvac_to_join" sourceRef="install_hvac" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_elec_to_join" sourceRef="install_elec" targetRef="install_join" />
+    <bpmn:sequenceFlow id="flow_install_default_to_join" sourceRef="log_no_installation" targetRef="install_join" />
+
+    <!-- Inspection loop -->
+    <bpmn:sequenceFlow id="flow_install_join_to_inspection" sourceRef="install_join" targetRef="inspection" />
+    <bpmn:sequenceFlow id="flow_inspection_to_gate" sourceRef="inspection" targetRef="gate_inspection" />
+    <bpmn:sequenceFlow id="flow_inspection_pass" name="Godkänd" sourceRef="gate_inspection" targetRef="tenant_return">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inspectionPassed == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_inspection_fail" name="Underkänd" sourceRef="gate_inspection" targetRef="remediation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inspectionPassed == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_remediation_to_inspection" sourceRef="remediation" targetRef="inspection" />
+
+    <!-- Handback -->
+    <bpmn:sequenceFlow id="flow_return_to_verify" sourceRef="tenant_return" targetRef="verify_functionality" />
+    <bpmn:sequenceFlow id="flow_verify_to_update" sourceRef="verify_functionality" targetRef="update_doorman" />
+    <bpmn:sequenceFlow id="flow_update_to_audit" sourceRef="update_doorman" targetRef="audit_renovation" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_renovation" targetRef="end_renovation" />
+
+  </bpmn:process>
+
+  <!-- ================================================================== -->
+  <!-- BPMN DIAGRAM                                                        -->
+  <!-- ================================================================== -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_renovation">
+    <bpmndi:BPMNPlane id="BPMNPlane_renovation" bpmnElement="renovation-mini-project">
+
+      <!-- START -->
+      <bpmndi:BPMNShape id="shape_start_renovation" bpmnElement="start_renovation">
+        <dc:Bounds x="160" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="134" y="445" width="88" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- SCOPE DEFINITION -->
+      <bpmndi:BPMNShape id="shape_scope_definition" bpmnElement="scope_definition">
+        <dc:Bounds x="260" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- CONDITION SURVEY -->
+      <bpmndi:BPMNShape id="shape_condition_survey" bpmnElement="condition_survey">
+        <dc:Bounds x="420" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- DESIGN FORK (inclusive) -->
+      <bpmndi:BPMNShape id="shape_design_fork" bpmnElement="design_fork">
+        <dc:Bounds x="580" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="555" y="452" width="100" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- DISCIPLINE CALL ACTIVITIES (stacked vertically) -->
+      <bpmndi:BPMNShape id="shape_ca_renov_arch" bpmnElement="ca_renov_arch">
+        <dc:Bounds x="700" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_ca_renov_structural" bpmnElement="ca_renov_structural">
+        <dc:Bounds x="700" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_ca_renov_fire" bpmnElement="ca_renov_fire">
+        <dc:Bounds x="700" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_ca_renov_door" bpmnElement="ca_renov_door">
+        <dc:Bounds x="700" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_ca_renov_hvac" bpmnElement="ca_renov_hvac">
+        <dc:Bounds x="700" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_ca_renov_elec" bpmnElement="ca_renov_elec">
+        <dc:Bounds x="700" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_validate_scope" bpmnElement="validate_scope_not_empty">
+        <dc:Bounds x="700" y="720" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- DESIGN JOIN (inclusive) -->
+      <bpmndi:BPMNShape id="shape_design_join" bpmnElement="design_join">
+        <dc:Bounds x="870" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="850" y="452" width="90" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- COORDINATION -->
+      <bpmndi:BPMNShape id="shape_renovation_coordination" bpmnElement="renovation_coordination">
+        <dc:Bounds x="980" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- APPROVAL -->
+      <bpmndi:BPMNShape id="shape_renovation_approval" bpmnElement="renovation_approval">
+        <dc:Bounds x="1140" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- APPROVAL GATEWAY -->
+      <bpmndi:BPMNShape id="shape_gate_approval" bpmnElement="gate_approval" isMarkerVisible="true">
+        <dc:Bounds x="1300" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1300" y="452" width="50" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- TENANT NOTIFICATION -->
+      <bpmndi:BPMNShape id="shape_tenant_notification" bpmnElement="tenant_notification">
+        <dc:Bounds x="1420" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- RELOCATION GATEWAY -->
+      <bpmndi:BPMNShape id="shape_gate_relocation" bpmnElement="gate_relocation" isMarkerVisible="true">
+        <dc:Bounds x="1580" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1555" y="452" width="100" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- TEMPORARY RELOCATION -->
+      <bpmndi:BPMNShape id="shape_temporary_relocation" bpmnElement="temporary_relocation">
+        <dc:Bounds x="1580" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- INSTALL FORK (inclusive) -->
+      <bpmndi:BPMNShape id="shape_install_fork" bpmnElement="install_fork">
+        <dc:Bounds x="1730" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1705" y="452" width="100" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- INSTALLATION TASKS (stacked vertically) -->
+      <bpmndi:BPMNShape id="shape_install_arch" bpmnElement="install_arch">
+        <dc:Bounds x="1850" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_install_structural" bpmnElement="install_structural">
+        <dc:Bounds x="1850" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_install_fire" bpmnElement="install_fire">
+        <dc:Bounds x="1850" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_install_door" bpmnElement="install_door">
+        <dc:Bounds x="1850" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_install_hvac" bpmnElement="install_hvac">
+        <dc:Bounds x="1850" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_install_elec" bpmnElement="install_elec">
+        <dc:Bounds x="1850" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_log_no_installation" bpmnElement="log_no_installation">
+        <dc:Bounds x="1850" y="720" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- INSTALL JOIN (inclusive) -->
+      <bpmndi:BPMNShape id="shape_install_join" bpmnElement="install_join">
+        <dc:Bounds x="2020" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="2000" y="452" width="90" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- INSPECTION -->
+      <bpmndi:BPMNShape id="shape_inspection" bpmnElement="inspection">
+        <dc:Bounds x="2140" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- INSPECTION GATEWAY -->
+      <bpmndi:BPMNShape id="shape_gate_inspection" bpmnElement="gate_inspection" isMarkerVisible="true">
+        <dc:Bounds x="2300" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="2275" y="452" width="100" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- REMEDIATION -->
+      <bpmndi:BPMNShape id="shape_remediation" bpmnElement="remediation">
+        <dc:Bounds x="2275" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- TENANT RETURN -->
+      <bpmndi:BPMNShape id="shape_tenant_return" bpmnElement="tenant_return">
+        <dc:Bounds x="2420" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- VERIFY FUNCTIONALITY -->
+      <bpmndi:BPMNShape id="shape_verify_functionality" bpmnElement="verify_functionality">
+        <dc:Bounds x="2580" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- UPDATE DOORMAN -->
+      <bpmndi:BPMNShape id="shape_update_doorman" bpmnElement="update_doorman">
+        <dc:Bounds x="2740" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- AUDIT -->
+      <bpmndi:BPMNShape id="shape_audit_renovation" bpmnElement="audit_renovation">
+        <dc:Bounds x="2900" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- END -->
+      <bpmndi:BPMNShape id="shape_end_renovation" bpmnElement="end_renovation">
+        <dc:Bounds x="3060" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="3034" y="445" width="88" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- ============================================================ -->
+      <!-- SEQUENCE FLOW EDGES                                          -->
+      <!-- ============================================================ -->
+
+      <!-- Start to scope -->
+      <bpmndi:BPMNEdge id="edge_flow_start_to_scope" bpmnElement="flow_start_to_scope">
+        <di:waypoint x="196" y="420" />
+        <di:waypoint x="260" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_scope_to_survey" bpmnElement="flow_scope_to_survey">
+        <di:waypoint x="360" y="420" />
+        <di:waypoint x="420" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_survey_to_design_fork" bpmnElement="flow_survey_to_design_fork">
+        <di:waypoint x="520" y="420" />
+        <di:waypoint x="580" y="420" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Design fork to disciplines -->
+      <bpmndi:BPMNEdge id="edge_flow_to_design_arch" bpmnElement="flow_to_design_arch">
+        <di:waypoint x="605" y="395" />
+        <di:waypoint x="605" y="160" />
+        <di:waypoint x="700" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_design_structural" bpmnElement="flow_to_design_structural">
+        <di:waypoint x="605" y="395" />
+        <di:waypoint x="605" y="260" />
+        <di:waypoint x="700" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_design_fire" bpmnElement="flow_to_design_fire">
+        <di:waypoint x="605" y="395" />
+        <di:waypoint x="605" y="360" />
+        <di:waypoint x="700" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_design_door" bpmnElement="flow_to_design_door">
+        <di:waypoint x="630" y="420" />
+        <di:waypoint x="700" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_design_hvac" bpmnElement="flow_to_design_hvac">
+        <di:waypoint x="605" y="445" />
+        <di:waypoint x="605" y="560" />
+        <di:waypoint x="700" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_design_elec" bpmnElement="flow_to_design_elec">
+        <di:waypoint x="605" y="445" />
+        <di:waypoint x="605" y="660" />
+        <di:waypoint x="700" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_fork_default" bpmnElement="flow_design_fork_default">
+        <di:waypoint x="605" y="445" />
+        <di:waypoint x="605" y="760" />
+        <di:waypoint x="700" y="760" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Disciplines to design join -->
+      <bpmndi:BPMNEdge id="edge_flow_design_arch_to_join" bpmnElement="flow_design_arch_to_join">
+        <di:waypoint x="800" y="160" />
+        <di:waypoint x="895" y="160" />
+        <di:waypoint x="895" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_structural_to_join" bpmnElement="flow_design_structural_to_join">
+        <di:waypoint x="800" y="260" />
+        <di:waypoint x="895" y="260" />
+        <di:waypoint x="895" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_fire_to_join" bpmnElement="flow_design_fire_to_join">
+        <di:waypoint x="800" y="360" />
+        <di:waypoint x="895" y="360" />
+        <di:waypoint x="895" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_door_to_join" bpmnElement="flow_design_door_to_join">
+        <di:waypoint x="800" y="460" />
+        <di:waypoint x="895" y="460" />
+        <di:waypoint x="895" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_hvac_to_join" bpmnElement="flow_design_hvac_to_join">
+        <di:waypoint x="800" y="560" />
+        <di:waypoint x="895" y="560" />
+        <di:waypoint x="895" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_design_elec_to_join" bpmnElement="flow_design_elec_to_join">
+        <di:waypoint x="800" y="660" />
+        <di:waypoint x="895" y="660" />
+        <di:waypoint x="895" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_default_to_join" bpmnElement="flow_default_to_join">
+        <di:waypoint x="800" y="760" />
+        <di:waypoint x="895" y="760" />
+        <di:waypoint x="895" y="445" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Coordination and approval -->
+      <bpmndi:BPMNEdge id="edge_flow_join_to_coordination" bpmnElement="flow_join_to_coordination">
+        <di:waypoint x="920" y="420" />
+        <di:waypoint x="980" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_coordination_to_approval" bpmnElement="flow_coordination_to_approval">
+        <di:waypoint x="1080" y="420" />
+        <di:waypoint x="1140" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_approval_to_gate" bpmnElement="flow_approval_to_gate">
+        <di:waypoint x="1240" y="420" />
+        <di:waypoint x="1300" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_approved_yes" bpmnElement="flow_approved_yes">
+        <di:waypoint x="1350" y="420" />
+        <di:waypoint x="1420" y="420" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1380" y="402" width="15" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_approved_no" bpmnElement="flow_approved_no">
+        <di:waypoint x="1325" y="395" />
+        <di:waypoint x="1325" y="100" />
+        <di:waypoint x="310" y="100" />
+        <di:waypoint x="310" y="380" />
+        <bpmndi:BPMNLabel><dc:Bounds x="810" y="82" width="20" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Tenant notification and relocation -->
+      <bpmndi:BPMNEdge id="edge_flow_notify_to_relocation_gate" bpmnElement="flow_notify_to_relocation_gate">
+        <di:waypoint x="1520" y="420" />
+        <di:waypoint x="1580" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_relocation_yes" bpmnElement="flow_relocation_yes">
+        <di:waypoint x="1605" y="395" />
+        <di:waypoint x="1605" y="340" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1610" y="363" width="70" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_relocation_no" bpmnElement="flow_relocation_no">
+        <di:waypoint x="1630" y="420" />
+        <di:waypoint x="1730" y="420" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1670" y="402" width="20" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_relocation_to_install_fork" bpmnElement="flow_relocation_to_install_fork">
+        <di:waypoint x="1680" y="300" />
+        <di:waypoint x="1755" y="300" />
+        <di:waypoint x="1755" y="395" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Install fork to installation tasks -->
+      <bpmndi:BPMNEdge id="edge_flow_to_install_arch" bpmnElement="flow_to_install_arch">
+        <di:waypoint x="1755" y="395" />
+        <di:waypoint x="1755" y="160" />
+        <di:waypoint x="1850" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_install_structural" bpmnElement="flow_to_install_structural">
+        <di:waypoint x="1755" y="395" />
+        <di:waypoint x="1755" y="260" />
+        <di:waypoint x="1850" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_install_fire" bpmnElement="flow_to_install_fire">
+        <di:waypoint x="1755" y="395" />
+        <di:waypoint x="1755" y="360" />
+        <di:waypoint x="1850" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_install_door" bpmnElement="flow_to_install_door">
+        <di:waypoint x="1780" y="420" />
+        <di:waypoint x="1850" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_install_hvac" bpmnElement="flow_to_install_hvac">
+        <di:waypoint x="1755" y="445" />
+        <di:waypoint x="1755" y="560" />
+        <di:waypoint x="1850" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_install_elec" bpmnElement="flow_to_install_elec">
+        <di:waypoint x="1755" y="445" />
+        <di:waypoint x="1755" y="660" />
+        <di:waypoint x="1850" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_fork_default" bpmnElement="flow_install_fork_default">
+        <di:waypoint x="1755" y="445" />
+        <di:waypoint x="1755" y="760" />
+        <di:waypoint x="1850" y="760" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Installation tasks to join -->
+      <bpmndi:BPMNEdge id="edge_flow_install_arch_to_join" bpmnElement="flow_install_arch_to_join">
+        <di:waypoint x="1950" y="160" />
+        <di:waypoint x="2045" y="160" />
+        <di:waypoint x="2045" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_structural_to_join" bpmnElement="flow_install_structural_to_join">
+        <di:waypoint x="1950" y="260" />
+        <di:waypoint x="2045" y="260" />
+        <di:waypoint x="2045" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_fire_to_join" bpmnElement="flow_install_fire_to_join">
+        <di:waypoint x="1950" y="360" />
+        <di:waypoint x="2045" y="360" />
+        <di:waypoint x="2045" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_door_to_join" bpmnElement="flow_install_door_to_join">
+        <di:waypoint x="1950" y="460" />
+        <di:waypoint x="2045" y="460" />
+        <di:waypoint x="2045" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_hvac_to_join" bpmnElement="flow_install_hvac_to_join">
+        <di:waypoint x="1950" y="560" />
+        <di:waypoint x="2045" y="560" />
+        <di:waypoint x="2045" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_elec_to_join" bpmnElement="flow_install_elec_to_join">
+        <di:waypoint x="1950" y="660" />
+        <di:waypoint x="2045" y="660" />
+        <di:waypoint x="2045" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_install_default_to_join" bpmnElement="flow_install_default_to_join">
+        <di:waypoint x="1950" y="760" />
+        <di:waypoint x="2045" y="760" />
+        <di:waypoint x="2045" y="445" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Inspection loop -->
+      <bpmndi:BPMNEdge id="edge_flow_install_join_to_inspection" bpmnElement="flow_install_join_to_inspection">
+        <di:waypoint x="2070" y="420" />
+        <di:waypoint x="2140" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_inspection_to_gate" bpmnElement="flow_inspection_to_gate">
+        <di:waypoint x="2240" y="420" />
+        <di:waypoint x="2300" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_inspection_pass" bpmnElement="flow_inspection_pass">
+        <di:waypoint x="2350" y="420" />
+        <di:waypoint x="2420" y="420" />
+        <bpmndi:BPMNLabel><dc:Bounds x="2365" y="402" width="40" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_inspection_fail" bpmnElement="flow_inspection_fail">
+        <di:waypoint x="2325" y="395" />
+        <di:waypoint x="2325" y="340" />
+        <bpmndi:BPMNLabel><dc:Bounds x="2330" y="363" width="50" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_remediation_to_inspection" bpmnElement="flow_remediation_to_inspection">
+        <di:waypoint x="2275" y="300" />
+        <di:waypoint x="2190" y="300" />
+        <di:waypoint x="2190" y="380" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Handback -->
+      <bpmndi:BPMNEdge id="edge_flow_return_to_verify" bpmnElement="flow_return_to_verify">
+        <di:waypoint x="2520" y="420" />
+        <di:waypoint x="2580" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_verify_to_update" bpmnElement="flow_verify_to_update">
+        <di:waypoint x="2680" y="420" />
+        <di:waypoint x="2740" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_update_to_audit" bpmnElement="flow_update_to_audit">
+        <di:waypoint x="2840" y="420" />
+        <di:waypoint x="2900" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_audit_to_end" bpmnElement="flow_audit_to_end">
+        <di:waypoint x="3000" y="420" />
+        <di:waypoint x="3060" y="420" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

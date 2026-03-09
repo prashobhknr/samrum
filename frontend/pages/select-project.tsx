@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { getStoredToken } from '../lib/auth';
 
 interface Project {
   id: number;
@@ -19,7 +20,10 @@ export default function SelectProjectPage() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/admin/projects')
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+
+    fetch('http://localhost:3000/api/admin/projects', { headers })
       .then(r => r.json())
       .then(d => {
         const data = d.data ?? [];
@@ -34,7 +38,7 @@ export default function SelectProjectPage() {
     setSearch(q);
     setFiltered(q
       ? projects.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) ||
-          p.description?.toLowerCase().includes(q.toLowerCase()))
+        p.description?.toLowerCase().includes(q.toLowerCase()))
       : projects
     );
   };
@@ -51,8 +55,8 @@ export default function SelectProjectPage() {
       <header className="bg-samrum-header text-white h-14 flex items-center justify-between px-6 shadow-nav">
         <div className="flex items-center gap-2">
           <svg className="w-6 h-6 text-samrum-accent" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22" stroke="white" strokeWidth="1.5" fill="none"/>
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" stroke="white" strokeWidth="1.5" fill="none" />
           </svg>
           <span className="text-xl font-bold tracking-widest">SAMRUM</span>
         </div>
@@ -81,7 +85,7 @@ export default function SelectProjectPage() {
             <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
@@ -94,7 +98,7 @@ export default function SelectProjectPage() {
           <Link href="/login"
             className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
             Avbryt
           </Link>
@@ -155,7 +159,7 @@ export default function SelectProjectPage() {
                     <span className="text-xs text-slate-400">{project.module_count} moduler</span>
                     <svg className="w-4 h-4 text-slate-300 group-hover:text-samrum-blue transition-colors"
                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                 </button>

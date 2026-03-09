@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import SamrumLayout from '../../components/SamrumLayout';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
+import { getStoredToken } from '../../lib/auth';
 
 interface Project extends Record<string, unknown> {
   id: number;
@@ -51,7 +52,7 @@ function ProjectForm({ item, onClose, onSave }: ProjectFormProps) {
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -116,7 +117,7 @@ function ProjectForm({ item, onClose, onSave }: ProjectFormProps) {
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
               <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
                 <p className="text-xs font-semibold text-blue-700">Automatisk modulinitiering</p>
@@ -142,15 +143,15 @@ function ProjectForm({ item, onClose, onSave }: ProjectFormProps) {
             {saving ? (
               <>
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
                 </svg>
                 Sparar...
               </>
             ) : isNew ? (
               <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Skapa projekt
               </>
@@ -172,7 +173,9 @@ export default function AdminProjectsPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch('http://localhost:3000/api/admin/projects')
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    fetch('http://localhost:3000/api/admin/projects', { headers })
       .then(r => r.json())
       .then(d => setData(d.data ?? []))
       .catch(console.error)
@@ -186,9 +189,12 @@ export default function AdminProjectsPage() {
     const url = form.id
       ? `http://localhost:3000/api/admin/projects/${form.id}`
       : 'http://localhost:3000/api/admin/projects';
+    const token = getStoredToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(form),
     });
     setEditItem(null);
@@ -198,7 +204,9 @@ export default function AdminProjectsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    await fetch(`http://localhost:3000/api/admin/projects/${deleteTarget.id}`, { method: 'DELETE' });
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    await fetch(`http://localhost:3000/api/admin/projects/${deleteTarget.id}`, { method: 'DELETE', headers });
     setDeleting(false);
     setDeleteTarget(null);
     load();
@@ -254,7 +262,7 @@ export default function AdminProjectsPage() {
   const toolbar: ToolbarAction[] = [
     {
       label: 'Skapa nytt projekt', variant: 'primary',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
       onClick: () => setEditItem({ is_active: true }),
     },
   ];
@@ -266,7 +274,7 @@ export default function AdminProjectsPage() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
           <span>Admin</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="font-medium text-slate-900">Projektdatabaser</span>
         </div>
@@ -278,7 +286,7 @@ export default function AdminProjectsPage() {
           <Link href="/select-project"
             className="flex items-center gap-2 px-4 py-2 bg-samrum-accent text-white text-sm font-medium rounded-lg hover:bg-samrum-accent-hover transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
             Val av projekt
           </Link>
@@ -321,7 +329,7 @@ export default function AdminProjectsPage() {
               <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               <div>

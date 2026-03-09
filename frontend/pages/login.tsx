@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import { loginUser } from '../lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,13 +12,23 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!username || !password) { setError('Ange användarnamn och lösenord'); return; }
+
+    if (!username || !password) {
+      setError('Ange användarnamn och lösenord');
+      return;
+    }
+
     setLoading(true);
-    // Simulate auth — any creds work for demo
-    setTimeout(() => {
+
+    try {
+      // Call actual auth function
+      await loginUser(username, password);
       setLoading(false);
       router.push('/select-project');
-    }, 800);
+    } catch (err) {
+      setLoading(false);
+      setError('Fel användarnamn eller lösenord');
+    }
   };
 
   return (

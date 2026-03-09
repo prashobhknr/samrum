@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import SamrumLayout from '../../components/SamrumLayout';
 import DataGrid, { Column, ToolbarAction } from '../../components/DataGrid';
+import { getStoredToken } from '../../lib/auth';
 
 interface Relationship extends Record<string, unknown> {
   id: number;
@@ -29,7 +30,7 @@ function RelationshipDetail({ item, onClose }: DetailPanelProps) {
     <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
       <svg className="w-12 h-12 mb-3 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
       </svg>
       <p className="text-sm">Välj en relation för att se detaljer</p>
     </div>
@@ -44,7 +45,7 @@ function RelationshipDetail({ item, onClose }: DetailPanelProps) {
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-2 flex-shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -115,7 +116,9 @@ export default function RelationshipsPage() {
 
   const load = useCallback((off = 0) => {
     setLoading(true);
-    fetch(`http://localhost:3000/api/admin/relationships?offset=${off}`)
+    const token = getStoredToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+    fetch(`http://localhost:3000/api/admin/relationships?offset=${off}`, { headers })
       .then(r => r.json())
       .then(d => {
         if (d.success) {
@@ -169,17 +172,17 @@ export default function RelationshipsPage() {
   const toolbar: ToolbarAction[] = [
     {
       label: 'Skapa ny', variant: 'primary',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
       onClick: () => alert('Skapa ny relation'),
     },
     {
       label: 'Exportera CSV',
-      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+      icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
       onClick: () => {
         const csv = [
           ['ID', 'Namn', 'Från', 'Till', 'Min', 'Max', 'Obligatorisk'].join(','),
           ...data.map(r => [r.id, r.caption_singular, r.from_name, r.to_name,
-            r.min_relations, r.max_relations ?? '', r.is_requirement ? 'Ja' : 'Nej'].join(',')),
+          r.min_relations, r.max_relations ?? '', r.is_requirement ? 'Ja' : 'Nej'].join(',')),
         ].join('\n');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -203,7 +206,7 @@ export default function RelationshipsPage() {
         <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
           <span>Admin</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <span className="font-medium text-slate-900">Relationer</span>
         </div>

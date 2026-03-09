@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="sprinkler-definitions"
+                   targetNamespace="http://doorman.local/sprinkler">
+
+  <!-- ================================================================== -->
+  <!-- SPRINKLER LIFECYCLE PROCESS                                         -->
+  <!-- Samrum module: 80 (3.71 Sprinkler)                                  -->
+  <!-- Standards: SS-EN 12845 (standard), SBF 120:8 (Swedish rules)        -->
+  <!--                                                                     -->
+  <!-- Design: hazard class, pipe network, water supply, pump sizing       -->
+  <!-- Production: installation, pressure test, flow test                  -->
+  <!-- ================================================================== -->
+  <bpmn:process id="design-sprinkler" name="Sprinkler - Livscykelprocess" isExecutable="true">
+
+    <bpmn:startEvent id="start" name="Sprinklerprocess startad">
+      <bpmn:outgoing>flow_start_to_hazard</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- DESIGN: Hazard classification -->
+    <bpmn:userTask id="hazard_classification" name="Riskklassificering"
+                   camunda:candidateGroups="designers_sprinkler"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Classify building areas by hazard class per SS-EN 12845:
+        - LH (Light Hazard): offices, hotels
+        - OH1-OH4 (Ordinary Hazard): retail, manufacturing
+        - HHP/HHS (High Hazard): storage, flammable liquids
+        Determines design density, sprinkler spacing, water demand.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_start_to_hazard</bpmn:incoming>
+      <bpmn:outgoing>flow_hazard_to_design</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Sprinkler system design -->
+    <bpmn:userTask id="design_sprinkler_system" name="Projektera sprinklersystem"
+                   camunda:candidateGroups="designers_sprinkler"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Design sprinkler system:
+        - System type (wet, dry, pre-action, deluge)
+        - Head layout and spacing per hazard class
+        - Pipe network sizing (hydraulic calculation)
+        - Water supply requirements
+        - Sprinkler pump sizing and redundancy
+        - Valve arrangement and zone split
+        - Alarm valve stations
+      </bpmn:documentation>
+      <bpmn:incoming>flow_hazard_to_design</bpmn:incoming>
+      <bpmn:outgoing>flow_design_to_water</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- DESIGN: Water supply verification -->
+    <bpmn:userTask id="water_supply_verification" name="Verifiera vattenforsorjning"
+                   camunda:candidateGroups="designers_sprinkler,designers_hvac"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Verify adequate water supply:
+        - Municipal water pressure and flow
+        - Fire pump capacity
+        - Water tank sizing if needed
+        - Duration requirements per hazard class
+        Coordinate with HVAC for domestic water separation.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_design_to_water</bpmn:incoming>
+      <bpmn:outgoing>flow_water_to_validate</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Validation -->
+    <bpmn:serviceTask id="validate_sprinkler" name="Validera sprinklerprojektering"
+                      camunda:delegateExpression="${validationDelegate}">
+      <bpmn:incoming>flow_water_to_validate</bpmn:incoming>
+      <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Approval (requires insurance company review for sprinkler) -->
+    <bpmn:userTask id="approve_sprinkler" name="Godkann sprinklerprojektering"
+                   camunda:candidateGroups="project_managers,designers_fire"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Approve sprinkler design. Note: may require review by insurance company
+        (forsakringsbolag) for compliance with SBF rules.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_validate_to_approve</bpmn:incoming>
+      <bpmn:outgoing>flow_approve_to_install</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Installation -->
+    <bpmn:userTask id="install_sprinkler" name="Installera sprinkler"
+                   camunda:candidateGroups="contractors,fire_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Install sprinkler system:
+        - Pipe network, hangers, supports
+        - Sprinkler heads (correct type per area)
+        - Alarm valves, flow switches
+        - Sprinkler pump and controls
+        All by SBF-certified installer.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_approve_to_install</bpmn:incoming>
+      <bpmn:outgoing>flow_install_to_pressure</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Pressure test -->
+    <bpmn:userTask id="pressure_test" name="Tryckprovning"
+                   camunda:candidateGroups="fire_installers,contractors"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Pressure test pipe network per SS-EN 12845:
+        - Test pressure: 15 bar for 2 hours (no drop)
+        - Record test protocol
+        Must pass before system activation.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_install_to_pressure</bpmn:incoming>
+      <bpmn:outgoing>flow_pressure_to_flow</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- PRODUCTION: Flow test -->
+    <bpmn:userTask id="flow_test" name="Flodesprovning"
+                   camunda:candidateGroups="fire_installers"
+                   camunda:formKey="doorman:generic:1">
+      <bpmn:documentation>
+        Flow test to verify water supply meets design demand:
+        - Measure pressure at most remote sprinkler
+        - Verify pump start and capacity
+        - Test alarm valve activation and signal chain
+      </bpmn:documentation>
+      <bpmn:incoming>flow_pressure_to_flow</bpmn:incoming>
+      <bpmn:outgoing>flow_flow_to_audit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="audit_sprinkler" name="Skriv revisionslogg"
+                      camunda:delegateExpression="${auditWriteDelegate}">
+      <bpmn:incoming>flow_flow_to_audit</bpmn:incoming>
+      <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="end" name="Sprinklerprocess klar">
+      <bpmn:incoming>flow_audit_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLOWS -->
+    <bpmn:sequenceFlow id="flow_start_to_hazard" sourceRef="start" targetRef="hazard_classification" />
+    <bpmn:sequenceFlow id="flow_hazard_to_design" sourceRef="hazard_classification" targetRef="design_sprinkler_system" />
+    <bpmn:sequenceFlow id="flow_design_to_water" sourceRef="design_sprinkler_system" targetRef="water_supply_verification" />
+    <bpmn:sequenceFlow id="flow_water_to_validate" sourceRef="water_supply_verification" targetRef="validate_sprinkler" />
+    <bpmn:sequenceFlow id="flow_validate_to_approve" sourceRef="validate_sprinkler" targetRef="approve_sprinkler" />
+    <bpmn:sequenceFlow id="flow_approve_to_install" sourceRef="approve_sprinkler" targetRef="install_sprinkler" />
+    <bpmn:sequenceFlow id="flow_install_to_pressure" sourceRef="install_sprinkler" targetRef="pressure_test" />
+    <bpmn:sequenceFlow id="flow_pressure_to_flow" sourceRef="pressure_test" targetRef="flow_test" />
+    <bpmn:sequenceFlow id="flow_flow_to_audit" sourceRef="flow_test" targetRef="audit_sprinkler" />
+    <bpmn:sequenceFlow id="flow_audit_to_end" sourceRef="audit_sprinkler" targetRef="end" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="sprinkler-diagram">
+    <bpmndi:BPMNPlane id="sprinkler-plane" bpmnElement="design-sprinkler">
+      <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="50" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hazard_di" bpmnElement="hazard_classification"><dc:Bounds x="140" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="design_di" bpmnElement="design_sprinkler_system"><dc:Bounds x="310" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="water_di" bpmnElement="water_supply_verification"><dc:Bounds x="480" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="validate_di" bpmnElement="validate_sprinkler"><dc:Bounds x="650" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="approve_di" bpmnElement="approve_sprinkler"><dc:Bounds x="820" y="80" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="install_di" bpmnElement="install_sprinkler"><dc:Bounds x="140" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="pressure_di" bpmnElement="pressure_test"><dc:Bounds x="310" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="flow_di" bpmnElement="flow_test"><dc:Bounds x="480" y="240" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="790" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
