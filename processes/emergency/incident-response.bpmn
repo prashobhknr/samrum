@@ -19,8 +19,8 @@
 
     <!-- ===================== START EVENT ===================== -->
     <bpmn:startEvent id="start_incident" name="Incident rapporterad">
-      <bpmn:messageEventDefinition messageRef="msg_incident_reported" />
-      <bpmn:outgoing>flow_start_to_classify</bpmn:outgoing>
+            <bpmn:outgoing>flow_start_to_classify</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_incident_reported" />
     </bpmn:startEvent>
 
     <!-- ===================== CLASSIFY INCIDENT ===================== -->
@@ -313,7 +313,7 @@
 
     <!-- Insurance notification (service task with conditional logic) -->
     <bpmn:serviceTask id="task_insurance_notification" name="Forsakringsanmalan"
-                      camunda:delegateExpression="${notificationDelegate}">
+                      camunda:type="external" camunda:topic="notificationDelegate">
       <bpmn:documentation>Skicka forsakringsanmalan om incidenten uppfyller villkoren for anmalan.</bpmn:documentation>
       <bpmn:incoming>flow_merge_to_insurance</bpmn:incoming>
       <bpmn:outgoing>flow_insurance_to_restoration</bpmn:outgoing>
@@ -345,7 +345,7 @@
 
     <!-- Audit log (service task) -->
     <bpmn:serviceTask id="task_audit_log" name="Skriv granskningslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:documentation>Skriv fullstandig granskningslogg over hela incidenthanteringen till audit_log-tabellen.</bpmn:documentation>
       <bpmn:incoming>flow_review_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>

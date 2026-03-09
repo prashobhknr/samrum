@@ -189,7 +189,7 @@
     <!-- STEP 7: Compile Pre-study Report                               -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="compile_prestudy" name="Sammanstall forstudierrapport"
-                      camunda:delegateExpression="${reportCompileDelegate}">
+                      camunda:type="external" camunda:topic="reportCompileDelegate">
       <bpmn:extensionElements>
         <camunda:field name="reportType" stringValue="pre_study" />
       </bpmn:extensionElements>
@@ -216,7 +216,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_prestudy" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

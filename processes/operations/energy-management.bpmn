@@ -22,15 +22,15 @@
   <bpmn:process id="operations-energy" name="Energiuppfoljning" isExecutable="true">
 
     <bpmn:startEvent id="start" name="Energicykel startad">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_start_to_collect</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_start_to_collect</bpmn:outgoing>
     </bpmn:startEvent>
 
     <!-- Collect energy consumption data -->
     <bpmn:serviceTask id="collect_energy_data" name="Hamta energidata"
-                      camunda:delegateExpression="${energyDataCollectionDelegate}">
+                      camunda:type="external" camunda:topic="energyDataCollectionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="dataPoints" stringValue="electricity,heating,cooling,water" />
       </bpmn:extensionElements>
@@ -120,7 +120,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_energy" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_verify_to_audit</bpmn:incoming>
       <bpmn:incoming>flow_measures_no</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>

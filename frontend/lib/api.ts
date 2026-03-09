@@ -68,10 +68,57 @@ export interface Process {
 export interface Task {
   id: string;
   name: string;
+  taskDefinitionKey: string;
   processDefinitionKey: string;
-  assignee?: string;
+  processName: string;
+  processInstanceId: string;
+  assignee: string | null;
   created: string;
+  due: string | null;
+  priority: number;
+  formKey?: string | null;
   variables?: Record<string, any>;
+}
+
+export interface ProcessInstance {
+  id: string;
+  definitionId: string;
+  processDefinitionKey: string;
+  processName: string;
+  businessKey: string | null;
+  startTime: string;
+  variables: Record<string, any>;
+}
+
+export interface ActivityEvent {
+  id: string;
+  activityId: string;
+  activityName: string;
+  activityType: string;
+  startTime: string;
+  endTime: string | null;
+  durationMs: number | null;
+  canceled: boolean;
+  isActive: boolean;
+}
+
+export interface ActivityTimeline {
+  processInstanceId: string;
+  currentActivities: { activityId: string; activityName: string; activityType: string }[];
+  timeline: ActivityEvent[];
+}
+
+export interface AiSuggestResponse {
+  suggestions: Record<string, string | number | boolean>;
+  provider: string;
+  model: string;
+  message?: string;
+}
+
+export interface AiConfigResponse {
+  provider: string;
+  configured: boolean;
+  model: string;
 }
 
 class ApiClient {
@@ -238,10 +285,25 @@ class ApiClient {
     return response.data;
   }
 
-  async listMyTasks(userGroup: string): Promise<Task[]> {
+  async listMyTasks(params: { assignee?: string; candidateGroup?: string; unassigned?: boolean } = {}): Promise<Task[]> {
     const response = await this.client.get('/api/tasks', {
-      params: { assignee: userGroup },
+      params,
     });
+    return response.data;
+  }
+
+  async getTask(taskId: string): Promise<Task> {
+    const response = await this.client.get<Task>(`/api/tasks/${taskId}`);
+    return response.data;
+  }
+
+  async claimTask(taskId: string, userId: string): Promise<{ success: boolean }> {
+    const response = await this.client.post(`/api/tasks/${taskId}/claim`, { userId });
+    return response.data;
+  }
+
+  async unclaimTask(taskId: string): Promise<{ success: boolean }> {
+    const response = await this.client.post(`/api/tasks/${taskId}/unclaim`);
     return response.data;
   }
 
@@ -249,6 +311,32 @@ class ApiClient {
     const response = await this.client.post(`/api/tasks/${taskId}/complete`, {
       variables,
     });
+    return response.data;
+  }
+
+  // ========== Process Instance Timeline ==========
+
+  async listProcessInstances(params: { processDefinitionKey?: string; active?: boolean } = {}): Promise<ProcessInstance[]> {
+    const response = await this.client.get('/api/process-instances', { params });
+    return response.data;
+  }
+
+  async getActivityHistory(processInstanceId: string): Promise<ActivityTimeline> {
+    const response = await this.client.get<ActivityTimeline>(`/api/process-instances/${processInstanceId}/activity-history`);
+    return response.data;
+  }
+
+  async aiSuggest(formSchema: FormSchema, taskContext?: Record<string, any>, doorContext?: Record<string, any>): Promise<AiSuggestResponse> {
+    const response = await this.client.post<AiSuggestResponse>('/api/ai/suggest', {
+      formSchema,
+      taskContext,
+      doorContext
+    });
+    return response.data;
+  }
+
+  async aiConfig(): Promise<AiConfigResponse> {
+    const response = await this.client.get<AiConfigResponse>('/api/ai/config');
     return response.data;
   }
 }

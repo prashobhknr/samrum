@@ -104,7 +104,7 @@
     <!-- VALIDATION: Check design completeness via Doorman API           -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="validate_door_design" name="Validera dorrbeskrivning"
-                      camunda:delegateExpression="${doorValidationDelegate}">
+                      camunda:type="external" camunda:topic="doorValidationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="objectTypeId" stringValue="6" />
         <camunda:field name="requiredPhase" stringValue="design" />
@@ -187,7 +187,7 @@
 
     <!-- Write audit entry -->
     <bpmn:serviceTask id="audit_door_complete" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_doc_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

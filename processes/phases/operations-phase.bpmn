@@ -130,11 +130,11 @@
 
     <!-- TRACK 7: Post-Occupancy Evaluation (first run 6 months after handover) -->
     <bpmn:intermediateCatchEvent id="timer_poe_delay" name="Vänta 6 månader">
-      <bpmn:timerEventDefinition>
+            <bpmn:incoming>flow_to_poe</bpmn:incoming>
+      <bpmn:outgoing>flow_poe_timer_to_ca</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P180D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:incoming>flow_to_poe</bpmn:incoming>
-      <bpmn:outgoing>flow_poe_timer_to_ca</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
 
     <bpmn:callActivity id="ca_poe" name="Bruksvärdering (POE)"

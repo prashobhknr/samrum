@@ -52,6 +52,12 @@ export default function Header({ title = 'SAMRUM', showLogout = true }: HeaderPr
         <Link href="/admin/analysis" className="text-slate-300 hover:text-white text-sm transition-colors hidden lg:block">
           Analys
         </Link>
+        <Link href="/tasks" className="text-samrum-accent hover:text-amber-300 text-sm font-medium transition-colors">
+          Uppgifter
+        </Link>
+        <Link href="/timeline" className="text-samrum-accent hover:text-amber-300 text-sm font-medium transition-colors">
+          Tidslinje
+        </Link>
 
         {showLogout && (
           <button

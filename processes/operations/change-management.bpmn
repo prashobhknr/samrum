@@ -25,8 +25,8 @@
     <!-- STEP 1: Change Request Received                                -->
     <!-- ============================================================== -->
     <bpmn:startEvent id="start" name="Andringsforslag mottaget">
-      <bpmn:messageEventDefinition messageRef="msg_change_request" />
-      <bpmn:outgoing>flow_start_to_register</bpmn:outgoing>
+            <bpmn:outgoing>flow_start_to_register</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_change_request" />
     </bpmn:startEvent>
 
     <bpmn:userTask id="register_change" name="Registrera andringsforslag"
@@ -214,7 +214,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="moderate_rejected_log" name="Logga avslag"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_owner_rejected</bpmn:incoming>
       <bpmn:outgoing>flow_rejected_to_notify</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -268,15 +268,15 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="escalate_to_project" name="Eskalera till nytt projekt"
-                      camunda:delegateExpression="${projectInitiationDelegate}">
+                      camunda:type="external" camunda:topic="projectInitiationDelegate">
       <bpmn:incoming>flow_design_review_to_escalate</bpmn:incoming>
       <bpmn:outgoing>flow_escalate_to_throw</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <bpmn:intermediateThrowEvent id="throw_project_initiated" name="Nytt projekt initierat">
-      <bpmn:messageEventDefinition messageRef="msg_project_initiated" />
-      <bpmn:incoming>flow_escalate_to_throw</bpmn:incoming>
+            <bpmn:incoming>flow_escalate_to_throw</bpmn:incoming>
       <bpmn:outgoing>flow_throw_to_merge</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_project_initiated" />
     </bpmn:intermediateThrowEvent>
 
     <!-- ============================================================== -->
@@ -294,7 +294,7 @@
     <!-- AUDIT LOG                                                      -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="audit_change" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

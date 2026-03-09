@@ -35,7 +35,7 @@
     <!-- PHASE 1: Assessment                                                   -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_cost_analysis" name="Kostnadsanalys"
-                      camunda:delegateExpression="${costAnalysisDelegate}">
+                      camunda:type="external" camunda:topic="costAnalysisDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="thresholds">minor:5,moderate:15,major:25</camunda:inputParameter>
@@ -217,13 +217,13 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_update_budget" name="Uppdatera projektbudget"
-                      camunda:delegateExpression="${budgetUpdateDelegate}">
+                      camunda:type="external" camunda:topic="budgetUpdateDelegate">
       <bpmn:incoming>sf_document_to_update</bpmn:incoming>
       <bpmn:outgoing>sf_update_to_notify</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_notify_stakeholders" name="Notifiera intressenter"
-                      camunda:delegateExpression="${notificationDelegate}">
+                      camunda:type="external" camunda:topic="notificationDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="recipients">project_managers,owners,finance</camunda:inputParameter>
@@ -235,7 +235,7 @@
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_audit_budget" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_notify_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

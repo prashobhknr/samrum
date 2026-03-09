@@ -32,7 +32,7 @@
         - Population per floor
         - Number of elevators needed
         - Speed and capacity per elevator
-        - Waiting time targets (< 30s typical office)
+        - Waiting time targets (&lt; 30s typical office)
         - Accessibility requirements (BBR 3:144)
       </bpmn:documentation>
       <bpmn:incoming>flow_start_to_traffic</bpmn:incoming>
@@ -93,7 +93,7 @@
 
     <!-- Validation -->
     <bpmn:serviceTask id="validate_transport" name="Validera hissprojektering"
-                      camunda:delegateExpression="${validationDelegate}">
+                      camunda:type="external" camunda:topic="validationDelegate">
       <bpmn:incoming>flow_fire_to_validate</bpmn:incoming>
       <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -154,7 +154,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_transport" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_inspect_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

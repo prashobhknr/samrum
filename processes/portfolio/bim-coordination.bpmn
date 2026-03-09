@@ -23,13 +23,13 @@
     <!-- PHASE 1: IFC MODEL IMPORT                                           -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_import_ifc" name="Import IFC Model"
-                      camunda:delegateExpression="${ifcImportDelegate}">
+                      camunda:type="external" camunda:topic="ifcImportDelegate">
       <bpmn:incoming>sf_start_to_import</bpmn:incoming>
       <bpmn:outgoing>sf_import_to_parse</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_parse_ifc" name="Parse IFC Entities to OMS"
-                      camunda:delegateExpression="${ifcParseDelegate}">
+                      camunda:type="external" camunda:topic="ifcParseDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="entityTypes">IfcDoor,IfcSpace,IfcWall,IfcWindow,IfcBuildingStorey</camunda:inputParameter>
@@ -43,7 +43,7 @@
     <!-- PHASE 2: MODEL VALIDATION                                           -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_validate_model" name="Validate Model Completeness"
-                      camunda:delegateExpression="${bimValidationDelegate}">
+                      camunda:type="external" camunda:topic="bimValidationDelegate">
       <bpmn:incoming>sf_parse_to_validate</bpmn:incoming>
       <bpmn:outgoing>sf_validate_to_gw_valid</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -79,7 +79,7 @@
     <!-- PHASE 3: CLASH DETECTION                                            -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_clash_detection" name="Run Clash Detection"
-                      camunda:delegateExpression="${clashDetectionDelegate}">
+                      camunda:type="external" camunda:topic="clashDetectionDelegate">
       <bpmn:incoming>sf_valid_yes</bpmn:incoming>
       <bpmn:incoming>sf_fix_accept</bpmn:incoming>
       <bpmn:outgoing>sf_clash_to_gw_clashes</bpmn:outgoing>
@@ -118,7 +118,7 @@
 
     <!-- Sync IfcDoor → OMS Door attributes -->
     <bpmn:serviceTask id="st_sync_doors" name="Sync Door Attributes"
-                      camunda:delegateExpression="${bimSyncDelegate}">
+                      camunda:type="external" camunda:topic="bimSyncDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="ifcEntity">IfcDoor</camunda:inputParameter>
@@ -132,7 +132,7 @@
 
     <!-- Sync IfcSpace → OMS Room attributes -->
     <bpmn:serviceTask id="st_sync_rooms" name="Sync Room Attributes"
-                      camunda:delegateExpression="${bimSyncDelegate}">
+                      camunda:type="external" camunda:topic="bimSyncDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="ifcEntity">IfcSpace</camunda:inputParameter>
@@ -146,7 +146,7 @@
 
     <!-- Sync IfcDoor fire properties → OMS Fire attributes -->
     <bpmn:serviceTask id="st_sync_fire" name="Sync Fire Safety Attributes"
-                      camunda:delegateExpression="${bimSyncDelegate}">
+                      camunda:type="external" camunda:topic="bimSyncDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="ifcEntity">IfcDoor</camunda:inputParameter>
@@ -183,7 +183,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_audit_bim" name="Write BIM Audit Trail"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_approve_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

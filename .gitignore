@@ -60,3 +60,7 @@ frontend/.next/
 # Next.js build output (never commit this)
 frontend/.next/
 .pids/
+
+# Operaton Run binaries (keep only configuration/default.yml in git)
+camunda-bpm-run/
+postgres-local/

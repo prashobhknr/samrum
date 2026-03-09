@@ -76,7 +76,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_collect_responses" name="Samla in enkätsvar"
-                      camunda:delegateExpression="${surveyCollectionDelegate}">
+                      camunda:type="external" camunda:topic="surveyCollectionDelegate">
       <bpmn:incoming>sf_survey_to_collect</bpmn:incoming>
       <bpmn:outgoing>sf_collect_to_analyze</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -107,7 +107,7 @@
 
     <!-- Track 3: Technical Performance Measurement -->
     <bpmn:serviceTask id="st_collect_performance" name="Samla in driftdata"
-                      camunda:delegateExpression="${performanceDataDelegate}">
+                      camunda:type="external" camunda:topic="performanceDataDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="metrics">energy_kwh_sqm,water_consumption,maintenance_costs,occupancy_rate</camunda:inputParameter>
@@ -231,7 +231,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_audit_poe" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_approve_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

@@ -149,7 +149,7 @@
     <!-- STEP 6: Compile Investigation Report                           -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="compile_investigation" name="Sammanstall utredningsrapport"
-                      camunda:delegateExpression="${reportCompileDelegate}">
+                      camunda:type="external" camunda:topic="reportCompileDelegate">
       <bpmn:extensionElements>
         <camunda:field name="reportType" stringValue="investigation" />
       </bpmn:extensionElements>
@@ -176,7 +176,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_investigation" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

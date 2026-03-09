@@ -57,7 +57,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="populate_aim" name="Populera AIM"
-                      camunda:delegateExpression="${aimPopulationDelegate}">
+                      camunda:type="external" camunda:topic="aimPopulationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="action" stringValue="transfer_pim_to_aim" />
       </bpmn:extensionElements>
@@ -144,7 +144,7 @@
     <!-- STEP: Activate Warranty Period                                 -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="activate_warranty" name="Aktivera garantitid"
-                      camunda:delegateExpression="${warrantyActivationDelegate}">
+                      camunda:type="external" camunda:topic="warrantyActivationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="warrantyDurationYears" stringValue="5" />
       </bpmn:extensionElements>
@@ -187,7 +187,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_handover" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_slutbesked_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

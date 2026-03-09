@@ -47,9 +47,9 @@
     <!-- PATH 1: Register New Building                                  -->
     <!-- ============================================================== -->
     <bpmn:intermediateCatchEvent id="catch_new_building" name="Ny fastighet">
-      <bpmn:messageEventDefinition messageRef="msg_register_building" />
-      <bpmn:incoming>flow_to_new_building</bpmn:incoming>
+            <bpmn:incoming>flow_to_new_building</bpmn:incoming>
       <bpmn:outgoing>flow_new_to_register</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_register_building" />
     </bpmn:intermediateCatchEvent>
 
     <bpmn:userTask id="register_building" name="Registrera fastighet"
@@ -69,7 +69,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="create_building_instance" name="Skapa byggnadsobjekt"
-                      camunda:delegateExpression="${buildingInstanceDelegate}">
+                      camunda:type="external" camunda:topic="buildingInstanceDelegate">
       <bpmn:extensionElements>
         <camunda:field name="action" stringValue="create" />
       </bpmn:extensionElements>
@@ -86,7 +86,7 @@
 
     <!-- New construction: spawn full master lifecycle -->
     <bpmn:serviceTask id="spawn_lifecycle_new" name="Starta livscykel (nybyggnad)"
-                      camunda:delegateExpression="${processSpawnDelegate}">
+                      camunda:type="external" camunda:topic="processSpawnDelegate">
       <bpmn:extensionElements>
         <camunda:field name="processKey" stringValue="master-building-lifecycle" />
         <camunda:field name="startMessage" stringValue="msg_project_initiated" />
@@ -97,7 +97,7 @@
 
     <!-- Existing building: spawn lifecycle starting at operations phase -->
     <bpmn:serviceTask id="spawn_lifecycle_existing" name="Starta livscykel (befintlig)"
-                      camunda:delegateExpression="${processSpawnDelegate}">
+                      camunda:type="external" camunda:topic="processSpawnDelegate">
       <bpmn:extensionElements>
         <camunda:field name="processKey" stringValue="operations-phase" />
         <camunda:field name="skipToPhase" stringValue="operations" />
@@ -110,9 +110,9 @@
     <!-- PATH 2: Bulk Maintenance Campaign                              -->
     <!-- ============================================================== -->
     <bpmn:intermediateCatchEvent id="catch_bulk_maint" name="Kampanjunderhall">
-      <bpmn:messageEventDefinition messageRef="msg_bulk_maintenance" />
-      <bpmn:incoming>flow_to_bulk_maint</bpmn:incoming>
+            <bpmn:incoming>flow_to_bulk_maint</bpmn:incoming>
       <bpmn:outgoing>flow_bulk_to_scope</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_bulk_maintenance" />
     </bpmn:intermediateCatchEvent>
 
     <bpmn:userTask id="define_campaign_scope" name="Definiera kampanjomfattning"
@@ -131,7 +131,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="spawn_maintenance_per_building" name="Starta underhall per byggnad"
-                      camunda:delegateExpression="${bulkMaintenanceDelegate}">
+                      camunda:type="external" camunda:topic="bulkMaintenanceDelegate">
       <bpmn:extensionElements>
         <camunda:field name="processKey" stringValue="maintenance-cycle" />
       </bpmn:extensionElements>
@@ -157,13 +157,13 @@
     <!-- PATH 3: Portfolio Report                                       -->
     <!-- ============================================================== -->
     <bpmn:intermediateCatchEvent id="catch_report" name="Portfoljrapport">
-      <bpmn:messageEventDefinition messageRef="msg_portfolio_report" />
-      <bpmn:incoming>flow_to_report</bpmn:incoming>
+            <bpmn:incoming>flow_to_report</bpmn:incoming>
       <bpmn:outgoing>flow_report_to_generate</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_portfolio_report" />
     </bpmn:intermediateCatchEvent>
 
     <bpmn:serviceTask id="generate_portfolio_report" name="Generera portfoljrapport"
-                      camunda:delegateExpression="${portfolioReportDelegate}">
+                      camunda:type="external" camunda:topic="portfolioReportDelegate">
       <bpmn:extensionElements>
         <camunda:field name="reportType" stringValue="portfolio_summary" />
       </bpmn:extensionElements>
@@ -192,15 +192,15 @@
     <!-- PATH 4: Annual Portfolio Review (timer)                        -->
     <!-- ============================================================== -->
     <bpmn:intermediateCatchEvent id="catch_annual_review" name="Arlig oversyn">
-      <bpmn:timerEventDefinition>
+            <bpmn:incoming>flow_to_annual_review</bpmn:incoming>
+      <bpmn:outgoing>flow_annual_to_benchmark</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
       </bpmn:timerEventDefinition>
-      <bpmn:incoming>flow_to_annual_review</bpmn:incoming>
-      <bpmn:outgoing>flow_annual_to_benchmark</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
 
     <bpmn:serviceTask id="benchmark_buildings" name="Jamfor fastigheter"
-                      camunda:delegateExpression="${portfolioBenchmarkDelegate}">
+                      camunda:type="external" camunda:topic="portfolioBenchmarkDelegate">
       <bpmn:extensionElements>
         <camunda:field name="metrics" stringValue="energy,maintenance_cost,occupancy,incidents" />
       </bpmn:extensionElements>
@@ -237,7 +237,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="audit_portfolio" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_loop_back</bpmn:outgoing>
     </bpmn:serviceTask>

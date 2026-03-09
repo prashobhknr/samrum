@@ -27,7 +27,7 @@
     <!-- PHASE 1: Data Collection (automatic, sensor-based)                   -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_collect_data" name="Samla in sensordata"
-                      camunda:delegateExpression="${climateDataCollectionDelegate}">
+                      camunda:type="external" camunda:topic="climateDataCollectionDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="sensors">temperature,humidity,co2,radon,pm25</camunda:inputParameter>
@@ -40,7 +40,7 @@
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_analyze_data" name="Analysera klimatdata"
-                      camunda:delegateExpression="${climateAnalysisDelegate}">
+                      camunda:type="external" camunda:topic="climateAnalysisDelegate">
       <bpmn:incoming>sf_collect_to_analyze</bpmn:incoming>
       <bpmn:outgoing>sf_analyze_to_gw</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -72,7 +72,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_notify_critical" name="Skicka kritisk notifiering"
-                      camunda:delegateExpression="${notificationDelegate}">
+                      camunda:type="external" camunda:topic="notificationDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="severity">critical</camunda:inputParameter>
@@ -99,7 +99,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_verify_remediation" name="Verifiera åtgärd"
-                      camunda:delegateExpression="${climateDataCollectionDelegate}">
+                      camunda:type="external" camunda:topic="climateDataCollectionDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="sensors">temperature,humidity,co2,radon,pm25</camunda:inputParameter>
@@ -156,24 +156,24 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="st_generate_report" name="Generera klimatrapport"
-                      camunda:delegateExpression="${climateReportDelegate}">
+                      camunda:type="external" camunda:topic="climateReportDelegate">
       <bpmn:incoming>sf_merge_to_report</bpmn:incoming>
       <bpmn:outgoing>sf_report_to_audit</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_audit_climate" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_report_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_timer</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- Wait 30 days for next monitoring cycle -->
     <bpmn:intermediateCatchEvent id="timer_next_cycle" name="Nästa cykel (30 dagar)">
-      <bpmn:timerEventDefinition>
+            <bpmn:incoming>sf_audit_to_timer</bpmn:incoming>
+      <bpmn:outgoing>sf_next_cycle</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:incoming>sf_audit_to_timer</bpmn:incoming>
-      <bpmn:outgoing>sf_next_cycle</bpmn:outgoing>
     </bpmn:intermediateCatchEvent>
 
     <!-- Escalation: remediation failed, re-enter critical path -->

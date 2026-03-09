@@ -8,6 +8,8 @@
                    id="maintenance-definitions"
                    targetNamespace="http://doorman.local/maintenance">
 
+  <bpmn:message id="msg_manual_maintenance" name="ManualMaintenanceRequest" />
+
   <!-- ================================================================== -->
   <!-- GENERALIZED MAINTENANCE CYCLE                                       -->
   <!-- Extends: door-maintenance.bpmn (existing)                           -->
@@ -18,20 +20,21 @@
 
     <!-- Timer start: recurring maintenance trigger -->
     <bpmn:startEvent id="start" name="Underhall schemalagd">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeCycle>R/P30D</bpmn:timeCycle>  <!-- Every 30 days, configurable -->
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
     </bpmn:startEvent>
 
     <!-- Also support manual/message start -->
     <bpmn:startEvent id="start_manual" name="Manuell felanmalan">
       <bpmn:outgoing>flow_manual_to_identify</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="msg_manual_maintenance" />
     </bpmn:startEvent>
 
     <!-- Identify objects due for maintenance -->
     <bpmn:serviceTask id="identify_due_objects" name="Identifiera underhallsobjekt"
-                      camunda:delegateExpression="${maintenanceQueryDelegate}">
+                      camunda:type="external" camunda:topic="maintenanceQueryDelegate">
       <bpmn:extensionElements>
         <camunda:field name="objectTypeId" expression="${objectTypeId}" />
         <camunda:field name="maintenanceAttributeId" expression="${maintenanceIntervalAttributeId}" />
@@ -113,7 +116,7 @@
 
     <!-- Update maintenance date -->
     <bpmn:serviceTask id="update_maintenance_date" name="Uppdatera underhallsdatum"
-                      camunda:delegateExpression="${maintenanceDateDelegate}">
+                      camunda:type="external" camunda:topic="maintenanceDateDelegate">
       <bpmn:incoming>flow_repair_no</bpmn:incoming>
       <bpmn:incoming>flow_verify_to_update</bpmn:incoming>
       <bpmn:outgoing>flow_update_to_audit</bpmn:outgoing>
@@ -121,7 +124,7 @@
 
     <!-- Audit -->
     <bpmn:serviceTask id="audit_maintenance" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_update_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

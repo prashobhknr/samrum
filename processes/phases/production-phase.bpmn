@@ -71,9 +71,9 @@
 
     <!-- Construction Start Signal: broadcast that construction has begun -->
     <bpmn:intermediateThrowEvent id="throw_construction_start" name="Byggstart signalerad">
-      <bpmn:signalEventDefinition signalRef="sig_construction_start" />
-      <bpmn:incoming>flow_technical_to_signal</bpmn:incoming>
+            <bpmn:incoming>flow_technical_to_signal</bpmn:incoming>
       <bpmn:outgoing>flow_signal_to_fork</bpmn:outgoing>
+<bpmn:signalEventDefinition signalRef="sig_construction_start" />
     </bpmn:intermediateThrowEvent>
 
     <!-- ============================================================== -->
@@ -313,7 +313,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_production" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_asbuilt_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

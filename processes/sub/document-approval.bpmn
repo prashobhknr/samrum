@@ -145,7 +145,7 @@
 
     <!-- Approved: register and distribute -->
     <bpmn:serviceTask id="register_document" name="Registrera godkant dokument"
-                      camunda:delegateExpression="${documentRegistrationDelegate}">
+                      camunda:type="external" camunda:topic="documentRegistrationDelegate">
       <bpmn:incoming>flow_approved</bpmn:incoming>
       <bpmn:incoming>flow_comments_resolved</bpmn:incoming>
       <bpmn:outgoing>flow_register_to_audit</bpmn:outgoing>
@@ -182,7 +182,7 @@
 
     <!-- Audit and end -->
     <bpmn:serviceTask id="audit_document" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_register_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

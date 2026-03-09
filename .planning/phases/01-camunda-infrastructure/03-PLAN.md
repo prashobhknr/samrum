@@ -17,30 +17,25 @@ must_haves:
     - "POST and GET requests both proxy correctly (method and body forwarded)"
   artifacts:
     - path: "backend/demo-server.mjs"
-      provides: "/api/camunda/* proxy route block forwarding to http://localhost:8080/engine-rest"
+      provides: "/api/camunda/* proxy route block forwarding to Operaton engine-rest at http://localhost:8080/engine-rest"
       contains: "pathname.startsWith('/api/camunda/')"
   key_links:
     - from: "frontend (localhost:3001)"
       to: "backend (localhost:3000/api/camunda/*)"
-      via: "all Camunda REST calls use /api/camunda/ prefix, never :8080 directly"
+      via: "all Operaton REST calls use /api/camunda/ prefix, never :8080 directly"
       pattern: "/api/camunda/"
     - from: "backend demo-server.mjs proxy handler"
       to: "http://localhost:8080/engine-rest"
-      via: "fetch() forwarding with method + body + content-type"
+      via: "fetch() forwarding to Operaton with method + body + content-type"
       pattern: "engine-rest"
 ---
 
 <objective>
-Add a thin `/api/camunda/*` proxy route block to `demo-server.mjs` that forwards all matching requests to Camunda's engine-rest at `localhost:8080`, stripping the `/api/camunda` prefix. This ensures the frontend never contacts port 8080 directly, avoiding CORS issues and centralizing auth enforcement later.
+Add a thin `/api/camunda/*` proxy route block to `demo-server.mjs` that forwards all matching requests to Operaton's engine-rest at `localhost:8080`, stripping the `/api/camunda` prefix. This ensures the frontend never contacts port 8080 directly, avoiding CORS issues and centralizing auth enforcement later.
 
-Purpose: The frontend must be able to call Camunda REST APIs through the existing backend, with no CORS configuration needed on Camunda's side.
+Purpose: The frontend must be able to call Operaton REST APIs through the existing backend, with no CORS configuration needed on Operaton's side.
 Output: Modified `demo-server.mjs` with proxy route block inserted before the 404 fallback.
 </objective>
-
-<execution_context>
-@/Users/prashobh/.claude/get-shit-done/workflows/execute-plan.md
-@/Users/prashobh/.claude/get-shit-done/templates/summary.md
-</execution_context>
 
 <context>
 @.planning/ROADMAP.md
@@ -103,7 +98,7 @@ may not always be JSON (could be XML for BPMN download endpoints).
 
     ```javascript
     // ─── Camunda Proxy ────────────────────────────────────────────────────────
-    // Forwards all /api/camunda/* requests to Camunda engine-rest.
+    // Forwards all /api/camunda/* requests to Operaton engine-rest.
     // Strips /api/camunda prefix; preserves method, query string, and body.
     // Frontend never contacts port 8080 directly.
     if (pathname.startsWith('/api/camunda/')) {
@@ -140,59 +135,56 @@ may not always be JSON (could be XML for BPMN download endpoints).
     Implementation notes:
     - Use `for await (const chunk of req)` for body reading — this is native Node streams, matches the ESM async context
     - Do NOT set Content-Type manually if the request doesn't have one (avoids overriding multipart boundaries in later phases)
-    - Use `camundaRes.headers.get('content-type')` so BPMN XML responses (future phase) return the correct content type
+    - Use `camundaRes.headers.get('content-type')` so BPMN XML responses return the correct content type
     - `return` after `res.end()` prevents falling through to the 404
 
     After editing, verify syntax:
-    ```bash
-    node --check /Users/prashobh/.openclaw/workspace/doorman/backend/demo-server.mjs && echo "syntax OK"
+    ```powershell
+    node --check backend/demo-server.mjs
     ```
   </action>
   <verify>
-    <automated>node --check /Users/prashobh/.openclaw/workspace/doorman/backend/demo-server.mjs && echo "syntax OK"</automated>
+    Verify: `node --check backend/demo-server.mjs` exits 0.
   </verify>
   <done>demo-server.mjs has the /api/camunda/* proxy block before the 404 fallback. File passes node --check.</done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
   <name>Task 2: Smoke test the proxy routes</name>
-  <what-built>Proxy block in demo-server.mjs forwarding /api/camunda/* to Camunda engine-rest</what-built>
+  <what-built>Proxy block in demo-server.mjs forwarding /api/camunda/* to Operaton engine-rest</what-built>
   <how-to-verify>
-    Camunda and backend must both be running. Then run all three tests:
+    Operaton and backend must both be running. Then run all tests:
 
     TEST 1 — GET proxy (process definitions list):
-    ```bash
-    curl -s http://localhost:3000/api/camunda/engine-rest/process-definition | python3 -m json.tool | head -20
-    # Expected: JSON array of process definition objects (same as direct Camunda call)
+    ```powershell
+    Invoke-RestMethod http://localhost:3000/api/camunda/engine-rest/process-definition | Select-Object -First 3
+    # Expected: process definition objects (same as direct Operaton call)
     ```
 
     TEST 2 — Compare direct vs proxied response (must match):
-    ```bash
-    DIRECT=$(curl -s 'http://localhost:8080/engine-rest/process-definition?latestVersion=true' | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))")
-    PROXIED=$(curl -s 'http://localhost:3000/api/camunda/engine-rest/process-definition?latestVersion=true' | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))")
-    echo "Direct: $DIRECT, Proxied: $PROXIED"
+    ```powershell
+    $direct = (Invoke-RestMethod 'http://localhost:8080/engine-rest/process-definition?latestVersion=true').Count
+    $proxied = (Invoke-RestMethod 'http://localhost:3000/api/camunda/engine-rest/process-definition?latestVersion=true').Count
+    "Direct: $direct, Proxied: $proxied"
     # Expected: same number (39)
     ```
 
     TEST 3 — Engine endpoint via proxy:
-    ```bash
-    curl -s http://localhost:3000/api/camunda/engine-rest/engine
-    # Expected: [{"name":"default"}]
+    ```powershell
+    Invoke-RestMethod http://localhost:3000/api/camunda/engine-rest/engine
+    # Expected: name=default
     ```
 
     TEST 4 — Non-Camunda route still works (regression):
-    ```bash
-    curl -s http://localhost:3000/api/login -X POST -H "Content-Type: application/json" -d '{"username":"x","password":"x"}'
-    # Expected: 401 JSON (not proxy error, not 404)
+    ```powershell
+    Invoke-WebRequest -Uri http://localhost:3000/api/login -Method POST -ContentType 'application/json' -Body '{"username":"x","password":"x"}' -SkipHttpErrorCheck
+    # Expected: 401 (not proxy error, not 404)
     ```
 
     TEST 5 — Frontend CORS (manual):
-    Open browser devtools on http://localhost:3001 (or any frontend page).
-    In the browser console run:
-    ```javascript
-    fetch('http://localhost:3000/api/camunda/engine-rest/engine').then(r => r.json()).then(console.log)
-    ```
-    Expected: `[{name: "default"}]` with no CORS error in the Network tab.
+    Open browser devtools on http://localhost:3001.
+    In console: `fetch('http://localhost:3000/api/camunda/engine-rest/engine').then(r => r.json()).then(console.log)`
+    Expected: [{name: "default"}] with no CORS error.
   </how-to-verify>
   <resume-signal>Type "approved" when all 5 tests pass. Describe which test failed and the error output if blocked.</resume-signal>
 </task>
@@ -201,14 +193,14 @@ may not always be JSON (could be XML for BPMN download endpoints).
 
 <verification>
 Plan 03 success:
-1. `curl -s http://localhost:3000/api/camunda/engine-rest/engine` returns `[{"name":"default"}]`
-2. `curl -s 'http://localhost:3000/api/camunda/engine-rest/process-definition?latestVersion=true' | python3 -c "import sys,json; print(len(json.load(sys.stdin)))"` outputs `39`
+1. `Invoke-RestMethod http://localhost:3000/api/camunda/engine-rest/engine` returns default engine
+2. Proxied and direct process-definition counts match (39)
 3. Existing routes (e.g. `/api/login`) still return correct responses — proxy did not break routing
 4. No CORS error from browser at localhost:3001
 </verification>
 
 <success_criteria>
-The frontend can call any Camunda REST endpoint via `localhost:3000/api/camunda/engine-rest/*` with no CORS error. Port 8080 is never contacted by the browser. All existing backend routes continue to work.
+The frontend can call any Operaton REST endpoint via `localhost:3000/api/camunda/engine-rest/*` with no CORS error. Port 8080 is never contacted by the browser. All existing backend routes continue to work.
 </success_criteria>
 
 <output>

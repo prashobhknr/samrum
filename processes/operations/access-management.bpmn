@@ -66,7 +66,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="issue_access" name="Utfarda behorighet"
-                      camunda:delegateExpression="${accessProvisionDelegate}">
+                      camunda:type="external" camunda:topic="accessProvisionDelegate">
       <bpmn:incoming>flow_approve_to_issue</bpmn:incoming>
       <bpmn:outgoing>flow_issue_to_merge</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -151,7 +151,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="audit_access" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_merge_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

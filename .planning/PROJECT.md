@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Doorman is a building lifecycle management system (replacing the legacy SAS-based Samrum) that orchestrates door/lock/access object workflows through BPMN processes on Camunda 7. It provides permission-filtered dynamic forms, full audit trails, and AI-assisted task completion for Swedish property management teams.
+Doorman is a building lifecycle management system (replacing the legacy SAS-based Samrum) that orchestrates door/lock/access object workflows through BPMN processes on Operaton (open-source Camunda 7 fork). It provides permission-filtered dynamic forms, full audit trails, and AI-assisted task completion for Swedish property management teams.
 
 ## Core Value
 
@@ -10,11 +10,11 @@ Users can work BPMN-driven tasks (inspect, approve, document, manage access) thr
 
 ## Current Milestone: v1.0 — Camunda Integration + Task Worker UI + AI
 
-**Goal:** Wire Camunda 7 (standalone, no Docker) to the existing backend via External Task pattern, build a task worker inbox UI, and add AI-assisted form filling.
+**Goal:** Wire Operaton (standalone, no Docker) to the existing backend via External Task pattern, build a task worker inbox UI, and add AI-assisted form filling.
 
 **Target features:**
-- Camunda 7 Run (standalone JAR) — deploy 39 BPMNs, no Docker
-- External Task worker in backend polling Camunda REST API
+- Operaton Run (standalone JAR) — deploy 39 BPMNs, no Docker
+- External Task worker in backend polling Operaton REST API
 - Delegate stubs in `backend/src/delegates/` execute real logic and complete tasks
 - Frontend task inbox: list assigned tasks, render DynamicForm per formKey, claim/complete/escalate
 - Claude API AI assistant: suggest form values, decision support on gateway tasks
@@ -36,17 +36,17 @@ Users can work BPMN-driven tasks (inspect, approve, document, manage access) thr
 
 ### Active
 
-- [ ] Camunda 7 Run installed and running (standalone JAR, no Docker)
-- [ ] 39 BPMN files deployed to Camunda via REST API on startup
-- [ ] External Task worker in backend polls Camunda, dispatches to delegate registry
-- [ ] Frontend task inbox: user sees assigned Camunda user tasks
-- [ ] Frontend: claim task, load DynamicForm via formKey, submit → complete Camunda task
-- [ ] AI form assistant: Claude API suggests field values for active form
-- [ ] Process instance timeline: shows current phase/subprocess for a building
+- [x] Operaton Run installed and running (standalone JAR, no Docker)
+- [x] 39 BPMN files deployed to Operaton via REST API on startup
+- [x] External Task worker in backend polls Operaton, dispatches to delegate registry
+- [x] Frontend task inbox: user sees assigned Operaton user tasks
+- [x] Frontend: claim task, load DynamicForm via formKey, submit → complete Operaton task
+- [x] AI form assistant: provider-agnostic (OpenAI/Claude/Gemini/Ollama) suggests field values for active form
+- [x] Process instance timeline: shows current phase/subprocess for a building
 
 ### Out of Scope
 
-- Docker-based Camunda — no Docker available on dev machine
+- Docker-based Operaton — no Docker available on dev machine
 - Java delegates — External Task REST polling replaces this entirely
 - Mobile app — web-first
 - Multi-tenant SaaS — single organization deployment
@@ -67,7 +67,7 @@ Users can work BPMN-driven tasks (inspect, approve, document, manage access) thr
 - **Runtime**: No Docker — Camunda must run as standalone JAR (`camunda-bpm-run-7.x.x.zip`)
 - **Stack**: TypeScript/Node backend, Next.js frontend — no Java code
 - **Camunda version**: 7.x community (open-source, latest 7.x release)
-- **AI**: Claude API via `@anthropic-ai/sdk` for AI assistant feature
+- **AI**: Provider-agnostic via env vars (AI_PROVIDER, AI_API_KEY) — supports OpenAI, Claude, Gemini, Ollama
 - **Existing delegates**: Use `backend/src/delegates/index.ts` registry — do NOT rewrite
 
 ## Key Decisions
@@ -75,10 +75,10 @@ Users can work BPMN-driven tasks (inspect, approve, document, manage access) thr
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | External Task over Java delegates | Backend is TypeScript, no Java allowed | ✓ Good |
-| Camunda 7 (not 8) | Open-source, community edition, established | — Pending |
-| Camunda Run (JAR) not Docker | No Docker available on dev machine | — Pending |
+| Camunda 7 (not 8) | Open-source, community edition, established | ✓ Good |
+| Camunda Run (JAR) not Docker | No Docker available on dev machine | ✓ Good |
 | DynamicForm reuse for task UI | Already built, formKey routing already works | ✓ Good |
-| Claude API for AI assistant | Existing expertise, Anthropic SDK available | — Pending |
+| Provider-agnostic AI | User requested multi-provider support, not Claude-only | ✓ Good |
 
 ---
-*Last updated: 2026-03-08 — Milestone v1.0 started*
+*Last updated: 2026-03-09 — Milestone v1.0 COMPLETE*

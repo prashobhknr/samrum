@@ -27,8 +27,8 @@
     <!-- =================================================================== -->
 
     <bpmn:startEvent id="start_claim" name="Skadeärende startat">
-      <bpmn:messageEventDefinition messageRef="msg_insurance_trigger" />
-      <bpmn:outgoing>sf_start_to_register</bpmn:outgoing>
+            <bpmn:outgoing>sf_start_to_register</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_insurance_trigger" />
     </bpmn:startEvent>
 
     <!-- =================================================================== -->
@@ -53,7 +53,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_notify_insurer" name="Meddela försäkringsbolag"
-                      camunda:delegateExpression="${notificationDelegate}">
+                      camunda:type="external" camunda:topic="notificationDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="recipients">insurance_company</camunda:inputParameter>
@@ -138,7 +138,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_submit_claim" name="Skicka skadeanmälan"
-                      camunda:delegateExpression="${insuranceSubmitDelegate}">
+                      camunda:type="external" camunda:topic="insuranceSubmitDelegate">
       <bpmn:incoming>sf_review_to_send</bpmn:incoming>
       <bpmn:outgoing>sf_send_to_wait</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -234,7 +234,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_audit_claim" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_close_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

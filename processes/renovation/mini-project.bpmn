@@ -206,7 +206,7 @@
 
     <!-- Default path: no disciplines selected (edge case — goes straight to join) -->
     <bpmn:serviceTask id="validate_scope_not_empty" name="Validera omfattning"
-                      camunda:delegateExpression="${renovationScopeValidatorDelegate}">
+                      camunda:type="external" camunda:topic="renovationScopeValidatorDelegate">
       <bpmn:documentation>
         Default path: if no discipline flags are set, validate and raise error.
         At least one discipline must be selected for a renovation project.
@@ -391,7 +391,7 @@
 
     <!-- Default: no installation (edge case, should not happen post-approval) -->
     <bpmn:serviceTask id="log_no_installation" name="Logga tom installation"
-                      camunda:delegateExpression="${auditLogDelegate}">
+                      camunda:type="external" camunda:topic="auditLogDelegate">
       <bpmn:incoming>flow_install_fork_default</bpmn:incoming>
       <bpmn:outgoing>flow_install_default_to_join</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -485,7 +485,7 @@
 
     <!-- 6c: Update Doorman Attribute Values -->
     <bpmn:serviceTask id="update_doorman" name="Uppdatera Doorman attributvärden"
-                      camunda:delegateExpression="${doormanAttributeUpdateDelegate}">
+                      camunda:type="external" camunda:topic="doormanAttributeUpdateDelegate">
       <bpmn:documentation>
         Automatically update Doorman object attribute values to reflect
         the renovated state. Updates attribute_values table for all
@@ -498,7 +498,7 @@
 
     <!-- 6d: Audit Log -->
     <bpmn:serviceTask id="audit_renovation" name="Skapa revisionslogg"
-                      camunda:delegateExpression="${renovationAuditDelegate}">
+                      camunda:type="external" camunda:topic="renovationAuditDelegate">
       <bpmn:documentation>
         Create comprehensive audit trail for renovation:
         - Log all attribute changes with before/after values

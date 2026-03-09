@@ -13,7 +13,7 @@ requirements:
   - INFRA-02
 must_haves:
   truths:
-    - "All 39 BPMN process definitions are visible in Camunda Cockpit after backend starts"
+    - "All 39 BPMN process definitions are visible in Operaton Cockpit after backend starts"
     - "Restarting demo-server.mjs does not create version 2+ of any process definition"
     - "Backend logs show deployment count and deployment ID on startup"
   artifacts:
@@ -21,11 +21,11 @@ must_haves:
       provides: "BPMN deployment function using native FormData, deploy-changed-only"
       exports: ["deployAllBpmns"]
     - path: "backend/demo-server.mjs"
-      provides: "deployAllBpmns() called after DB connect, non-fatal if Camunda is down"
+      provides: "deployAllBpmns() called after DB connect, non-fatal if Operaton is down"
   key_links:
     - from: "backend/src/camunda/deployBpmn.mjs"
       to: "http://localhost:8080/engine-rest/deployment/create"
-      via: "fetch POST with native FormData, all 39 BPMNs in one deployment"
+      via: "fetch POST with native FormData, all 39 BPMNs in one deployment (Operaton REST API)"
       pattern: "deployment/create"
     - from: "backend/demo-server.mjs"
       to: "deployAllBpmns"
@@ -34,16 +34,11 @@ must_haves:
 ---
 
 <objective>
-Create `deployBpmn.mjs` that reads all 39 BPMN files from `processes/` recursively and POSTs them to Camunda in a single multipart deployment call with `deploy-changed-only=true`. Wire this into `demo-server.mjs` so it runs on every startup — idempotently.
+Create `deployBpmn.mjs` that reads all 39 BPMN files from `processes/` recursively and POSTs them to Operaton in a single multipart deployment call with `deploy-changed-only=true`. Wire this into `demo-server.mjs` so it runs on every startup — idempotently.
 
-Purpose: All process definitions must be visible in Camunda before Phase 2 can implement the external task worker, and before Phase 3 can start process instances.
+Purpose: All process definitions must be visible in Operaton before Phase 2 can implement the external task worker, and before Phase 3 can start process instances.
 Output: `backend/src/camunda/deployBpmn.mjs` + modified `demo-server.mjs` startup sequence.
 </objective>
-
-<execution_context>
-@/Users/prashobh/.claude/get-shit-done/workflows/execute-plan.md
-@/Users/prashobh/.claude/get-shit-done/templates/summary.md
-</execution_context>
 
 <context>
 @.planning/ROADMAP.md
@@ -77,8 +72,8 @@ processes/ directory structure (39 BPMNs confirmed):
   <files>backend/src/camunda/deployBpmn.mjs</files>
   <action>
     Create the directory and file:
-    ```bash
-    mkdir -p /Users/prashobh/.openclaw/workspace/doorman/backend/src/camunda
+    ```powershell
+    New-Item -ItemType Directory -Force backend\src\camunda
     ```
 
     Write `backend/src/camunda/deployBpmn.mjs` with exactly this implementation:
@@ -97,7 +92,7 @@ processes/ directory structure (39 BPMNs confirmed):
 
     const CAMUNDA_BASE = process.env.CAMUNDA_REST_URL || 'http://localhost:8080/engine-rest';
     // processes/ is at repo root: backend/src/camunda/ -> ../../../processes
-    const BPMN_DIR = resolve(__dirname, '../../../..', 'processes');
+    const BPMN_DIR = resolve(__dirname, '../../..', 'processes');
 
     export async function deployAllBpmns() {
       // Recursively find all .bpmn files
@@ -145,32 +140,10 @@ processes/ directory structure (39 BPMNs confirmed):
     BPMN_DIR path explanation:
     - This file lives at: `backend/src/camunda/deployBpmn.mjs`
     - `__dirname` = `{repo}/backend/src/camunda`
-    - `resolve(__dirname, '../../../..', 'processes')` = `{repo}/processes`
-    - Confirm the path resolves correctly:
-    ```bash
-    node -e "
-      import { dirname, resolve } from 'path';
-      import { fileURLToPath } from 'url';
-      const d = dirname(fileURLToPath(import.meta.url));
-      console.log(resolve(d, 'backend/src/camunda/../../../..', 'processes'));
-    " --input-type=module 2>/dev/null || \
-    node -e "const {resolve} = require('path'); console.log(resolve('/Users/prashobh/.openclaw/workspace/doorman/backend/src/camunda', '../../../..', 'processes'))"
-    # Expected: /Users/prashobh/.openclaw/workspace/doorman/processes
-    ```
+    - `resolve(__dirname, '../../..', 'processes')` = `{repo}/processes`
   </action>
   <verify>
-    <automated>node --input-type=module &lt;&lt;'EOF'
-import { deployAllBpmns } from '/Users/prashobh/.openclaw/workspace/doorman/backend/src/camunda/deployBpmn.mjs';
-// Dry-run: just confirm the file loads and BPMN_DIR resolves correctly
-import { readdir } from 'fs/promises';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-const BPMN_DIR = resolve('/Users/prashobh/.openclaw/workspace/doorman/backend/src/camunda', '../../../..', 'processes');
-const files = await readdir(BPMN_DIR, { recursive: true });
-const bpmns = files.filter(f => f.endsWith('.bpmn'));
-if (bpmns.length !== 39) throw new Error(`Expected 39 BPMNs, found ${bpmns.length}`);
-console.log(`OK: ${bpmns.length} BPMN files found`);
-EOF</automated>
+    Verify the module loads and BPMN_DIR resolves to find all BPMN files.
   </verify>
   <done>deployBpmn.mjs exists, exports deployAllBpmns, finds exactly 39 BPMN files when the path is resolved relative to its location.</done>
 </task>
@@ -210,8 +183,8 @@ EOF</automated>
       try {
         await deployAllBpmns();
       } catch (e) {
-        // Non-fatal: backend is useful for OMS admin even when Camunda is offline
-        console.warn('[Camunda] BPMN deployment skipped (Camunda may not be running):', e.message);
+      // Non-fatal: backend is useful for OMS admin even when Operaton is offline
+      console.warn('[Operaton] BPMN deployment skipped (Operaton may not be running):', e.message);
       }
     });
     ```
@@ -219,12 +192,12 @@ EOF</automated>
     Do not touch any other part of demo-server.mjs. The rest of the file (HTTP handler, routes, etc.) is unchanged.
 
     After editing, verify the file still parses as valid ES Module:
-    ```bash
-    node --check /Users/prashobh/.openclaw/workspace/doorman/backend/demo-server.mjs
+    ```powershell
+    node --check backend/demo-server.mjs
     ```
   </action>
   <verify>
-    <automated>node --check /Users/prashobh/.openclaw/workspace/doorman/backend/demo-server.mjs && echo "syntax OK"</automated>
+    Verify: `node --check backend/demo-server.mjs` exits 0.
   </verify>
   <done>demo-server.mjs imports deployAllBpmns from ./src/camunda/deployBpmn.mjs and calls it (with try/catch) inside the client.connect callback. File passes node --check.</done>
 </task>
@@ -233,43 +206,39 @@ EOF</automated>
   <name>Task 3: Verify 39 BPMNs deployed and idempotent on restart</name>
   <what-built>deployBpmn.mjs wired into demo-server.mjs startup</what-built>
   <how-to-verify>
-    Camunda must be running (from Plan 01). Then:
+    Operaton must be running (from Plan 01). Then:
 
     1. Start backend:
-    ```bash
-    cd /Users/prashobh/.openclaw/workspace/doorman
-    pkill -f demo-server.mjs 2>/dev/null; sleep 1
-    node backend/demo-server.mjs &
-    sleep 5
+    ```powershell
+    cd c:\ws\learn\samrum\samrum
+    node backend/demo-server.mjs
     ```
 
     2. Check backend logs for deployment confirmation:
     ```
-    [Camunda] Deployed 39 BPMN files. Deployment ID: <uuid>. New definitions: 39
+    [Operaton] Deployed 39 BPMN files. Deployment ID: <uuid>. New definitions: 39
     ```
     (New definitions: 39 on first run; 0 on subsequent runs = deploy-changed-only working)
 
     3. Confirm 39 process definitions via REST:
-    ```bash
-    curl -s 'http://localhost:8080/engine-rest/process-definition?latestVersion=true' | python3 -m json.tool | grep '"key"' | wc -l
-    # Expected: 39
+    ```powershell
+    Invoke-RestMethod 'http://localhost:8080/engine-rest/process-definition?latestVersion=true' | Measure-Object
+    # Expected: Count = 39
     ```
 
     4. Restart server and confirm no new versions:
-    ```bash
-    pkill -f demo-server.mjs; sleep 1; node backend/demo-server.mjs &
-    sleep 5
-    # Check a known process — master-building-lifecycle should still be version 1:
-    curl -s 'http://localhost:8080/engine-rest/process-definition?key=master-building-lifecycle&latestVersion=true' | python3 -m json.tool | grep '"version"'
-    # Expected: "version": 1
+    ```powershell
+    # Stop and restart backend, then check:
+    Invoke-RestMethod 'http://localhost:8080/engine-rest/process-definition?key=master-building-lifecycle&latestVersion=true'
+    # Expected: version = 1
     ```
 
-    5. Open Cockpit at http://localhost:8080/camunda/app/cockpit/
+    5. Open Cockpit at http://localhost:8080/operaton/app/cockpit/
        Navigate to Process Definitions. Should show ~39 processes listed.
 
     If deployment fails with HTTP 400/500:
-    - Check backend logs for the error text (first 300 chars of Camunda response logged)
-    - Common cause: Camunda not running → start camunda-bpm-run/start.sh first
+    - Check backend logs for the error text (first 300 chars of Operaton response logged)
+    - Common cause: Operaton not running → start camunda-bpm-run\start.bat first
   </how-to-verify>
   <resume-signal>Type "approved" when 39 definitions are confirmed in Cockpit and restart does not increment versions. Describe errors if blocked.</resume-signal>
 </task>
@@ -278,13 +247,13 @@ EOF</automated>
 
 <verification>
 Plan 02 success:
-1. `curl 'http://localhost:8080/engine-rest/process-definition?latestVersion=true' | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))"` outputs `39`
-2. `curl 'http://localhost:8080/engine-rest/process-definition?key=master-building-lifecycle&latestVersion=true' | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['version'])"` outputs `1` after two server restarts
+1. `Invoke-RestMethod 'http://localhost:8080/engine-rest/process-definition?latestVersion=true'` returns 39 definitions
+2. master-building-lifecycle version remains 1 after server restart
 3. `node --check backend/demo-server.mjs` exits 0
 </verification>
 
 <success_criteria>
-All 39 BPMN files are deployed to Camunda as a single idempotent deployment. Cockpit shows 39 process definitions. Subsequent server restarts do not create new versions.
+All 39 BPMN files are deployed to Operaton as a single idempotent deployment. Cockpit shows 39 process definitions. Subsequent server restarts do not create new versions.
 </success_criteria>
 
 <output>

@@ -39,7 +39,7 @@
 
     <!-- Track 1: Energy & Carbon (Scope 1-2) -->
     <bpmn:serviceTask id="st_collect_energy" name="Samla in energidata"
-                      camunda:delegateExpression="${energyDataCollectionDelegate}">
+                      camunda:type="external" camunda:topic="energyDataCollectionDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="metrics">electricity_kwh,district_heating_kwh,cooling_kwh,solar_generation_kwh</camunda:inputParameter>
@@ -51,7 +51,7 @@
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="st_calculate_ghg" name="Beräkna GHG-utsläpp"
-                      camunda:delegateExpression="${ghgCalculationDelegate}">
+                      camunda:type="external" camunda:topic="ghgCalculationDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="scopes">scope1,scope2</camunda:inputParameter>
@@ -64,7 +64,7 @@
 
     <!-- Track 2: Water Consumption -->
     <bpmn:serviceTask id="st_collect_water" name="Samla in vattendata"
-                      camunda:delegateExpression="${waterDataCollectionDelegate}">
+                      camunda:type="external" camunda:topic="waterDataCollectionDelegate">
       <bpmn:incoming>sf_to_water</bpmn:incoming>
       <bpmn:outgoing>sf_water_done</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -152,7 +152,7 @@
     <!-- PHASE 4: Report Compilation & Approval                                -->
     <!-- =================================================================== -->
     <bpmn:serviceTask id="st_compile_report" name="Sammanställ ESG-rapport"
-                      camunda:delegateExpression="${esgReportDelegate}">
+                      camunda:type="external" camunda:topic="esgReportDelegate">
       <bpmn:incoming>sf_cert_to_compile</bpmn:incoming>
       <bpmn:outgoing>sf_compile_to_review</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -192,7 +192,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_audit_esg" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_actions_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

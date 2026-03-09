@@ -89,7 +89,7 @@
 
     <!-- Validation -->
     <bpmn:serviceTask id="validate_structural" name="Validera konstruktion"
-                      camunda:delegateExpression="${validationDelegate}">
+                      camunda:type="external" camunda:topic="validationDelegate">
       <bpmn:incoming>flow_openings_to_validate</bpmn:incoming>
       <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -108,7 +108,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_structural" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_approve_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

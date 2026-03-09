@@ -7,7 +7,7 @@
  * - Type validation
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { FormSchema, FormField } from '@/lib/api';
 
@@ -15,11 +15,27 @@ interface DynamicFormProps {
   schema: FormSchema;
   onSubmit: (data: Record<string, any>) => Promise<void>;
   isSubmitting?: boolean;
+  suggestions?: Record<string, string | number | boolean> | null;
 }
 
-export default function DynamicForm({ schema, onSubmit, isSubmitting }: DynamicFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm();
+export default function DynamicForm({ schema, onSubmit, isSubmitting, suggestions }: DynamicFormProps) {
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm();
   const [submitError, setSubmitError] = useState('');
+  const [suggestedFields, setSuggestedFields] = useState<Set<string>>(new Set());
+
+  // Apply AI suggestions to form fields
+  useEffect(() => {
+    if (!suggestions) return;
+    const newSuggested = new Set<string>();
+    for (const [fieldName, value] of Object.entries(suggestions)) {
+      const field = schema.fields.find(f => f.attribute_name === fieldName);
+      if (field?.visible && field?.editable) {
+        setValue(fieldName, String(value));
+        newSuggested.add(fieldName);
+      }
+    }
+    setSuggestedFields(newSuggested);
+  }, [suggestions, schema.fields, setValue]);
 
   const onSubmitForm = async (data: Record<string, any>) => {
     setSubmitError('');
@@ -54,6 +70,7 @@ export default function DynamicForm({ schema, onSubmit, isSubmitting }: DynamicF
             field={field}
             register={register}
             errors={errors}
+            isSuggested={suggestedFields.has(field.attribute_name)}
           />
         ))}
 
@@ -82,9 +99,10 @@ interface FormFieldRendererProps {
   field: FormField;
   register: any;
   errors: any;
+  isSuggested?: boolean;
 }
 
-function FormFieldRenderer({ field, register, errors }: FormFieldRendererProps) {
+function FormFieldRenderer({ field, register, errors, isSuggested }: FormFieldRendererProps) {
   const errorMessage = errors[field.attribute_name]?.message;
 
   return (
@@ -92,6 +110,7 @@ function FormFieldRenderer({ field, register, errors }: FormFieldRendererProps) 
       <label htmlFor={field.attribute_name} className="block text-sm font-medium text-gray-700">
         {field.attribute_name.replace(/_/g, ' ')}
         {field.required && <span className="text-red-500">*</span>}
+        {isSuggested && <span className="ml-2 text-xs text-purple-600 font-normal">✨ AI-förslag</span>}
       </label>
 
       {field.help_text && (

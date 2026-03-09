@@ -93,7 +93,7 @@
 
     <!-- Validation -->
     <bpmn:serviceTask id="validate_fire_design" name="Validera brandprojektering"
-                      camunda:delegateExpression="${validationDelegate}">
+                      camunda:type="external" camunda:topic="validationDelegate">
       <bpmn:incoming>flow_doc_to_validate</bpmn:incoming>
       <bpmn:outgoing>flow_validate_to_approve</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -125,7 +125,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="audit_fire_complete" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_test_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

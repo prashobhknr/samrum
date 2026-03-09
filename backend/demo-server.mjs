@@ -7,6 +7,8 @@ import http from 'http';
 import url from 'url';
 import pkg from 'pg';
 const { Client } = pkg;
+import { deployAllBpmns } from './src/camunda/deployBpmn.mjs';
+import { setDbClient, startWorker } from './src/camunda/externalTaskWorker.mjs';
 
 // PostgreSQL connection
 const client = new Client({
@@ -19,12 +21,29 @@ const DISABLE_AUTH_CHECK = true; // Set to false to enable role-based security c
 const PORT = process.env.API_PORT || 3000;
 
 // Connect to database
-client.connect(err => {
+client.connect(async err => {
   if (err) {
     console.error('❌ Database connection failed:', err.message);
     process.exit(1);
   }
   console.log('✓ Connected to PostgreSQL');
+
+  // Deploy BPMNs to Operaton on startup (idempotent — deploy-changed-only)
+  try {
+    await deployAllBpmns();
+  } catch (e) {
+    // Non-fatal: backend is useful for OMS admin even when Operaton is offline
+    console.warn('[Operaton] BPMN deployment skipped (Operaton may not be running):', e.message);
+  }
+
+  // Start external task worker — register delegates and begin polling
+  try {
+    setDbClient(client);
+    await import('./src/camunda/registerDelegates.mjs'); // registers all 50 delegate handlers
+    startWorker();
+  } catch (e) {
+    console.warn('[Worker] External task worker startup skipped:', e.message);
+  }
 });
 
 // In-memory view settings store (module_id -> column config)
@@ -2471,6 +2490,874 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Task & Process Management (proxies Operaton REST API) ────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const OPERATON_BASE = process.env.CAMUNDA_REST_URL || 'http://localhost:8080';
+    const ENGINE_REST = `${OPERATON_BASE}/engine-rest`;
+
+    // GET /api/processes — list latest process definitions
+    if (pathname === '/api/processes' && req.method === 'GET') {
+      try {
+        const opRes = await fetch(`${ENGINE_REST}/process-definition?latestVersion=true&sortBy=name&sortOrder=asc`);
+        const defs = await opRes.json();
+        const mapped = defs.map(d => ({
+          id: d.id,
+          key: d.key,
+          name: d.name || d.key,
+          description: d.description || null,
+          version: d.version,
+        }));
+        res.writeHead(200);
+        res.end(JSON.stringify(mapped));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // POST /api/processes/:key/start — start a process instance
+    const processStartMatch = pathname.match(/^\/api\/processes\/([a-zA-Z0-9_-]+)\/start$/);
+    if (processStartMatch && req.method === 'POST') {
+      const processKey = processStartMatch[1];
+      const body = await readBody();
+      try {
+        const opRes = await fetch(`${ENGINE_REST}/process-definition/key/${encodeURIComponent(processKey)}/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variables: body.variables || {} }),
+        });
+        if (!opRes.ok) {
+          const errText = await opRes.text();
+          res.writeHead(opRes.status);
+          res.end(errText);
+          return;
+        }
+        const result = await opRes.json();
+        res.writeHead(200);
+        res.end(JSON.stringify({ id: result.id, key: processKey, ended: result.ended }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Dynamic Forms API (permission-filtered form generation) ──────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // GET /api/forms/task/:taskId — generate form for a task + user group
+    const formsTaskMatch = pathname.match(/^\/api\/forms\/task\/(.+)$/);
+    if (formsTaskMatch && req.method === 'GET') {
+      const taskId = decodeURIComponent(formsTaskMatch[1]);
+      const query = parsedUrl.query;
+      const userGroup = query.userGroup;
+      const doorInstanceId = parseInt(query.doorInstanceId, 10) || 0;
+      const formKey = query.formKey;
+
+      if (!userGroup) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required query parameter: userGroup' }));
+        return;
+      }
+
+      try {
+        let formSchema;
+
+        if (formKey) {
+          // formKey path: doorman:{moduleId}:{objectTypeId}
+          const parts = String(formKey).split(':');
+          if (parts.length === 3 && parts[0] === 'doorman' && parts[1] !== 'generic') {
+            const moduleId = parseInt(parts[1], 10);
+            const objectTypeId = parseInt(parts[2], 10);
+
+            // Module-specific form via module_view_columns
+            const colsResult = await client.query(`
+              SELECT mvc.column_key, mvc.label, mvc.col_order, mvc.col_type,
+                     mvc.is_editable, mvc.is_required, mvc.show_by_default, mvc.oms_attribute_id,
+                     oa.attribute_name, oa.attribute_type, oa.enum_values, oa.help_text, oa.placeholder
+              FROM module_view_columns mvc
+              LEFT JOIN object_attributes oa ON oa.id = mvc.oms_attribute_id
+              WHERE mvc.module_id = $1 AND mvc.oms_attribute_id IS NOT NULL
+              ORDER BY mvc.col_order
+            `, [moduleId]);
+
+            const permResult = await client.query(
+              `SELECT object_attribute_id, operation FROM permissions WHERE user_group_id = $1 AND object_type_id = $2`,
+              [userGroup, objectTypeId]
+            );
+            const permMap = {};
+            for (const row of permResult.rows) {
+              if (!permMap[row.object_attribute_id]) permMap[row.object_attribute_id] = {};
+              permMap[row.object_attribute_id][row.operation.toLowerCase()] = true;
+            }
+
+            let instanceData = {};
+            if (doorInstanceId) {
+              const valResult = await client.query(
+                `SELECT object_attribute_id, value FROM attribute_values WHERE object_instance_id = $1`,
+                [doorInstanceId]
+              );
+              for (const row of valResult.rows) instanceData[row.object_attribute_id] = row.value;
+            }
+
+            const modNameResult = await client.query('SELECT name FROM samrum_modules WHERE id = $1', [moduleId]);
+            const moduleName = modNameResult.rows[0]?.name || `Module ${moduleId}`;
+
+            const fields = colsResult.rows.map(col => {
+              const perm = permMap[col.oms_attribute_id] || { read: true, write: false };
+              return {
+                attribute_id: col.oms_attribute_id,
+                attribute_name: col.attribute_name || col.column_key,
+                type: col.col_type || col.attribute_type || 'text',
+                value: instanceData[col.oms_attribute_id] || null,
+                visible: perm.read !== false,
+                editable: !!(col.is_editable && perm.write),
+                required: !!col.is_required,
+                enum_values: col.enum_values || undefined,
+                help_text: col.help_text || undefined,
+                placeholder: col.placeholder || undefined,
+              };
+            }).filter(f => f.visible);
+
+            formSchema = {
+              task_id: taskId,
+              door_instance_id: doorInstanceId,
+              form_header: moduleName,
+              fields,
+              metadata: { generated_at: new Date().toISOString(), user_group: userGroup, read_only: fields.every(f => !f.editable) }
+            };
+          }
+        }
+
+        if (!formSchema) {
+          // Task permission rules path
+          const parts = taskId.includes('_') ? taskId.split('_') : [taskId, taskId];
+          const [processKey, taskName] = parts;
+
+          const rulesResult = await client.query(`
+            SELECT visible_attributes, editable_attributes, required_attributes, form_header_text, field_order
+            FROM task_permission_rules
+            WHERE process_definition_key = $1 AND task_name = $2 AND user_group_id = $3
+          `, [processKey, taskName, userGroup]);
+
+          if (rulesResult.rows.length === 0) {
+            // Fallback: generate basic form from object attributes if door instance exists
+            if (doorInstanceId) {
+              const attrsResult = await client.query(`
+                SELECT av.object_attribute_id, av.value, oa.attribute_name, oa.attribute_type, oa.enum_values, oa.help_text, oa.placeholder
+                FROM attribute_values av
+                JOIN object_attributes oa ON oa.id = av.object_attribute_id
+                WHERE av.object_instance_id = $1
+                ORDER BY oa.id
+              `, [doorInstanceId]);
+
+              const fields = attrsResult.rows.map(row => ({
+                attribute_id: row.object_attribute_id,
+                attribute_name: row.attribute_name,
+                type: row.attribute_type || 'text',
+                value: row.value,
+                visible: true,
+                editable: true,
+                required: false,
+                enum_values: row.enum_values || undefined,
+                help_text: row.help_text || undefined,
+                placeholder: row.placeholder || undefined,
+              }));
+
+              formSchema = {
+                task_id: taskId,
+                door_instance_id: doorInstanceId,
+                form_header: `${taskId}`,
+                fields,
+                metadata: { generated_at: new Date().toISOString(), user_group: userGroup, read_only: false }
+              };
+            } else {
+              res.writeHead(404);
+              res.end(JSON.stringify({ error: `No permission rules found for task ${taskId} and group ${userGroup}` }));
+              return;
+            }
+          } else {
+            const rules = rulesResult.rows[0];
+            const visibleIds = rules.visible_attributes || [];
+            const editableIds = rules.editable_attributes || [];
+            const requiredIds = rules.required_attributes || [];
+
+            // Load attribute definitions
+            const attrResult = visibleIds.length > 0
+              ? await client.query(`SELECT id, attribute_name, attribute_type, enum_values, help_text, placeholder FROM object_attributes WHERE id = ANY($1) ORDER BY id`, [visibleIds])
+              : { rows: [] };
+
+            // Load user permissions
+            const permResult = await client.query(
+              `SELECT object_attribute_id, operation FROM permissions WHERE user_group_id = $1 AND object_type_id = 1`, [userGroup]
+            );
+            const permMap = {};
+            for (const row of permResult.rows) {
+              if (!permMap[row.object_attribute_id]) permMap[row.object_attribute_id] = {};
+              permMap[row.object_attribute_id][row.operation.toLowerCase()] = true;
+            }
+
+            // Load current values
+            let instanceData = {};
+            if (doorInstanceId) {
+              const valResult = await client.query(
+                `SELECT object_attribute_id, value FROM attribute_values WHERE object_instance_id = $1`, [doorInstanceId]
+              );
+              for (const row of valResult.rows) instanceData[row.object_attribute_id] = row.value;
+            }
+
+            const fields = attrResult.rows.map(attr => {
+              const perm = permMap[attr.id] || { read: false, write: false };
+              return {
+                attribute_id: attr.id,
+                attribute_name: attr.attribute_name,
+                type: attr.attribute_type || 'text',
+                value: instanceData[attr.id] || null,
+                visible: visibleIds.includes(attr.id) && perm.read !== false,
+                editable: editableIds.includes(attr.id) && !!perm.write,
+                required: requiredIds.includes(attr.id),
+                enum_values: attr.enum_values || undefined,
+                help_text: attr.help_text || undefined,
+                placeholder: attr.placeholder || undefined,
+              };
+            }).filter(f => f.visible);
+
+            formSchema = {
+              task_id: taskId,
+              door_instance_id: doorInstanceId,
+              form_header: rules.form_header_text || `Task: ${taskId}`,
+              fields,
+              metadata: { generated_at: new Date().toISOString(), user_group: userGroup, read_only: fields.every(f => !f.editable) }
+            };
+          }
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify(formSchema));
+      } catch (err) {
+        console.error('[FORMS] generateForm error:', err.message);
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // POST /api/forms/validate — validate form submission
+    if (pathname === '/api/forms/validate' && req.method === 'POST') {
+      const body = await readBody();
+      const { taskId, doorInstanceId, userGroup, formData } = body;
+
+      if (!taskId || !doorInstanceId || !userGroup || !formData) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: taskId, doorInstanceId, userGroup, formData' }));
+        return;
+      }
+
+      try {
+        // Generate the form schema to validate against
+        const formRes = await new Promise((resolve, reject) => {
+          // Internal call — reuse the form generation logic via HTTP
+          const url = `http://localhost:${PORT}/api/forms/task/${encodeURIComponent(taskId)}?doorInstanceId=${doorInstanceId}&userGroup=${encodeURIComponent(userGroup)}`;
+          fetch(url).then(r => r.json()).then(resolve).catch(reject);
+        });
+
+        const errors = [];
+        const warnings = [];
+        const fields = formRes.fields || [];
+
+        for (const field of fields) {
+          const val = formData[field.attribute_name];
+          if (field.required && !val) errors.push(`${field.attribute_name} is required`);
+          if (!field.editable && val && val !== field.value) errors.push(`${field.attribute_name} is read-only`);
+          if (val && field.type === 'number' && isNaN(Number(val))) errors.push(`${field.attribute_name} must be a number`);
+          if (val && field.type === 'enum' && field.enum_values && !field.enum_values.includes(val)) errors.push(`${field.attribute_name} must be one of: ${field.enum_values.join(', ')}`);
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ valid: errors.length === 0, errors, warnings }));
+      } catch (err) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ valid: false, errors: [`Validation failed: ${err.message}`], warnings: [] }));
+      }
+      return;
+    }
+
+    // POST /api/forms/submit — save form data to attribute_values
+    if (pathname === '/api/forms/submit' && req.method === 'POST') {
+      const body = await readBody();
+      const { taskId, doorInstanceId, userGroup, formData } = body;
+
+      if (!taskId || !doorInstanceId || !userGroup || !formData) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: taskId, doorInstanceId, userGroup, formData' }));
+        return;
+      }
+
+      try {
+        await client.query('BEGIN');
+        let updatedCount = 0;
+
+        for (const [attrName, value] of Object.entries(formData)) {
+          const attrResult = await client.query(
+            'SELECT id FROM object_attributes WHERE attribute_name = $1', [attrName]
+          );
+          if (attrResult.rows.length === 0) continue;
+
+          const attrId = attrResult.rows[0].id;
+          await client.query(`
+            INSERT INTO attribute_values (object_instance_id, object_attribute_id, value)
+            VALUES ($1, $2, $3)
+            ON CONFLICT(object_instance_id, object_attribute_id)
+            DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+          `, [doorInstanceId, attrId, String(value)]);
+          updatedCount++;
+        }
+
+        await client.query('COMMIT');
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, message: `Updated ${updatedCount} fields`, updatedFields: updatedCount }));
+      } catch (err) {
+        await client.query('ROLLBACK');
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: `Failed to submit form: ${err.message}` }));
+      }
+      return;
+    }
+
+    // GET /api/tasks — list tasks for the current user
+    // Query params: assignee (username), candidateGroup (group name), unassigned (bool)
+    if (pathname === '/api/tasks' && req.method === 'GET') {
+      const query = parsedUrl.query;
+      try {
+        // Build Operaton task query — support multiple filter modes
+        const taskFilter = {};
+
+        if (query.assignee) {
+          // Tasks assigned to this specific user
+          taskFilter.assignee = query.assignee;
+        }
+        if (query.candidateGroup) {
+          // Tasks claimable by this group (unassigned only)
+          taskFilter.candidateGroup = query.candidateGroup;
+          taskFilter.unassigned = true;
+        }
+        if (query.unassigned === 'true') {
+          taskFilter.unassigned = true;
+        }
+
+        // If no filter specified, return both assigned + group-claimable for the user
+        // Frontend typically calls with candidateGroup=<userGroup>
+        const queryString = new URLSearchParams();
+        if (taskFilter.assignee) queryString.set('assignee', taskFilter.assignee);
+        if (taskFilter.candidateGroup) queryString.set('candidateGroup', taskFilter.candidateGroup);
+        if (taskFilter.unassigned) queryString.set('unassigned', 'true');
+        queryString.set('sortBy', 'created');
+        queryString.set('sortOrder', 'desc');
+
+        const opRes = await fetch(`${ENGINE_REST}/task?${queryString}`);
+        const tasks = await opRes.json();
+
+        // Fetch variables for each task (needed for doorInstanceId etc.)
+        const enriched = await Promise.all(tasks.map(async (t) => {
+          let variables = {};
+          try {
+            const varRes = await fetch(`${ENGINE_REST}/task/${t.id}/variables`);
+            if (varRes.ok) {
+              const rawVars = await varRes.json();
+              // Flatten to simple key:value
+              for (const [k, v] of Object.entries(rawVars)) {
+                variables[k] = v.value;
+              }
+            }
+          } catch { /* non-fatal */ }
+
+          // Look up process definition name
+          let processName = t.processDefinitionId;
+          try {
+            const defRes = await fetch(`${ENGINE_REST}/process-definition/${t.processDefinitionId}`);
+            if (defRes.ok) {
+              const def = await defRes.json();
+              processName = def.name || def.key;
+            }
+          } catch { /* non-fatal */ }
+
+          return {
+            id: t.id,
+            name: t.name || t.taskDefinitionKey,
+            taskDefinitionKey: t.taskDefinitionKey,
+            processDefinitionKey: t.processDefinitionId?.split(':')[0] || '',
+            processName,
+            processInstanceId: t.processInstanceId,
+            assignee: t.assignee || null,
+            created: t.created,
+            due: t.due || null,
+            priority: t.priority || 0,
+            variables,
+          };
+        }));
+
+        res.writeHead(200);
+        res.end(JSON.stringify(enriched));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // GET /api/tasks/:id — get single task details
+    const taskDetailMatch = pathname.match(/^\/api\/tasks\/([a-f0-9-]+)$/);
+    if (taskDetailMatch && req.method === 'GET') {
+      const opTaskId = taskDetailMatch[1];
+      try {
+        const opRes = await fetch(`${ENGINE_REST}/task/${opTaskId}`);
+        if (!opRes.ok) { res.writeHead(opRes.status); res.end(await opRes.text()); return; }
+        const t = await opRes.json();
+
+        // Get variables
+        let variables = {};
+        try {
+          const varRes = await fetch(`${ENGINE_REST}/task/${opTaskId}/variables`);
+          if (varRes.ok) {
+            const rawVars = await varRes.json();
+            for (const [k, v] of Object.entries(rawVars)) variables[k] = v.value;
+          }
+        } catch { /* non-fatal */ }
+
+        // Get process name
+        let processName = t.processDefinitionId;
+        try {
+          const defRes = await fetch(`${ENGINE_REST}/process-definition/${t.processDefinitionId}`);
+          if (defRes.ok) { const def = await defRes.json(); processName = def.name || def.key; }
+        } catch { /* non-fatal */ }
+
+        // Get form key if any
+        let formKey = null;
+        try {
+          const fkRes = await fetch(`${ENGINE_REST}/task/${opTaskId}/form`);
+          if (fkRes.ok) { const fk = await fkRes.json(); formKey = fk.key || null; }
+        } catch { /* non-fatal */ }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          id: t.id,
+          name: t.name || t.taskDefinitionKey,
+          taskDefinitionKey: t.taskDefinitionKey,
+          processDefinitionKey: t.processDefinitionId?.split(':')[0] || '',
+          processName,
+          processInstanceId: t.processInstanceId,
+          assignee: t.assignee || null,
+          created: t.created,
+          due: t.due || null,
+          priority: t.priority || 0,
+          formKey,
+          variables,
+        }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // POST /api/tasks/:id/claim — claim a task
+    const taskClaimMatch = pathname.match(/^\/api\/tasks\/([a-f0-9-]+)\/claim$/);
+    if (taskClaimMatch && req.method === 'POST') {
+      const opTaskId = taskClaimMatch[1];
+      const body = await readBody();
+      const userId = body.userId;
+      if (!userId) { res.writeHead(400); res.end(JSON.stringify({ error: 'userId required' })); return; }
+      try {
+        const opRes = await fetch(`${ENGINE_REST}/task/${opTaskId}/claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+        if (!opRes.ok) { res.writeHead(opRes.status); res.end(await opRes.text()); return; }
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, taskId: opTaskId, assignee: userId }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // POST /api/tasks/:id/unclaim — unclaim a task
+    const taskUnclaimMatch = pathname.match(/^\/api\/tasks\/([a-f0-9-]+)\/unclaim$/);
+    if (taskUnclaimMatch && req.method === 'POST') {
+      const opTaskId = taskUnclaimMatch[1];
+      try {
+        const opRes = await fetch(`${ENGINE_REST}/task/${opTaskId}/unclaim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (!opRes.ok) { res.writeHead(opRes.status); res.end(await opRes.text()); return; }
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, taskId: opTaskId, assignee: null }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // POST /api/tasks/:id/complete — complete a task with variables
+    const taskCompleteMatch = pathname.match(/^\/api\/tasks\/([a-f0-9-]+)\/complete$/);
+    if (taskCompleteMatch && req.method === 'POST') {
+      const opTaskId = taskCompleteMatch[1];
+      const body = await readBody();
+      try {
+        // Convert flat variables to Operaton typed format
+        const variables = {};
+        if (body.variables) {
+          for (const [k, v] of Object.entries(body.variables)) {
+            if (typeof v === 'object' && v !== null && 'value' in v && 'type' in v) {
+              variables[k] = v; // Already typed
+            } else if (typeof v === 'boolean') {
+              variables[k] = { value: v, type: 'Boolean' };
+            } else if (typeof v === 'number') {
+              variables[k] = { value: v, type: v % 1 === 0 ? 'Long' : 'Double' };
+            } else {
+              variables[k] = { value: String(v), type: 'String' };
+            }
+          }
+        }
+
+        const opRes = await fetch(`${ENGINE_REST}/task/${opTaskId}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variables }),
+        });
+        if (!opRes.ok) { res.writeHead(opRes.status); res.end(await opRes.text()); return; }
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, taskId: opTaskId }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Process Instance Timeline ───────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // GET /api/process-instances — list active process instances with enriched data
+    if (pathname === '/api/process-instances' && req.method === 'GET') {
+      try {
+        const { processDefinitionKey, active } = parsedUrl.query;
+        let opUrl = `${OPERATON_BASE}/engine-rest/process-instance?`;
+        if (active === 'true' || active === undefined) opUrl += 'active=true&';
+        if (processDefinitionKey) opUrl += `processDefinitionKey=${encodeURIComponent(String(processDefinitionKey))}&`;
+        opUrl += 'maxResults=100';
+
+        const opRes = await fetch(opUrl);
+        if (!opRes.ok) throw new Error(`Operaton ${opRes.status}`);
+        const instances = await opRes.json();
+
+        // Enrich each instance with process name and variables
+        const enriched = await Promise.all(instances.map(async (inst) => {
+          let processName = inst.definitionId;
+          let variables = {};
+          try {
+            const defRes = await fetch(`${OPERATON_BASE}/engine-rest/process-definition/${inst.definitionId}`);
+            if (defRes.ok) {
+              const def = await defRes.json();
+              processName = def.name || def.key;
+            }
+          } catch (_) {}
+          try {
+            const varRes = await fetch(`${OPERATON_BASE}/engine-rest/process-instance/${inst.id}/variables`);
+            if (varRes.ok) {
+              const vars = await varRes.json();
+              variables = Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, v.value]));
+            }
+          } catch (_) {}
+          return {
+            id: inst.id,
+            definitionId: inst.definitionId,
+            processDefinitionKey: inst.definitionId.split(':')[0],
+            processName,
+            businessKey: inst.businessKey,
+            startTime: inst.startTime,
+            variables,
+          };
+        }));
+
+        res.writeHead(200);
+        res.end(JSON.stringify(enriched));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // GET /api/process-instances/:id/activity-history — full activity timeline for a process instance
+    const activityHistoryMatch = pathname.match(/^\/api\/process-instances\/([a-f0-9-]+)\/activity-history$/);
+    if (activityHistoryMatch && req.method === 'GET') {
+      const instanceId = activityHistoryMatch[1];
+      try {
+        // Get historical activities (completed + running)
+        const histRes = await fetch(
+          `${OPERATON_BASE}/engine-rest/history/activity-instance?processInstanceId=${instanceId}&sortBy=startTime&sortOrder=asc`
+        );
+        if (!histRes.ok) throw new Error(`Operaton ${histRes.status}`);
+        const activities = await histRes.json();
+
+        // Get current activity tree
+        let currentActivities = [];
+        try {
+          const treeRes = await fetch(`${OPERATON_BASE}/engine-rest/process-instance/${instanceId}/activity-instances`);
+          if (treeRes.ok) {
+            const tree = await treeRes.json();
+            const extractActive = (node) => {
+              if (node.childActivityInstances) {
+                for (const child of node.childActivityInstances) {
+                  currentActivities.push({
+                    activityId: child.activityId,
+                    activityName: child.activityName,
+                    activityType: child.activityType,
+                  });
+                  extractActive(child);
+                }
+              }
+            };
+            extractActive(tree);
+          }
+        } catch (_) {}
+
+        // Map history into timeline events
+        const timeline = activities.map((a) => ({
+          id: a.id,
+          activityId: a.activityId,
+          activityName: a.activityName || a.activityId,
+          activityType: a.activityType,
+          startTime: a.startTime,
+          endTime: a.endTime,
+          durationMs: a.durationInMillis,
+          canceled: a.canceled || false,
+          isActive: !a.endTime,
+        }));
+
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          processInstanceId: instanceId,
+          currentActivities,
+          timeline,
+        }));
+      } catch (err) {
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'Operaton unavailable', detail: err.message }));
+      }
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── AI Form Assistant (provider-agnostic) ───────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // POST /api/ai/suggest — generate field value suggestions for a form
+    if (pathname === '/api/ai/suggest' && req.method === 'POST') {
+      const body = await readBody();
+      const { formSchema, taskContext, doorContext } = body;
+
+      if (!formSchema || !formSchema.fields) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'formSchema with fields required' }));
+        return;
+      }
+
+      const AI_PROVIDER = (process.env.AI_PROVIDER || 'none').toLowerCase();
+      const AI_API_KEY = process.env.AI_API_KEY || '';
+      const AI_MODEL = process.env.AI_MODEL || '';
+
+      // If no provider configured, return empty suggestions with a hint
+      if (AI_PROVIDER === 'none' || !AI_API_KEY) {
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          suggestions: {},
+          provider: 'none',
+          message: 'Ingen AI-leverantör konfigurerad. Sätt AI_PROVIDER och AI_API_KEY som miljövariabler.',
+        }));
+        return;
+      }
+
+      // Build the prompt from form schema + context
+      const editableFields = formSchema.fields.filter(f => f.visible && f.editable);
+      const fieldDescriptions = editableFields.map(f => {
+        let desc = `- "${f.attribute_name}" (typ: ${f.type}`;
+        if (f.required) desc += ', obligatoriskt';
+        if (f.enum_values?.length) desc += `, alternativ: [${f.enum_values.join(', ')}]`;
+        if (f.value) desc += `, nuvarande värde: "${f.value}"`;
+        if (f.help_text) desc += `, ledtext: "${f.help_text}"`;
+        desc += ')';
+        return desc;
+      }).join('\n');
+
+      const systemPrompt = `Du är en AI-assistent för byggnadsdörrhantering (Doorman-systemet).
+Föreslå rimliga värden för formulärfält baserat på uppgiftstyp, dörrobjekt och kontext.
+Svara ENBART med giltig JSON — ett objekt där nycklar är attribute_name och värden är föreslagna värden.
+Inga förklaringar, bara JSON.`;
+
+      const userPrompt = `Uppgift: ${taskContext?.taskName || 'Okänd'}
+Process: ${taskContext?.processName || 'Okänd'}
+Objekt: ${doorContext?.name || 'Okänt'} (${doorContext?.external_id || ''})
+
+Fält att fylla i:
+${fieldDescriptions}
+
+Föreslå rimliga värden som JSON-objekt:`;
+
+      try {
+        let suggestions = {};
+
+        if (AI_PROVIDER === 'openai' || AI_PROVIDER === 'chatgpt') {
+          // OpenAI / ChatGPT compatible API (also works with Azure OpenAI, local proxies)
+          const baseUrl = process.env.AI_BASE_URL || 'https://api.openai.com/v1';
+          const model = AI_MODEL || 'gpt-4o-mini';
+          const aiRes = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AI_API_KEY}` },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+            }),
+          });
+          if (!aiRes.ok) {
+            const errText = await aiRes.text();
+            throw new Error(`OpenAI ${aiRes.status}: ${errText.substring(0, 200)}`);
+          }
+          const aiData = await aiRes.json();
+          const content = aiData.choices?.[0]?.message?.content || '{}';
+          suggestions = JSON.parse(content);
+
+        } else if (AI_PROVIDER === 'claude' || AI_PROVIDER === 'anthropic') {
+          const baseUrl = process.env.AI_BASE_URL || 'https://api.anthropic.com/v1';
+          const model = AI_MODEL || 'claude-sonnet-4-20250514';
+          const aiRes = await fetch(`${baseUrl}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': AI_API_KEY,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 1024,
+              system: systemPrompt,
+              messages: [{ role: 'user', content: userPrompt }],
+            }),
+          });
+          if (!aiRes.ok) {
+            const errText = await aiRes.text();
+            throw new Error(`Anthropic ${aiRes.status}: ${errText.substring(0, 200)}`);
+          }
+          const aiData = await aiRes.json();
+          const content = aiData.content?.[0]?.text || '{}';
+          // Extract JSON from possible markdown code blocks
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+
+        } else if (AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google') {
+          const baseUrl = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+          const model = AI_MODEL || 'gemini-2.0-flash';
+          const aiRes = await fetch(
+            `${baseUrl}/models/${model}:generateContent?key=${AI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
+                generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
+              }),
+            }
+          );
+          if (!aiRes.ok) {
+            const errText = await aiRes.text();
+            throw new Error(`Gemini ${aiRes.status}: ${errText.substring(0, 200)}`);
+          }
+          const aiData = await aiRes.json();
+          const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+
+        } else if (AI_PROVIDER === 'ollama' || AI_PROVIDER === 'local') {
+          // Ollama / local LLM with OpenAI-compatible API
+          const baseUrl = process.env.AI_BASE_URL || 'http://localhost:11434/v1';
+          const model = AI_MODEL || 'llama3.2';
+          const aiRes = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: 0.3,
+            }),
+          });
+          if (!aiRes.ok) throw new Error(`Ollama ${aiRes.status}`);
+          const aiData = await aiRes.json();
+          const content = aiData.choices?.[0]?.message?.content || '{}';
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+
+        } else {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: `Okänd AI-leverantör: ${AI_PROVIDER}. Stöds: openai, claude, gemini, ollama` }));
+          return;
+        }
+
+        // Filter suggestions to only include fields that exist in the form
+        const validFieldNames = new Set(editableFields.map(f => f.attribute_name));
+        const filteredSuggestions = {};
+        for (const [key, value] of Object.entries(suggestions)) {
+          if (validFieldNames.has(key)) {
+            filteredSuggestions[key] = value;
+          }
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          suggestions: filteredSuggestions,
+          provider: AI_PROVIDER,
+          model: AI_MODEL || '(default)',
+        }));
+      } catch (err) {
+        console.error('AI suggest error:', err.message);
+        res.writeHead(502);
+        res.end(JSON.stringify({ error: 'AI-tjänsten gav fel', detail: err.message }));
+      }
+      return;
+    }
+
+    // GET /api/ai/config — check which AI provider is configured (no secrets exposed)
+    if (pathname === '/api/ai/config' && req.method === 'GET') {
+      const provider = (process.env.AI_PROVIDER || 'none').toLowerCase();
+      const hasKey = !!process.env.AI_API_KEY;
+      const model = process.env.AI_MODEL || '(default)';
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        provider,
+        configured: provider !== 'none' && hasKey,
+        model: hasKey ? model : null,
+      }));
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // ─── Delegate Execution (Camunda external task worker endpoint) ───────────
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2526,7 +3413,7 @@ const server = http.createServer(async (req, res) => {
       console.log(`[DELEGATE] Executing ${delegateName} with variables:`, JSON.stringify(body.variables || {}).substring(0, 200));
 
       await client.query(
-        `INSERT INTO audit_log (object_instance_id, user_id, action, new_value, changed_at)
+        `INSERT INTO audit_log (object_instance_id, user_id, action, new_value, timestamp)
          VALUES ($1, 'camunda', $2, $3, NOW())`,
         [
           body.variables?.buildingId || body.variables?.projectId || 0,
@@ -2544,6 +3431,39 @@ const server = http.createServer(async (req, res) => {
       }));
       return;
     }
+
+    // ─── Camunda/Operaton Proxy ─────────────────────────────────────────────
+    // Forwards /api/camunda/* to Operaton engine-rest at localhost:8080.
+    // Strips /api/camunda prefix; preserves method, query string, and body.
+    if (pathname.startsWith('/api/camunda/')) {
+      const camundaBase = process.env.CAMUNDA_REST_URL || 'http://localhost:8080';
+      const camundaPath = pathname.replace('/api/camunda', '');
+      const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+      const targetUrl = `${camundaBase}${camundaPath}${queryString}`;
+
+      let body = undefined;
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        body = Buffer.concat(chunks);
+      }
+
+      const camundaRes = await fetch(targetUrl, {
+        method: req.method,
+        headers: {
+          ...(req.headers['content-type'] ? { 'Content-Type': req.headers['content-type'] } : {}),
+          'Accept': req.headers['accept'] || 'application/json',
+        },
+        body,
+      });
+
+      const responseBody = await camundaRes.text();
+      const contentType = camundaRes.headers.get('content-type') || 'application/json';
+      res.writeHead(camundaRes.status, { 'Content-Type': contentType });
+      res.end(responseBody);
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     // 404
     res.writeHead(404);
@@ -2566,7 +3486,21 @@ const server = http.createServer(async (req, res) => {
         'GET /api/bim/models/{id}/entities',
         'GET /api/bim/models/{id}/clashes',
         'GET /api/delegates',
-        'POST /api/delegates/{name}/execute'
+        'POST /api/delegates/{name}/execute',
+        'GET /api/processes',
+        'POST /api/processes/{key}/start',
+        'GET /api/tasks',
+        'GET /api/tasks/{id}',
+        'POST /api/tasks/{id}/claim',
+        'POST /api/tasks/{id}/unclaim',
+        'POST /api/tasks/{id}/complete',
+        'GET /api/forms/task/{taskId}',
+        'POST /api/forms/validate',
+        'POST /api/forms/submit',
+        'GET /api/process-instances',
+        'GET /api/process-instances/{id}/activity-history',
+        'POST /api/ai/suggest',
+        'GET /api/ai/config'
       ]
     }));
 

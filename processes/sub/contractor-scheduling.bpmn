@@ -45,7 +45,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_generate_schedule" name="Generera tidsplan (CPM)"
-                      camunda:delegateExpression="${cpmScheduleDelegate}">
+                      camunda:type="external" camunda:topic="cpmScheduleDelegate">
       <bpmn:extensionElements>
         <camunda:inputOutput>
           <camunda:inputParameter name="algorithm">criticalPath</camunda:inputParameter>
@@ -90,12 +90,12 @@
       </bpmn:startEvent>
 
       <bpmn:intermediateCatchEvent id="weekly_timer" name="Vänta 7 dagar">
-        <bpmn:timerEventDefinition>
-          <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P7D</bpmn:timeCycle>
-        </bpmn:timerEventDefinition>
-        <bpmn:incoming>sf_ws_to_timer</bpmn:incoming>
+                <bpmn:incoming>sf_ws_to_timer</bpmn:incoming>
         <bpmn:incoming>sf_continue_weekly</bpmn:incoming>
         <bpmn:outgoing>sf_timer_to_report</bpmn:outgoing>
+<bpmn:timerEventDefinition>
+          <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P7D</bpmn:timeCycle>
+        </bpmn:timerEventDefinition>
       </bpmn:intermediateCatchEvent>
 
       <bpmn:userTask id="ut_progress_report" name="Rapportera framdrift"
@@ -113,7 +113,7 @@
       </bpmn:userTask>
 
       <bpmn:serviceTask id="st_update_schedule" name="Uppdatera tidsplan"
-                        camunda:delegateExpression="${cpmScheduleDelegate}">
+                        camunda:type="external" camunda:topic="cpmScheduleDelegate">
         <bpmn:extensionElements>
           <camunda:inputOutput>
             <camunda:inputParameter name="algorithm">rebaseline</camunda:inputParameter>
@@ -163,7 +163,7 @@
       </bpmn:startEvent>
 
       <bpmn:serviceTask id="st_monitor_resources" name="Övervaka resursbeläggning"
-                        camunda:delegateExpression="${resourceMonitorDelegate}">
+                        camunda:type="external" camunda:topic="resourceMonitorDelegate">
         <bpmn:incoming>sf_rs_to_monitor</bpmn:incoming>
         <bpmn:incoming>sf_resource_continue</bpmn:incoming>
         <bpmn:outgoing>sf_monitor_to_gw</bpmn:outgoing>
@@ -207,7 +207,7 @@
       </bpmn:startEvent>
 
       <bpmn:serviceTask id="st_check_delays" name="Kontrollera förseningar"
-                        camunda:delegateExpression="${delayDetectionDelegate}">
+                        camunda:type="external" camunda:topic="delayDetectionDelegate">
         <bpmn:incoming>sf_risk_to_check</bpmn:incoming>
         <bpmn:incoming>sf_risk_continue</bpmn:incoming>
         <bpmn:outgoing>sf_check_to_gw</bpmn:outgoing>
@@ -274,7 +274,7 @@
     </bpmn:userTask>
 
     <bpmn:serviceTask id="st_audit_scheduling" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>sf_final_to_audit</bpmn:incoming>
       <bpmn:outgoing>sf_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

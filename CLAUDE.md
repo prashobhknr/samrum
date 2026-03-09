@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Doorman** is a door/lock management system built on BPMN process orchestration (Camunda 7). It replaces a legacy SAS-based system (Samrum) with database-driven object definitions, dynamic permission-filtered forms, and full audit trails.
+**Doorman** is a door/lock management system built on BPMN process orchestration (Operaton, open-source Camunda 7 fork). It replaces a legacy SAS-based system (Samrum) with database-driven object definitions, dynamic permission-filtered forms, and full audit trails.
 
 Current phase: **Phase 3 - Dynamic Forms** (branch: `feature/phase-3-dynamic-forms`)
 

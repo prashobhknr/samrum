@@ -320,7 +320,7 @@
     <!-- STEP 5: Design Validation                                      -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="validate_design" name="Validera projektering"
-                      camunda:delegateExpression="${designValidationDelegate}">
+                      camunda:type="external" camunda:topic="designValidationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="validationType" stringValue="design_completeness" />
       </bpmn:extensionElements>
@@ -358,13 +358,13 @@
 
     <!-- Design Freeze Signal: broadcast to all listeners that design is frozen -->
     <bpmn:intermediateThrowEvent id="throw_design_freeze" name="Projekteringsstopp (Design Freeze)">
-      <bpmn:signalEventDefinition signalRef="sig_design_freeze" />
-      <bpmn:incoming>flow_approve_to_freeze</bpmn:incoming>
+            <bpmn:incoming>flow_approve_to_freeze</bpmn:incoming>
       <bpmn:outgoing>flow_freeze_to_audit</bpmn:outgoing>
+<bpmn:signalEventDefinition signalRef="sig_design_freeze" />
     </bpmn:intermediateThrowEvent>
 
     <bpmn:serviceTask id="audit_design" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_freeze_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

@@ -160,7 +160,7 @@
     <!-- STEP 8: Archive and Close                                      -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="archive_data" name="Arkivera och stang"
-                      camunda:delegateExpression="${archiveDelegate}">
+                      camunda:type="external" camunda:topic="archiveDelegate">
       <bpmn:extensionElements>
         <camunda:field name="action" stringValue="archive_building_lifecycle" />
         <camunda:field name="retentionYears" stringValue="10" />
@@ -170,7 +170,7 @@
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="audit_decommission" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_archive_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

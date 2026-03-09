@@ -23,15 +23,15 @@
 
     <!-- Timer-based start for recurring inspections -->
     <bpmn:startEvent id="start" name="Besiktningscykel startad">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeCycle>R/P365D</bpmn:timeCycle>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_start_to_identify</bpmn:outgoing>
     </bpmn:startEvent>
 
     <!-- Identify which inspections are due -->
     <bpmn:serviceTask id="identify_due_inspections" name="Identifiera forfallna besiktningar"
-                      camunda:delegateExpression="${inspectionQueryDelegate}">
+                      camunda:type="external" camunda:topic="inspectionQueryDelegate">
       <bpmn:incoming>flow_start_to_identify</bpmn:incoming>
       <bpmn:outgoing>flow_identify_to_fork</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -172,7 +172,7 @@
     </bpmn:inclusiveGateway>
 
     <bpmn:serviceTask id="audit_inspections" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_join_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

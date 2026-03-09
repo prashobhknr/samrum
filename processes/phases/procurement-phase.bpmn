@@ -90,7 +90,7 @@
     <!-- STEP 4: Publish Tender                                         -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="publish_tender" name="Publicera forfragning"
-                      camunda:delegateExpression="${tenderPublishDelegate}">
+                      camunda:type="external" camunda:topic="tenderPublishDelegate">
       <bpmn:incoming>flow_review_to_publish</bpmn:incoming>
       <bpmn:outgoing>flow_publish_to_qa</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -114,14 +114,14 @@
 
     <!-- Timer: Tender deadline -->
     <bpmn:boundaryEvent id="timer_tender_deadline" attachedToRef="tender_qa" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_deadline_notify</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P30D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_deadline_notify</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="notify_deadline" name="Papminn deadline"
-                      camunda:delegateExpression="${notificationDelegate}">
+                      camunda:type="external" camunda:topic="notificationDelegate">
       <bpmn:incoming>flow_deadline_notify</bpmn:incoming>
     </bpmn:serviceTask>
 
@@ -129,7 +129,7 @@
     <!-- STEP 6: Receive and Register Bids                              -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="receive_bids" name="Ta emot anbud"
-                      camunda:delegateExpression="${bidRegistrationDelegate}">
+                      camunda:type="external" camunda:topic="bidRegistrationDelegate">
       <bpmn:incoming>flow_qa_to_receive</bpmn:incoming>
       <bpmn:outgoing>flow_receive_to_evaluate</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -202,7 +202,7 @@
     <!-- STEP 10: Contractor Onboarding                                 -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="onboard_contractors" name="Registrera entreprenorer"
-                      camunda:delegateExpression="${contractorOnboardDelegate}">
+                      camunda:type="external" camunda:topic="contractorOnboardDelegate">
       <bpmn:extensionElements>
         <camunda:field name="action" stringValue="create_user_groups" />
       </bpmn:extensionElements>
@@ -211,7 +211,7 @@
     </bpmn:serviceTask>
 
     <bpmn:serviceTask id="audit_procurement" name="Skriv revisionslogg"
-                      camunda:delegateExpression="${auditWriteDelegate}">
+                      camunda:type="external" camunda:topic="auditWriteDelegate">
       <bpmn:incoming>flow_onboard_to_audit</bpmn:incoming>
       <bpmn:outgoing>flow_audit_to_end</bpmn:outgoing>
     </bpmn:serviceTask>

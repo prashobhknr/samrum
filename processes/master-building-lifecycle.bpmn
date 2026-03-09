@@ -40,15 +40,15 @@
 
     <!-- START: Message start event -->
     <bpmn:startEvent id="start_project" name="Projekt initierat">
-      <bpmn:messageEventDefinition messageRef="msg_project_initiated" />
-      <bpmn:outgoing>flow_start_to_init</bpmn:outgoing>
+            <bpmn:outgoing>flow_start_to_init</bpmn:outgoing>
+<bpmn:messageEventDefinition messageRef="msg_project_initiated" />
     </bpmn:startEvent>
 
     <!-- ============================================================== -->
     <!-- INITIALIZATION: Set lifecycle phase and validate inputs         -->
     <!-- ============================================================== -->
     <bpmn:serviceTask id="init_project" name="Initiera projekt"
-                      camunda:delegateExpression="${projectInitDelegate}">
+                      camunda:type="external" camunda:topic="projectInitDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="investigation" />
       </bpmn:extensionElements>
@@ -76,14 +76,14 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase1" attachedToRef="phase1_investigation" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer1_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P90D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer1_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase1" name="Eskalera utredning"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="phaseName" stringValue="investigation" />
         <camunda:field name="escalationLevel" stringValue="1" />
@@ -100,7 +100,7 @@
 
     <!-- Lifecycle transition service task -->
     <bpmn:serviceTask id="set_phase_pre_study" name="Satt fas: Forstudie"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="pre_study" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -130,14 +130,14 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase2" attachedToRef="phase2_prestudy" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer2_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P120D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer2_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase2" name="Eskalera forstudie"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:extensionElements>
         <camunda:field name="phaseName" stringValue="pre_study" />
       </bpmn:extensionElements>
@@ -152,7 +152,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_design" name="Satt fas: Projektering"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="design" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -183,14 +183,14 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase3" attachedToRef="phase3_design" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer3_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P270D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer3_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase3" name="Eskalera projektering"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer3_escalation</bpmn:incoming>
     </bpmn:serviceTask>
 
@@ -202,7 +202,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_procurement" name="Satt fas: Upphandling"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="procurement" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -232,14 +232,14 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase4" attachedToRef="phase4_procurement" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer4_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P120D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer4_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase4" name="Eskalera upphandling"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer4_escalation</bpmn:incoming>
     </bpmn:serviceTask>
 
@@ -251,7 +251,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_production" name="Satt fas: Produktion"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="production" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -280,21 +280,21 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase5" attachedToRef="phase5_production" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer5_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P730D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer5_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase5" name="Eskalera produktion"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer5_escalation</bpmn:incoming>
     </bpmn:serviceTask>
 
     <!-- Error boundary on production -->
     <bpmn:boundaryEvent id="error_production" attachedToRef="phase5_production">
-      <bpmn:errorEventDefinition errorRef="err_critical_failure" />
-      <bpmn:outgoing>flow_error_to_incident</bpmn:outgoing>
+            <bpmn:outgoing>flow_error_to_incident</bpmn:outgoing>
+<bpmn:errorEventDefinition errorRef="err_critical_failure" />
     </bpmn:boundaryEvent>
 
     <bpmn:userTask id="handle_incident" name="Hantera incident"
@@ -312,7 +312,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_handover" name="Satt fas: Overlamning"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="handover" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -341,14 +341,14 @@
     </bpmn:callActivity>
 
     <bpmn:boundaryEvent id="timer_phase6" attachedToRef="phase6_handover" cancelActivity="false">
-      <bpmn:timerEventDefinition>
+            <bpmn:outgoing>flow_timer6_escalation</bpmn:outgoing>
+<bpmn:timerEventDefinition>
         <bpmn:timeDuration>P90D</bpmn:timeDuration>
       </bpmn:timerEventDefinition>
-      <bpmn:outgoing>flow_timer6_escalation</bpmn:outgoing>
     </bpmn:boundaryEvent>
 
     <bpmn:serviceTask id="escalate_phase6" name="Eskalera overlamning"
-                      camunda:delegateExpression="${escalationDelegate}">
+                      camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer6_escalation</bpmn:incoming>
     </bpmn:serviceTask>
 
@@ -360,7 +360,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_operations" name="Satt fas: Forvaltning"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="operations" />
         <camunda:field name="buildingId" expression="${buildingId}" />
@@ -394,7 +394,7 @@
     </bpmn:exclusiveGateway>
 
     <bpmn:serviceTask id="set_phase_decommission" name="Satt fas: Avveckling"
-                      camunda:delegateExpression="${lifecycleTransitionDelegate}">
+                      camunda:type="external" camunda:topic="lifecycleTransitionDelegate">
       <bpmn:extensionElements>
         <camunda:field name="targetPhase" stringValue="decommission" />
         <camunda:field name="buildingId" expression="${buildingId}" />
