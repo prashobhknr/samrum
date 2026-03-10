@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# Doorman - Start All Services
+# Doorman - Start All Services (Cross-platform: Mac/Windows)
 # ============================================================
 
 set -e
@@ -13,25 +13,82 @@ mkdir -p "$PID_DIR" "$LOG_DIR"
 echo "🦞 Starting Doorman..."
 echo ""
 
+# Function to check if a port is in use
+check_port() {
+  local port=$1
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -i :$port -sTCP:LISTEN -t >/dev/null 2>&1
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -an | grep -q ":$port .*LISTEN"
+  else
+    # Fallback: try to connect
+    timeout 1 bash -c "</dev/tcp/localhost/$port" >/dev/null 2>&1
+  fi
+}
+
+# Function to wait for service
+wait_for_service() {
+  local url=$1
+  local name=$2
+  local max_wait=${3:-10}
+  echo "   ⏳ Waiting for $name..."
+  for i in $(seq 1 $max_wait); do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "   ✅ $name ready"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "   ❌ $name failed to start"
+  return 1
+}
+
 # ── 1. PostgreSQL ────────────────────────────────────────────
 echo "🐘 Checking PostgreSQL..."
 if pg_isready -q; then
   echo "   ✅ PostgreSQL already running"
 else
   echo "   🔄 Starting PostgreSQL..."
-  brew services start postgresql@14 2>/dev/null || brew services start postgresql 2>/dev/null
+  # Try different methods to start PostgreSQL
+  if command -v brew >/dev/null 2>&1; then
+    # macOS with Homebrew
+    brew services start postgresql@14 2>/dev/null || brew services start postgresql 2>/dev/null
+  elif command -v systemctl >/dev/null 2>&1; then
+    # Linux with systemd
+    sudo systemctl start postgresql 2>/dev/null || sudo systemctl start postgresql-14 2>/dev/null
+  elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+    # Windows
+    net start postgresql-x64-14 2>/dev/null || net start postgresql 2>/dev/null || {
+      echo "   ⚠️  Could not start PostgreSQL service. Please start it manually."
+    }
+  else
+    echo "   ⚠️  Unsupported OS. Please start PostgreSQL manually."
+  fi
+
   sleep 2
   if pg_isready -q; then
     echo "   ✅ PostgreSQL started"
   else
-    echo "   ❌ PostgreSQL failed to start. Aborting."
-    exit 1
+    echo "   ❌ PostgreSQL failed to start. Continuing anyway..."
   fi
 fi
 
-# ── 2. Backend ───────────────────────────────────────────────
+# ── 2. Camunda ───────────────────────────────────────────────
+echo "⚙️  Starting Camunda..."
+if check_port 8080; then
+  echo "   ✅ Camunda already running on port 8080"
+else
+  echo "   🔄 Starting Camunda..."
+  cd "$SCRIPT_DIR/camunda-bpm-run"
+  # Run the batch file with detached flag to run in background
+  "./internal/run.bat" start --detached
+  cd "$SCRIPT_DIR"
+  wait_for_service "http://localhost:8080/" "Camunda" 20
+fi
+
+# ── 3. Backend ───────────────────────────────────────────────
 echo "🔌 Starting Backend (port 3000)..."
-if lsof -i :3000 -sTCP:LISTEN -t &>/dev/null; then
+if check_port 3000; then
   echo "   ✅ Backend already running on port 3000"
 else
   nohup node "$SCRIPT_DIR/backend/demo-server.mjs" \
@@ -54,9 +111,9 @@ else
   done
 fi
 
-# ── 3. Frontend ──────────────────────────────────────────────
+# ── 4. Frontend ──────────────────────────────────────────────
 echo "🌐 Starting Frontend (port 3001)..."
-if lsof -i :3001 -sTCP:LISTEN -t &>/dev/null; then
+if check_port 3001; then
   echo "   ✅ Frontend already running on port 3001"
 else
   cd "$SCRIPT_DIR/frontend"
@@ -85,6 +142,7 @@ echo ""
 echo "   🔵 Backend API   → http://localhost:3000"
 echo "   🟢 Task Portal   → http://localhost:3001"
 echo "   🛠  Admin UI     → http://localhost:3001/admin"
+echo "   🎯 Camunda UI    → http://localhost:8080"
 echo ""
 echo "   Backend logs  → $LOG_DIR/backend.log"
 echo "   Frontend logs → $LOG_DIR/frontend.log"
