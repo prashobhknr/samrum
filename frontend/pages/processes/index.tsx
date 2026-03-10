@@ -1,278 +1,241 @@
 /**
- * Processes List Page - Tier 2 (User Portal)
- * View all running Camunda processes with filtering and status tracking
+ * Processes Page — Processer
+ * Shows available process definitions (with Start button) and running instances.
  */
 
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAppStore } from '@/lib/store';
-
-import Layout from '@/components/Layout';
+import { api, Process, ProcessInstance } from '@/lib/api';
+import SamrumLayout from '@/components/SamrumLayout';
 import Link from 'next/link';
 
-interface ProcessInstance {
-  id: string;
-  processDefinitionKey: string;
-  state: string;
-  startTime: string;
-  endTime?: string;
-  taskCount?: number;
-  completedTaskCount?: number;
-}
+type ViewTab = 'definitions' | 'instances';
 
 export default function ProcessesPage() {
   const router = useRouter();
-  const { user, setIsLoading, setError } = useAppStore();
-  const [processes, setProcesses] = useState<ProcessInstance[]>([]);
-  const [filteredProcesses, setFilteredProcesses] = useState<ProcessInstance[]>([]);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'door-unlock' | 'door-maintenance'>('all');
+  const { user } = useAppStore();
+  const [definitions, setDefinitions] = useState<Process[]>([]);
+  const [instances, setInstances] = useState<ProcessInstance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ViewTab>('definitions');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!user) {
       router.push('/login');
       return;
     }
+    loadData();
+  }, [user]);
 
-    loadProcesses();
-  }, [user, router]);
-
-  async function loadProcesses() {
-    setIsLoading(true);
+  const loadData = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
-      // In real implementation, would call Camunda API
-      // For now, using mock data
-      const mockProcesses: ProcessInstance[] = [
-        {
-          id: 'proc-001',
-          processDefinitionKey: 'door-unlock',
-          state: 'ACTIVE',
-          startTime: new Date(Date.now() - 3600000).toISOString(),
-          taskCount: 5,
-          completedTaskCount: 2,
-        },
-        {
-          id: 'proc-002',
-          processDefinitionKey: 'door-maintenance',
-          state: 'ACTIVE',
-          startTime: new Date(Date.now() - 7200000).toISOString(),
-          taskCount: 4,
-          completedTaskCount: 1,
-        },
-        {
-          id: 'proc-003',
-          processDefinitionKey: 'door-unlock',
-          state: 'COMPLETED',
-          startTime: new Date(Date.now() - 86400000).toISOString(),
-          endTime: new Date(Date.now() - 82800000).toISOString(),
-          taskCount: 5,
-          completedTaskCount: 5,
-        },
-      ];
-
-      setProcesses(mockProcesses);
-
-      // Apply filters
-      let filtered = mockProcesses;
-
-      if (statusFilter !== 'all') {
-        filtered = filtered.filter((p) =>
-          statusFilter === 'active' ? p.state === 'ACTIVE' : p.state === 'COMPLETED'
-        );
-      }
-
-      if (typeFilter !== 'all') {
-        filtered = filtered.filter((p) => p.processDefinitionKey === typeFilter);
-      }
-
-      setFilteredProcesses(filtered);
+      const [defs, insts] = await Promise.all([
+        api.listProcesses(),
+        api.listProcessInstances(),
+      ]);
+      setDefinitions(defs);
+      setInstances(insts);
     } catch (err) {
-      setError((err as Error).message);
+      setError((err as Error).message || 'Kunde inte ladda processdata');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+    }
+  }, []);
+
+  const filteredDefs = definitions.filter(
+    (d) =>
+      !search ||
+      d.name?.toLowerCase().includes(search.toLowerCase()) ||
+      d.key.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredInstances = instances.filter(
+    (i) =>
+      !search ||
+      i.processDefinitionKey?.toLowerCase().includes(search.toLowerCase()) ||
+      i.processName?.toLowerCase().includes(search.toLowerCase()) ||
+      i.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function formatDate(dateStr: string) {
+    try {
+      return new Date(dateStr).toLocaleString('sv-SE', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
     }
   }
 
-  const handleFilterChange = () => {
-    let filtered = processes;
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((p) =>
-        statusFilter === 'active' ? p.state === 'ACTIVE' : p.state === 'COMPLETED'
-      );
-    }
-
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter((p) => p.processDefinitionKey === typeFilter);
-    }
-
-    setFilteredProcesses(filtered);
-  };
-
-  useEffect(() => {
-    handleFilterChange();
-  }, [statusFilter, typeFilter]);
-
   if (!user) return null;
 
-  const getStateColor = (state: string) => {
-    switch (state) {
-      case 'ACTIVE':
-        return 'bg-blue-100 text-blue-800';
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
-      case 'SUSPENDED':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'TERMINATED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getProgressPercent = (process: ProcessInstance) => {
-    if (!process.taskCount) return 0;
-    return Math.round((process.completedTaskCount || 0) / process.taskCount * 100);
-  };
-
   return (
-    <Layout>
+    <SamrumLayout>
       <Head>
-        <title>Processes - Doorman</title>
+        <title>Processer — Doorman</title>
       </Head>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Processes</h1>
-          <p className="text-gray-500">Manage Camunda workflow processes</p>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active Only</option>
-                <option value="completed">Completed Only</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Process Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
-              >
-                <option value="all">All Types</option>
-                <option value="door-unlock">Door Unlock</option>
-                <option value="door-maintenance">Door Maintenance</option>
-              </select>
-            </div>
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-samrum-text">Processer</h1>
+            <p className="text-samrum-muted text-sm">Starta nya processer och följ pågående</p>
           </div>
+          <button
+            onClick={loadData}
+            className="px-3 py-1.5 text-sm bg-samrum-bg border border-samrum-border rounded hover:bg-gray-100"
+          >
+            ↻ Uppdatera
+          </button>
         </div>
 
-        {/* Process List */}
-        <div className="space-y-4">
-          {filteredProcesses.length > 0 ? (
-            filteredProcesses.map((process) => (
-              <div
-                key={process.id}
-                className="p-6 bg-white border border-gray-200 rounded-lg hover:shadow-md transition"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {process.processDefinitionKey.replace(/-/g, ' ').toUpperCase()}
-                    </h3>
-                    <p className="text-sm text-gray-500 font-mono">{process.id}</p>
-                  </div>
-                  <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStateColor(process.state)}`}>
-                    {process.state}
-                  </span>
-                </div>
+        {/* Search */}
+        <input
+          type="text"
+          placeholder="Sök process..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md px-3 py-2 border border-samrum-border rounded text-sm focus:ring-2 focus:ring-samrum-accent focus:border-samrum-accent"
+        />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-500 uppercase font-semibold">Started</p>
-                    <p className="text-sm text-gray-900">
-                      {new Date(process.startTime).toLocaleString()}
-                    </p>
-                  </div>
-                  {process.endTime && (
-                    <div>
-                      <p className="text-sm text-gray-500 uppercase font-semibold">Completed</p>
-                      <p className="text-sm text-gray-900">
-                        {new Date(process.endTime).toLocaleString()}
-                      </p>
-                    </div>
+        {/* Tabs */}
+        <div className="flex border-b border-samrum-border">
+          <button
+            onClick={() => setActiveTab('definitions')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'definitions'
+                ? 'border-samrum-accent text-samrum-accent'
+                : 'border-transparent text-samrum-muted hover:text-samrum-text'
+            }`}
+          >
+            Tillgängliga processer ({filteredDefs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('instances')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'instances'
+                ? 'border-samrum-accent text-samrum-accent'
+                : 'border-transparent text-samrum-muted hover:text-samrum-text'
+            }`}
+          >
+            Pågående instanser ({filteredInstances.length})
+          </button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            {error}
+            <button onClick={() => setError(null)} className="ml-2 underline">Stäng</button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-samrum-accent"></div>
+            <p className="text-samrum-muted mt-3">Laddar processer...</p>
+          </div>
+        )}
+
+        {/* Definitions tab */}
+        {!loading && activeTab === 'definitions' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredDefs.length > 0 ? (
+              filteredDefs.map((def) => (
+                <div
+                  key={def.id}
+                  className="p-4 bg-white border border-samrum-border rounded-lg hover:shadow-md transition"
+                >
+                  <h3 className="font-semibold text-samrum-text">{def.name || def.key}</h3>
+                  <p className="text-xs text-samrum-muted font-mono mt-1">{def.key} v{def.version}</p>
+                  {def.description && (
+                    <p className="text-sm text-samrum-muted mt-2">{def.description}</p>
                   )}
-                  <div>
-                    <p className="text-sm text-gray-500 uppercase font-semibold">Progress</p>
-                    <p className="text-sm text-gray-900">
-                      {process.completedTaskCount || 0} of {process.taskCount || 0} tasks
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                {process.state === 'ACTIVE' && (
-                  <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${getProgressPercent(process)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Action */}
-                <div>
                   <Link
-                    href={`/processes/${process.id}`}
-                    className="text-primary hover:underline font-semibold text-sm"
+                    href={`/start-process/${def.key}`}
+                    className="mt-3 inline-block px-4 py-1.5 bg-samrum-accent text-white rounded hover:opacity-90 transition text-sm font-medium"
                   >
-                    View Details →
+                    Starta
                   </Link>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-samrum-muted">
+                {search ? 'Inga processer matchar sökningen.' : 'Inga processdefinitioner tillgängliga.'}
               </div>
-            ))
-          ) : (
-            <div className="p-6 bg-white border border-gray-200 rounded-lg text-center">
-              <p className="text-gray-500">No processes found matching your filters</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-          <div className="p-6 bg-white border border-gray-200 rounded-lg">
-            <p className="text-sm text-gray-500 uppercase font-semibold">Total Processes</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{processes.length}</p>
+        {/* Instances tab */}
+        {!loading && activeTab === 'instances' && (
+          <>
+            {filteredInstances.length > 0 ? (
+              <div className="bg-white border border-samrum-border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-samrum-bg border-b border-samrum-border">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-samrum-text">Process</th>
+                      <th className="text-left px-4 py-3 font-medium text-samrum-text">Instans-ID</th>
+                      <th className="text-left px-4 py-3 font-medium text-samrum-text">Startad</th>
+                      <th className="text-right px-4 py-3 font-medium text-samrum-text">Åtgärd</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-samrum-border">
+                    {filteredInstances.map((inst) => (
+                      <tr key={inst.id} className="hover:bg-samrum-bg/50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-samrum-text">
+                          {inst.processName || inst.processDefinitionKey}
+                        </td>
+                        <td className="px-4 py-3 text-samrum-muted font-mono text-xs">
+                          {inst.id.substring(0, 16)}...
+                        </td>
+                        <td className="px-4 py-3 text-samrum-muted whitespace-nowrap">
+                          {formatDate(inst.startTime)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link
+                            href={`/timeline?id=${inst.id}`}
+                            className="text-samrum-blue hover:underline text-sm"
+                          >
+                            Tidslinje →
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-samrum-muted">
+                {search ? 'Inga instanser matchar sökningen.' : 'Inga pågående processinstanser.'}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Summary stats */}
+        {!loading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+            <div className="p-4 bg-white border border-samrum-border rounded-lg">
+              <p className="text-xs text-samrum-muted uppercase font-medium">Processdefinitioner</p>
+              <p className="text-2xl font-bold text-samrum-text mt-1">{definitions.length}</p>
+            </div>
+            <div className="p-4 bg-white border border-samrum-border rounded-lg">
+              <p className="text-xs text-samrum-muted uppercase font-medium">Pågående instanser</p>
+              <p className="text-2xl font-bold text-samrum-accent mt-1">{instances.length}</p>
+            </div>
           </div>
-          <div className="p-6 bg-white border border-gray-200 rounded-lg">
-            <p className="text-sm text-gray-500 uppercase font-semibold">Active</p>
-            <p className="text-3xl font-bold text-blue-600 mt-2">
-              {processes.filter((p) => p.state === 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="p-6 bg-white border border-gray-200 rounded-lg">
-            <p className="text-sm text-gray-500 uppercase font-semibold">Completed</p>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {processes.filter((p) => p.state === 'COMPLETED').length}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
-    </Layout>
+    </SamrumLayout>
   );
 }

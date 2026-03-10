@@ -36,7 +36,7 @@
   <!-- Utredning -> Forstudie -> Projektering -> Upphandling ->            -->
   <!-- Produktion -> Overlamning -> Forvaltning -> Avveckling              -->
   <!-- ================================================================== -->
-  <bpmn:process id="master-building-lifecycle" name="Master Building Lifecycle" isExecutable="true">
+  <bpmn:process id="master-building-lifecycle" name="Master Building Lifecycle" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- START: Message start event -->
     <bpmn:startEvent id="start_project" name="Projekt initierat">
@@ -89,6 +89,7 @@
         <camunda:field name="escalationLevel" stringValue="1" />
       </bpmn:extensionElements>
       <bpmn:incoming>flow_timer1_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation1_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- GATE 1: Investigation approved? -->
@@ -142,6 +143,7 @@
         <camunda:field name="phaseName" stringValue="pre_study" />
       </bpmn:extensionElements>
       <bpmn:incoming>flow_timer2_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation2_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- GATE 2: Pre-study approved? -->
@@ -192,6 +194,7 @@
     <bpmn:serviceTask id="escalate_phase3" name="Eskalera projektering"
                       camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer3_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation3_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- GATE 3: Design approved? -->
@@ -241,6 +244,7 @@
     <bpmn:serviceTask id="escalate_phase4" name="Eskalera upphandling"
                       camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer4_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation4_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- GATE 4: Procurement approved? -->
@@ -289,6 +293,7 @@
     <bpmn:serviceTask id="escalate_phase5" name="Eskalera produktion"
                       camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer5_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation5_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- Error boundary on production -->
@@ -350,6 +355,7 @@
     <bpmn:serviceTask id="escalate_phase6" name="Eskalera overlamning"
                       camunda:type="external" camunda:topic="escalationDelegate">
       <bpmn:incoming>flow_timer6_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation6_to_end</bpmn:outgoing>
     </bpmn:serviceTask>
 
     <!-- GATE 6: Handover approved? -->
@@ -518,6 +524,35 @@
 
     <!-- Error flows -->
     <bpmn:sequenceFlow id="flow_error_to_incident" sourceRef="error_production" targetRef="handle_incident" />
+    <bpmn:sequenceFlow id="flow_incident_resolved" sourceRef="handle_incident" targetRef="phase5_production" />
+
+    <!-- Escalation end events -->
+    <bpmn:endEvent id="end_escalation_phase1" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation1_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalation_phase2" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation2_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalation_phase3" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation3_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalation_phase4" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation4_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalation_phase5" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation5_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalation_phase6" name="Eskalering klar">
+      <bpmn:incoming>flow_escalation6_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Escalation to end flows -->
+    <bpmn:sequenceFlow id="flow_escalation1_to_end" sourceRef="escalate_phase1" targetRef="end_escalation_phase1" />
+    <bpmn:sequenceFlow id="flow_escalation2_to_end" sourceRef="escalate_phase2" targetRef="end_escalation_phase2" />
+    <bpmn:sequenceFlow id="flow_escalation3_to_end" sourceRef="escalate_phase3" targetRef="end_escalation_phase3" />
+    <bpmn:sequenceFlow id="flow_escalation4_to_end" sourceRef="escalate_phase4" targetRef="end_escalation_phase4" />
+    <bpmn:sequenceFlow id="flow_escalation5_to_end" sourceRef="escalate_phase5" targetRef="end_escalation_phase5" />
+    <bpmn:sequenceFlow id="flow_escalation6_to_end" sourceRef="escalate_phase6" targetRef="end_escalation_phase6" />
 
   </bpmn:process>
 
@@ -539,6 +574,15 @@
       <bpmndi:BPMNShape id="phase1_investigation_di" bpmnElement="phase1_investigation">
         <dc:Bounds x="240" y="180" width="120" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase1_di" bpmnElement="timer_phase1">
+        <dc:Bounds x="282" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase1_di" bpmnElement="escalate_phase1">
+        <dc:Bounds x="250" y="310" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase1_di" bpmnElement="end_escalation_phase1">
+        <dc:Bounds x="370" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate1_investigation_di" bpmnElement="gate1_investigation" isMarkerVisible="true">
         <dc:Bounds x="395" y="195" width="50" height="50" />
       </bpmndi:BPMNShape>
@@ -549,6 +593,15 @@
       <!-- Phase 2 -->
       <bpmndi:BPMNShape id="phase2_prestudy_di" bpmnElement="phase2_prestudy">
         <dc:Bounds x="580" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase2_di" bpmnElement="timer_phase2">
+        <dc:Bounds x="622" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase2_di" bpmnElement="escalate_phase2">
+        <dc:Bounds x="590" y="310" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase2_di" bpmnElement="end_escalation_phase2">
+        <dc:Bounds x="710" y="322" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate2_prestudy_di" bpmnElement="gate2_prestudy" isMarkerVisible="true">
         <dc:Bounds x="735" y="195" width="50" height="50" />
@@ -561,6 +614,15 @@
       <bpmndi:BPMNShape id="phase3_design_di" bpmnElement="phase3_design">
         <dc:Bounds x="920" y="180" width="120" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase3_di" bpmnElement="timer_phase3">
+        <dc:Bounds x="962" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase3_di" bpmnElement="escalate_phase3">
+        <dc:Bounds x="930" y="310" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase3_di" bpmnElement="end_escalation_phase3">
+        <dc:Bounds x="1050" y="322" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate3_design_di" bpmnElement="gate3_design" isMarkerVisible="true">
         <dc:Bounds x="1075" y="195" width="50" height="50" />
       </bpmndi:BPMNShape>
@@ -571,6 +633,15 @@
       <!-- Phase 4 -->
       <bpmndi:BPMNShape id="phase4_procurement_di" bpmnElement="phase4_procurement">
         <dc:Bounds x="1260" y="180" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase4_di" bpmnElement="timer_phase4">
+        <dc:Bounds x="1302" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase4_di" bpmnElement="escalate_phase4">
+        <dc:Bounds x="1270" y="310" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase4_di" bpmnElement="end_escalation_phase4">
+        <dc:Bounds x="1390" y="322" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate4_procurement_di" bpmnElement="gate4_procurement" isMarkerVisible="true">
         <dc:Bounds x="1415" y="195" width="50" height="50" />
@@ -583,6 +654,21 @@
       <bpmndi:BPMNShape id="phase5_production_di" bpmnElement="phase5_production">
         <dc:Bounds x="240" y="380" width="120" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase5_di" bpmnElement="timer_phase5">
+        <dc:Bounds x="262" y="442" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase5_di" bpmnElement="escalate_phase5">
+        <dc:Bounds x="220" y="510" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase5_di" bpmnElement="end_escalation_phase5">
+        <dc:Bounds x="340" y="522" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="error_production_di" bpmnElement="error_production">
+        <dc:Bounds x="322" y="442" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="handle_incident_di" bpmnElement="handle_incident">
+        <dc:Bounds x="390" y="510" width="100" height="60" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate5_production_di" bpmnElement="gate5_production" isMarkerVisible="true">
         <dc:Bounds x="395" y="395" width="50" height="50" />
       </bpmndi:BPMNShape>
@@ -590,8 +676,18 @@
         <dc:Bounds x="470" y="380" width="80" height="80" />
       </bpmndi:BPMNShape>
 
+      <!-- Phase 6 -->
       <bpmndi:BPMNShape id="phase6_handover_di" bpmnElement="phase6_handover">
         <dc:Bounds x="580" y="380" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="timer_phase6_di" bpmnElement="timer_phase6">
+        <dc:Bounds x="622" y="442" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="escalate_phase6_di" bpmnElement="escalate_phase6">
+        <dc:Bounds x="590" y="510" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_escalation_phase6_di" bpmnElement="end_escalation_phase6">
+        <dc:Bounds x="710" y="522" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="gate6_handover_di" bpmnElement="gate6_handover" isMarkerVisible="true">
         <dc:Bounds x="735" y="395" width="50" height="50" />
@@ -600,6 +696,7 @@
         <dc:Bounds x="810" y="380" width="80" height="80" />
       </bpmndi:BPMNShape>
 
+      <!-- Phase 7 -->
       <bpmndi:BPMNShape id="phase7_operations_di" bpmnElement="phase7_operations">
         <dc:Bounds x="920" y="380" width="120" height="80" />
       </bpmndi:BPMNShape>
@@ -610,6 +707,7 @@
         <dc:Bounds x="1150" y="380" width="80" height="80" />
       </bpmndi:BPMNShape>
 
+      <!-- Phase 8 -->
       <bpmndi:BPMNShape id="phase8_decommission_di" bpmnElement="phase8_decommission">
         <dc:Bounds x="1260" y="380" width="120" height="80" />
       </bpmndi:BPMNShape>
@@ -619,6 +717,235 @@
       <bpmndi:BPMNShape id="end_continue_ops_di" bpmnElement="end_continue_ops">
         <dc:Bounds x="1082" y="482" width="36" height="36" />
       </bpmndi:BPMNShape>
+
+      <!-- ============================================================ -->
+      <!-- SEQUENCE FLOW EDGES                                           -->
+      <!-- ============================================================ -->
+
+      <!-- Main flow -->
+      <bpmndi:BPMNEdge id="flow_start_to_init_di" bpmnElement="flow_start_to_init">
+        <di:waypoint x="66" y="220" />
+        <di:waypoint x="100" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_init_to_phase1_di" bpmnElement="flow_init_to_phase1">
+        <di:waypoint x="200" y="220" />
+        <di:waypoint x="240" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 1 flows -->
+      <bpmndi:BPMNEdge id="flow_phase1_to_gate1_di" bpmnElement="flow_phase1_to_gate1">
+        <di:waypoint x="360" y="220" />
+        <di:waypoint x="395" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate1_approve_di" bpmnElement="flow_gate1_approve">
+        <di:waypoint x="445" y="220" />
+        <di:waypoint x="470" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate1_reject_di" bpmnElement="flow_gate1_reject">
+        <di:waypoint x="420" y="245" />
+        <di:waypoint x="420" y="280" />
+        <di:waypoint x="300" y="280" />
+        <di:waypoint x="300" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 2 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase2_to_phase2_di" bpmnElement="flow_set_phase2_to_phase2">
+        <di:waypoint x="550" y="220" />
+        <di:waypoint x="580" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase2_to_gate2_di" bpmnElement="flow_phase2_to_gate2">
+        <di:waypoint x="700" y="220" />
+        <di:waypoint x="735" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate2_approve_di" bpmnElement="flow_gate2_approve">
+        <di:waypoint x="785" y="220" />
+        <di:waypoint x="810" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate2_reject_di" bpmnElement="flow_gate2_reject">
+        <di:waypoint x="760" y="245" />
+        <di:waypoint x="760" y="280" />
+        <di:waypoint x="640" y="280" />
+        <di:waypoint x="640" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 3 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase3_to_phase3_di" bpmnElement="flow_set_phase3_to_phase3">
+        <di:waypoint x="890" y="220" />
+        <di:waypoint x="920" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase3_to_gate3_di" bpmnElement="flow_phase3_to_gate3">
+        <di:waypoint x="1040" y="220" />
+        <di:waypoint x="1075" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate3_approve_di" bpmnElement="flow_gate3_approve">
+        <di:waypoint x="1125" y="220" />
+        <di:waypoint x="1150" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate3_reject_di" bpmnElement="flow_gate3_reject">
+        <di:waypoint x="1100" y="245" />
+        <di:waypoint x="1100" y="280" />
+        <di:waypoint x="980" y="280" />
+        <di:waypoint x="980" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 4 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase4_to_phase4_di" bpmnElement="flow_set_phase4_to_phase4">
+        <di:waypoint x="1230" y="220" />
+        <di:waypoint x="1260" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase4_to_gate4_di" bpmnElement="flow_phase4_to_gate4">
+        <di:waypoint x="1380" y="220" />
+        <di:waypoint x="1415" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate4_approve_di" bpmnElement="flow_gate4_approve">
+        <di:waypoint x="1465" y="220" />
+        <di:waypoint x="1490" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate4_reject_di" bpmnElement="flow_gate4_reject">
+        <di:waypoint x="1440" y="245" />
+        <di:waypoint x="1440" y="280" />
+        <di:waypoint x="1320" y="280" />
+        <di:waypoint x="1320" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Row 1 to Row 2 transition -->
+      <bpmndi:BPMNEdge id="flow_set_phase5_to_phase5_di" bpmnElement="flow_set_phase5_to_phase5">
+        <di:waypoint x="1530" y="260" />
+        <di:waypoint x="1530" y="330" />
+        <di:waypoint x="180" y="330" />
+        <di:waypoint x="180" y="420" />
+        <di:waypoint x="240" y="420" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 5 flows -->
+      <bpmndi:BPMNEdge id="flow_phase5_to_gate5_di" bpmnElement="flow_phase5_to_gate5">
+        <di:waypoint x="360" y="420" />
+        <di:waypoint x="395" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate5_approve_di" bpmnElement="flow_gate5_approve">
+        <di:waypoint x="445" y="420" />
+        <di:waypoint x="470" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate5_reject_di" bpmnElement="flow_gate5_reject">
+        <di:waypoint x="420" y="445" />
+        <di:waypoint x="420" y="480" />
+        <di:waypoint x="300" y="480" />
+        <di:waypoint x="300" y="460" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 6 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase6_to_phase6_di" bpmnElement="flow_set_phase6_to_phase6">
+        <di:waypoint x="550" y="420" />
+        <di:waypoint x="580" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase6_to_gate6_di" bpmnElement="flow_phase6_to_gate6">
+        <di:waypoint x="700" y="420" />
+        <di:waypoint x="735" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate6_approve_di" bpmnElement="flow_gate6_approve">
+        <di:waypoint x="785" y="420" />
+        <di:waypoint x="810" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate6_reject_di" bpmnElement="flow_gate6_reject">
+        <di:waypoint x="760" y="445" />
+        <di:waypoint x="760" y="480" />
+        <di:waypoint x="640" y="480" />
+        <di:waypoint x="640" y="460" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 7 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase7_to_phase7_di" bpmnElement="flow_set_phase7_to_phase7">
+        <di:waypoint x="890" y="420" />
+        <di:waypoint x="920" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase7_to_gate7_di" bpmnElement="flow_phase7_to_gate7">
+        <di:waypoint x="1040" y="420" />
+        <di:waypoint x="1075" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate7_decommission_di" bpmnElement="flow_gate7_decommission">
+        <di:waypoint x="1125" y="420" />
+        <di:waypoint x="1150" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_gate7_continue_di" bpmnElement="flow_gate7_continue">
+        <di:waypoint x="1100" y="445" />
+        <di:waypoint x="1100" y="482" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Phase 8 flows -->
+      <bpmndi:BPMNEdge id="flow_set_phase8_to_phase8_di" bpmnElement="flow_set_phase8_to_phase8">
+        <di:waypoint x="1230" y="420" />
+        <di:waypoint x="1260" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_phase8_to_end_di" bpmnElement="flow_phase8_to_end">
+        <di:waypoint x="1380" y="420" />
+        <di:waypoint x="1422" y="420" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Timer escalation flows -->
+      <bpmndi:BPMNEdge id="flow_timer1_escalation_di" bpmnElement="flow_timer1_escalation">
+        <di:waypoint x="300" y="278" />
+        <di:waypoint x="300" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_timer2_escalation_di" bpmnElement="flow_timer2_escalation">
+        <di:waypoint x="640" y="278" />
+        <di:waypoint x="640" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_timer3_escalation_di" bpmnElement="flow_timer3_escalation">
+        <di:waypoint x="980" y="278" />
+        <di:waypoint x="980" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_timer4_escalation_di" bpmnElement="flow_timer4_escalation">
+        <di:waypoint x="1320" y="278" />
+        <di:waypoint x="1320" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_timer5_escalation_di" bpmnElement="flow_timer5_escalation">
+        <di:waypoint x="280" y="478" />
+        <di:waypoint x="270" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_timer6_escalation_di" bpmnElement="flow_timer6_escalation">
+        <di:waypoint x="640" y="478" />
+        <di:waypoint x="640" y="510" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Escalation to end flows -->
+      <bpmndi:BPMNEdge id="flow_escalation1_to_end_di" bpmnElement="flow_escalation1_to_end">
+        <di:waypoint x="350" y="340" />
+        <di:waypoint x="370" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalation2_to_end_di" bpmnElement="flow_escalation2_to_end">
+        <di:waypoint x="690" y="340" />
+        <di:waypoint x="710" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalation3_to_end_di" bpmnElement="flow_escalation3_to_end">
+        <di:waypoint x="1030" y="340" />
+        <di:waypoint x="1050" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalation4_to_end_di" bpmnElement="flow_escalation4_to_end">
+        <di:waypoint x="1370" y="340" />
+        <di:waypoint x="1390" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalation5_to_end_di" bpmnElement="flow_escalation5_to_end">
+        <di:waypoint x="320" y="540" />
+        <di:waypoint x="340" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_escalation6_to_end_di" bpmnElement="flow_escalation6_to_end">
+        <di:waypoint x="690" y="540" />
+        <di:waypoint x="710" y="540" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Error / incident flows -->
+      <bpmndi:BPMNEdge id="flow_error_to_incident_di" bpmnElement="flow_error_to_incident">
+        <di:waypoint x="340" y="478" />
+        <di:waypoint x="340" y="494" />
+        <di:waypoint x="440" y="494" />
+        <di:waypoint x="440" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_incident_resolved_di" bpmnElement="flow_incident_resolved">
+        <di:waypoint x="390" y="540" />
+        <di:waypoint x="190" y="540" />
+        <di:waypoint x="190" y="420" />
+        <di:waypoint x="240" y="420" />
+      </bpmndi:BPMNEdge>
 
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -47,9 +47,7 @@ temp/
 *.db
 *.sqlite
 
-# Docker
-.docker/
-docker-compose.override.yml
+
 
 # Editor
 *~

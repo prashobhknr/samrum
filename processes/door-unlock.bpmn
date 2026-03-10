@@ -8,7 +8,7 @@
                    targetNamespace="http://doorman.local/door-unlock">
 
   <!-- Process Definition: Door Unlock -->
-  <bpmn:process id="door-unlock" name="Door Unlock Process" isExecutable="true">
+  <bpmn:process id="door-unlock" name="Door Unlock Process" isExecutable="true" camunda:historyTimeToLive="180">
     
     <!-- START EVENT -->
     <bpmn:startEvent id="start-event" name="Start Door Unlock">

@@ -39,7 +39,7 @@
   <!-- All discipline subprocesses called as Call Activities               -->
   <!-- linking to processes/sub/*.bpmn                                     -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-phase" name="Projekteringsfas" isExecutable="true">
+  <bpmn:process id="design-phase" name="Projekteringsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Projektering startad">
       <bpmn:outgoing>flow_start_to_system</bpmn:outgoing>

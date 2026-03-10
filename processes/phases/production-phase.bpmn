@@ -29,7 +29,7 @@
   <!--   4. Coordinated functional testing (SFP)                           -->
   <!--   5. Final inspection (Slutbesiktning)                              -->
   <!-- ================================================================== -->
-  <bpmn:process id="production-phase" name="Produktionsfas" isExecutable="true">
+  <bpmn:process id="production-phase" name="Produktionsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Produktion startad">
       <bpmn:outgoing>flow_start_to_kickoff</bpmn:outgoing>

@@ -14,7 +14,7 @@
   <!-- Covers electrical design, panel specification, lighting,            -->
   <!-- installation, and commissioning                                     -->
   <!-- ================================================================== -->
-  <bpmn:process id="electrical" name="El - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="electrical" name="El - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Elprocess startad">
       <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>

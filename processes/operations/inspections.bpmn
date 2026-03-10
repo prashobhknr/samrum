@@ -19,7 +19,7 @@
   <!--   - Energi: Energy declaration (every 10 years)                    -->
   <!--   - Radon: Radon measurement (when required)                       -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-inspections" name="Lagstadgade besiktningar" isExecutable="true">
+  <bpmn:process id="operations-inspections" name="Lagstadgade besiktningar" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- Timer-based start for recurring inspections -->
     <bpmn:startEvent id="start" name="Besiktningscykel startad">

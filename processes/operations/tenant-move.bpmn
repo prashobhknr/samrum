@@ -15,7 +15,7 @@
   <!--   - Existing tenant move-out                                        -->
   <!--   - Tenant modification (expansion/contraction)                     -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-tenant" name="Hyresgast in-/utflyttning" isExecutable="true">
+  <bpmn:process id="operations-tenant" name="Hyresgast in-/utflyttning" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Hyresgastandring">
       <bpmn:outgoing>flow_start_to_type</bpmn:outgoing>

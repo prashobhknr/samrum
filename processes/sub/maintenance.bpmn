@@ -16,7 +16,7 @@
   <!-- Generalized for any object type: doors, HVAC, electrical, etc.      -->
   <!-- Uses timer start for recurring scheduled maintenance                -->
   <!-- ================================================================== -->
-  <bpmn:process id="maintenance-cycle" name="Underhallscykel - Generaliserad" isExecutable="true">
+  <bpmn:process id="maintenance-cycle" name="Underhallscykel - Generaliserad" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- Timer start: recurring maintenance trigger -->
     <bpmn:startEvent id="start" name="Underhall schemalagd">

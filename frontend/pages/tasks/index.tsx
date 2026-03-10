@@ -105,7 +105,8 @@ export default function TaskInbox() {
         <title>Uppgifter - Doorman</title>
       </Head>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-samrum-text mb-6">Uppgifter</h1>
 
         {/* Tabs */}
@@ -237,6 +238,7 @@ export default function TaskInbox() {
             {tasks.length} uppgift{tasks.length !== 1 ? 'er' : ''}
           </p>
         )}
+      </div>
       </div>
     </SamrumLayout>
   );

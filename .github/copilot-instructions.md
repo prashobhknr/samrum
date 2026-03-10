@@ -32,7 +32,7 @@ frontend/              Next.js 14 + TypeScript UI (port 3001)
   pages/               Next.js pages router (NOT app router)
   components/          Shared UI (SamrumLayout, DynamicForm, DataGrid, etc.)
   lib/                 api.ts (Axios), auth.ts (localStorage), store.ts (Zustand)
-database/migrations/   SQL migrations (001–013), auto-applied by Docker
+database/migrations/   SQL migrations (001–013), applied via psql or backend migrate script
 processes/             BPMN files: 8 lifecycle phases, 14 discipline subprocesses
 ```
 
@@ -52,8 +52,9 @@ npm run build          # Production build
 npm run type-check     # tsc --noEmit
 npm test               # Jest + React Testing Library
 
-# Docker
-docker-compose up -d   # PostgreSQL (5432) + pgAdmin (5050) + backend (3000)
+# Database
+# PostgreSQL runs locally (not Docker). Ensure PostgreSQL is installed and running.
+# Connection: postgresql://doorman_user:doorman_pass@localhost:5432/doorman_db
 ```
 
 ## Code Conventions
@@ -116,4 +117,4 @@ Delegates referenced via `camunda:delegateExpression="${delegateName}"`
 - Routes `createFormsRouter()` / `createObjectsRouter()` exist but may not be mounted in `index.ts` — check before assuming endpoints work
 - `FormService` / `PermissionService` are **classes**, not plain functions (despite some docs suggesting otherwise)
 - Frontend auth is **demo-mode only** (localStorage + base64) — Keycloak integration planned but not active
-- Backend tests depend on PostgreSQL — run `docker-compose up -d` first
+- Backend tests depend on PostgreSQL — ensure local PostgreSQL is running first

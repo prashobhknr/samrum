@@ -52,8 +52,8 @@
 - Key components: `SamrumLayout.tsx` (page shell), `DynamicForm.tsx` (renders `FormSchema`), `DataGrid.tsx`, `Header.tsx`, `TreeNav.tsx`, `AdminTreeNav.tsx`
 
 **Database:**
-- PostgreSQL via Docker
-- Migrations in `database/migrations/` — applied once at container init
+- PostgreSQL running locally
+- Migrations in `database/migrations/` — applied via psql or backend migrate script
 
 ## Data Flow
 
@@ -145,7 +145,7 @@
 
 **Database Init:**
 - Location: `database/migrations/` (13 numbered SQL files)
-- Triggers: Docker container first start via `docker-entrypoint-initdb.d`
+- Triggers: Manual execution via psql or backend migrate script
 - Key migrations: `001` OMS schema, `002` Samrum schema, `006` module_view_columns, `007` OMS types from Samrum
 
 ## Error Handling

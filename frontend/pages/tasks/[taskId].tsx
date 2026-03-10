@@ -179,6 +179,7 @@ export default function TaskPage() {
         <title>{task?.name || 'Uppgift'} - Doorman</title>
       </Head>
 
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Task header */}
         {task && (
@@ -255,6 +256,7 @@ export default function TaskPage() {
             <p className="text-samrum-muted mt-4">Laddar uppgift...</p>
           </div>
         )}
+      </div>
       </div>
     </SamrumLayout>
   );

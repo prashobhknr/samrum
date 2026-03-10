@@ -13,7 +13,7 @@
   <!-- Source: Passagesystem process.bpm (Bizagi)                          -->
   <!-- Covers design through production for door/passage objects           -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-door-process" name="Dorrprocess - Projektering till produktion" isExecutable="true">
+  <bpmn:process id="design-door-process" name="Dorrprocess - Projektering till produktion" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- START -->
     <bpmn:startEvent id="start" name="Dorr-process startad">

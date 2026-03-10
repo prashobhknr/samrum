@@ -32,7 +32,7 @@
   <!--   5. Production: tenant notification, installation, inspection      -->
   <!--   6. Handback: tenant return, verification, Doorman update, audit   -->
   <!-- ================================================================== -->
-  <bpmn:process id="renovation-mini-project" name="Renoveringsprojekt" isExecutable="true">
+  <bpmn:process id="renovation-mini-project" name="Renoveringsprojekt" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- ============================================================== -->
     <!-- START: None start — called from change-management              -->

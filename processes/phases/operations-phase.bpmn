@@ -26,7 +26,7 @@
   <!--   - Warranty management                                             -->
   <!--   - Tenant move-in/move-out                                         -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-phase" name="Forvaltningsfas" isExecutable="true">
+  <bpmn:process id="operations-phase" name="Forvaltningsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Forvaltning startad">
       <bpmn:outgoing>flow_start_to_setup</bpmn:outgoing>
