@@ -19,7 +19,7 @@
   <!--   - Moderate (Ombyggnad): mini-project with design/production loop  -->
   <!--   - Major (Stor ombyggnad): escalate to new project                 -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-change-management" name="Andringshantering" isExecutable="true">
+  <bpmn:process id="operations-change-management" name="Andringshantering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- ============================================================== -->
     <!-- STEP 1: Change Request Received                                -->

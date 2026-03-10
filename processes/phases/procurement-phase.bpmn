@@ -26,7 +26,7 @@
   <!--   5. Contract award + negotiation                                   -->
   <!--   6. Contract signing                                               -->
   <!-- ================================================================== -->
-  <bpmn:process id="procurement-phase" name="Upphandlingsfas" isExecutable="true">
+  <bpmn:process id="procurement-phase" name="Upphandlingsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Upphandling startad">
       <bpmn:outgoing>flow_start_to_strategy</bpmn:outgoing>

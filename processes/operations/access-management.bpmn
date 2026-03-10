@@ -19,7 +19,7 @@
   <!--   - Access audits                                                   -->
   <!--   - Lost card/key handling                                          -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-access-management" name="Behorighetshantering" isExecutable="true">
+  <bpmn:process id="operations-access-management" name="Behorighetshantering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Behorighetsbegaran">
       <bpmn:outgoing>flow_start_to_type</bpmn:outgoing>

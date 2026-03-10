@@ -15,7 +15,7 @@
        ================================================================ -->
   <bpmn:message id="msg_incident_reported" name="msg_incident_reported" />
 
-  <bpmn:process id="incident-response" name="Akut- och incidenthantering" isExecutable="true">
+  <bpmn:process id="incident-response" name="Akut- och incidenthantering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- ===================== START EVENT ===================== -->
     <bpmn:startEvent id="start_incident" name="Incident rapporterad">

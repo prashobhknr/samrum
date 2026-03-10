@@ -24,7 +24,7 @@
   <bpmn:message id="msg_bulk_maintenance" name="msg_bulk_maintenance" />
   <bpmn:message id="msg_portfolio_report" name="msg_portfolio_report" />
 
-  <bpmn:process id="building-portfolio" name="Fastighetsportfolj" isExecutable="true">
+  <bpmn:process id="building-portfolio" name="Fastighetsportfolj" isExecutable="true" camunda:historyTimeToLive="180">
 
     <!-- ============================================================== -->
     <!-- Start: Portfolio process runs continuously                     -->

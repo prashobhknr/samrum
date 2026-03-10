@@ -24,7 +24,7 @@
   <!--   5. Warranty period activation                                     -->
   <!--   6. FM acceptance                                                  -->
   <!-- ================================================================== -->
-  <bpmn:process id="handover-phase" name="Overlamningsfas" isExecutable="true">
+  <bpmn:process id="handover-phase" name="Overlamningsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Overlamning startad">
       <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>

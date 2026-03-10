@@ -61,6 +61,10 @@ export default function SelectProjectPage() {
           <span className="text-xl font-bold tracking-widest">SAMRUM</span>
         </div>
         <div className="flex items-center gap-4">
+          <Link href="/dashboard"
+            className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
+            Översikt
+          </Link>
           <Link href="/admin/projects"
             className="text-slate-300 hover:text-white text-sm transition-colors hidden md:block">
             Administrera projekt

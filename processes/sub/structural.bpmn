@@ -13,7 +13,7 @@
   <!-- Samrum types: Grundkonstruktion, Grundlaggning                      -->
   <!-- Standards: Eurocode (SS-EN 1990-1999), EKS 12 (Swedish national)    -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-structural" name="Konstruktion - Projektering" isExecutable="true">
+  <bpmn:process id="design-structural" name="Konstruktion - Projektering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Konstruktionsprocess startad">
       <bpmn:outgoing>flow_start_to_geotech</bpmn:outgoing>

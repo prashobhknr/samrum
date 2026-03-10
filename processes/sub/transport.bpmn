@@ -16,7 +16,7 @@
   <!-- Covers: passenger lifts, goods lifts, platform lifts, escalators    -->
   <!-- Regulatory: Boverkets foreskrifter (BFS), AFS 2003:6 (work safety)  -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-transport" name="Hiss/Transport - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="design-transport" name="Hiss/Transport - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Hissprocess startad">
       <bpmn:outgoing>flow_start_to_traffic</bpmn:outgoing>

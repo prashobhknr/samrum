@@ -22,7 +22,7 @@
   <!--   6. Demolition / renovation                                        -->
   <!--   7. Archive data and close lifecycle                               -->
   <!-- ================================================================== -->
-  <bpmn:process id="decommission-phase" name="Avvecklingsfas" isExecutable="true">
+  <bpmn:process id="decommission-phase" name="Avvecklingsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Avveckling startad">
       <bpmn:outgoing>flow_start_to_plan</bpmn:outgoing>

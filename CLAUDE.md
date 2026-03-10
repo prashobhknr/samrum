@@ -26,8 +26,7 @@ doorman/
 │   ├── components/   # Shared UI (SamrumLayout, DynamicForm, DataGrid, etc.)
 │   └── lib/          # API client (api.ts), auth (auth.ts), store (store.ts)
 ├── database/
-│   └── migrations/   # SQL migration files (auto-run in Docker)
-└── docker-compose.yml
+│   └── migrations/   # SQL migration files (apply via psql or backend migrate script)
 ```
 
 ## Commands
@@ -55,11 +54,13 @@ npm run type-check   # TypeScript check
 npm test             # Jest + jsdom tests
 ```
 
-### Docker
+### Database
+PostgreSQL runs locally (not Docker). Ensure PostgreSQL is installed and running.
 ```bash
-docker-compose up -d          # Start PostgreSQL + pgAdmin + backend
-docker-compose down           # Stop all services
-docker-compose logs -f        # Tail all logs
+# Restore from dump
+pg_restore -U doorman_user -d doorman_db database/backups/doorman.dump
+# Or apply migrations manually
+psql -U doorman_user -d doorman_db -f database/migrations/001_create_oms_schema.sql
 ```
 
 ## Architecture
@@ -115,7 +116,7 @@ UI labels are in **Swedish** (the system is deployed in a Swedish context).
 
 - **Connection**: `postgresql://doorman_user:doorman_pass@localhost:5432/doorman_db`
 - **pgAdmin**: http://localhost:5050 (admin@doorman.local / admin)
-- Migrations in `database/migrations/` are automatically applied when the Docker postgres container initializes (via `docker-entrypoint-initdb.d`)
+- Migrations in `database/migrations/` are applied manually via `psql` or the backend migrate script (`npm run migrate`)
 - All SQL queries in backend services use **parameterized queries** (`$1`, `$2`) — never interpolate user input
 
 ## Commit Convention

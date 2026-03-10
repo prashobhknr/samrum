@@ -14,7 +14,7 @@
   <!-- Covers design, installation, and operational management of          -->
   <!-- access control systems (card readers, keypads, biometrics)          -->
   <!-- ================================================================== -->
-  <bpmn:process id="access-control" name="Passagekontroll - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="access-control" name="Passagekontroll - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Passagekontroll startad">
       <bpmn:outgoing>flow_start_to_define</bpmn:outgoing>

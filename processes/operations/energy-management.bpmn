@@ -19,7 +19,7 @@
   <!--   4. Implement measures                                             -->
   <!--   5. Verify results                                                 -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-energy" name="Energiuppfoljning" isExecutable="true">
+  <bpmn:process id="operations-energy" name="Energiuppfoljning" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Energicykel startad">
             <bpmn:outgoing>flow_start_to_collect</bpmn:outgoing>

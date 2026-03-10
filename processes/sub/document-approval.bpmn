@@ -29,7 +29,7 @@
   <!--   E = Brandskyddsdokumentation (Fire safety doc)                    -->
   <!--   F = Kontrollplan (Control plan)                                   -->
   <!-- ================================================================== -->
-  <bpmn:process id="document-approval" name="Dokumentgodkannande" isExecutable="true">
+  <bpmn:process id="document-approval" name="Dokumentgodkannande" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Dokument inlamnat">
       <bpmn:outgoing>flow_start_to_classify</bpmn:outgoing>

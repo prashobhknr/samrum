@@ -21,7 +21,7 @@
   <!--   5. Project scope definition and timeline                          -->
   <!--   6. Phase gate: budget + scope approval                            -->
   <!-- ================================================================== -->
-  <bpmn:process id="pre-study-phase" name="Forstudiefas" isExecutable="true">
+  <bpmn:process id="pre-study-phase" name="Forstudiefas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Forstudie startad">
       <bpmn:outgoing>flow_start_to_concept</bpmn:outgoing>

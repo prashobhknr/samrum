@@ -13,7 +13,7 @@
   <!-- Source: Ventilation.bpm (Bizagi)                                    -->
   <!-- Covers HVAC design, duct sizing, balancing, and commissioning       -->
   <!-- ================================================================== -->
-  <bpmn:process id="hvac" name="VVS - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="hvac" name="VVS - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="VVS-process startad">
       <bpmn:outgoing>flow_start_to_climate</bpmn:outgoing>

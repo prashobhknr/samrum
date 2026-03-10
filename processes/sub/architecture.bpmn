@@ -17,7 +17,7 @@
   <!-- This is the "backbone" subprocess — other disciplines reference     -->
   <!-- the architect's room layout and spatial breakdown.                  -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-architecture" name="Arkitektur - Projektering" isExecutable="true">
+  <bpmn:process id="design-architecture" name="Arkitektur - Projektering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Arkitekturprocess startad">
       <bpmn:outgoing>flow_start_to_layout</bpmn:outgoing>

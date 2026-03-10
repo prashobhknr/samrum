@@ -13,7 +13,7 @@
   <!-- Samrum types: Avloppssystem, VA                                     -->
   <!-- Standards: BBR 6:6 (water), BBR 6:4 (drainage), SS-EN 12056        -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-plumbing" name="Sanitet/Avlopp - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="design-plumbing" name="Sanitet/Avlopp - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="VA-process startad">
       <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>

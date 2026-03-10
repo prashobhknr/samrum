@@ -17,7 +17,7 @@
   <!--   - 2-year warranty inspection (Garantibesiktning)                  -->
   <!--   - 5-year warranty expiry and final inspection                     -->
   <!-- ================================================================== -->
-  <bpmn:process id="operations-warranty" name="Garantihantering" isExecutable="true">
+  <bpmn:process id="operations-warranty" name="Garantihantering" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Garantiperiod aktiv">
       <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>

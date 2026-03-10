@@ -14,7 +14,7 @@
   <!-- Covers fire alarm design, fire function specification,              -->
   <!-- installation, and commissioning                                     -->
   <!-- ================================================================== -->
-  <bpmn:process id="fire-safety" name="Brandsakerhet - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="fire-safety" name="Brandsakerhet - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Brandsäkerhet startad">
       <bpmn:outgoing>flow_start_to_fork</bpmn:outgoing>

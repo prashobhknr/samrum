@@ -22,7 +22,7 @@
   <!--                                                                     -->
   <!-- Samrum modules: 94 (Programprocessen), 69, 71, 92                   -->
   <!-- ================================================================== -->
-  <bpmn:process id="investigation-phase" name="Utredningsfas" isExecutable="true">
+  <bpmn:process id="investigation-phase" name="Utredningsfas" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Utredning startad">
       <bpmn:outgoing>flow_start_to_stakeholder</bpmn:outgoing>

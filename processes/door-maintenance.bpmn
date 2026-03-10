@@ -8,7 +8,7 @@
                    targetNamespace="http://doorman.local/door-maintenance">
 
   <!-- Process Definition: Door Maintenance -->
-  <bpmn:process id="door-maintenance" name="Door Maintenance Process" isExecutable="true">
+  <bpmn:process id="door-maintenance" name="Door Maintenance Process" isExecutable="true" camunda:historyTimeToLive="180">
     
     <!-- START EVENT -->
     <bpmn:startEvent id="start-event" name="Start Maintenance">

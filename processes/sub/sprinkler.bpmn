@@ -16,7 +16,7 @@
   <!-- Design: hazard class, pipe network, water supply, pump sizing       -->
   <!-- Production: installation, pressure test, flow test                  -->
   <!-- ================================================================== -->
-  <bpmn:process id="design-sprinkler" name="Sprinkler - Livscykelprocess" isExecutable="true">
+  <bpmn:process id="design-sprinkler" name="Sprinkler - Livscykelprocess" isExecutable="true" camunda:historyTimeToLive="180">
 
     <bpmn:startEvent id="start" name="Sprinklerprocess startad">
       <bpmn:outgoing>flow_start_to_hazard</bpmn:outgoing>
